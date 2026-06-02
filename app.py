@@ -70,6 +70,40 @@ def protect_coach_space():
         return jsonify({"ok": False, "error": "Connexion coach requise."}), 401
     return redirect("/login")
 
+
+
+@app.before_request
+def track_basic_visits():
+    """Compteur léger de visites pour le centre de commandement.
+    On compte une visite par session et par jour pour éviter de gonfler les chiffres avec les assets/API.
+    """
+    try:
+        if request.method != "GET":
+            return None
+        path = request.path or "/"
+        if path.startswith(("/static/", "/api/", "/health", "/favicon.ico")):
+            return None
+        today = date.today().isoformat()
+        stamp = session.get("ghost_visit_counted")
+        if stamp == today:
+            return None
+        data = load_data()
+        stats = data.setdefault("visit_stats", {})
+        old_today = stats.get("today")
+        stats["total"] = int(stats.get("total") or 0) + 1
+        stats["today"] = today
+        stats["today_count"] = int(stats.get("today_count") or 0) + 1 if old_today == today else 1
+        stats.setdefault("by_day", {})
+        stats["by_day"][today] = int(stats["by_day"].get(today) or 0) + 1
+        stats["last_path"] = path
+        stats["last_at"] = now_fr() if "now_fr" in globals() else datetime.now().strftime("%d/%m/%Y %H:%M")
+        data["visit_stats"] = stats
+        save_data(data)
+        session["ghost_visit_counted"] = today
+    except Exception as e:
+        print("[GHOST] visit counter skipped:", e)
+    return None
+
 @app.route("/coach/login", methods=["GET", "POST"])
 def coach_login():
     if not admin_auth_enabled():
@@ -83,7 +117,7 @@ def coach_login():
             session["coach_logged_in"] = True
             return redirect("/")
         error = "Identifiants incorrects."
-    return render_template("coach_login.html", error=error, username=ADMIN_USERNAME)
+    return render_template("coach_login.html", error=error, username="")
 
 @app.route("/coach/logout")
 def coach_logout():
@@ -95,7 +129,7 @@ def common_login():
     # Porte d'entrée commune : coach ou élève.
     if admin_logged_in():
         return redirect("/")
-    return render_template("entry.html", username=ADMIN_USERNAME)
+    return render_template("entry.html", username="")
 
 
 # ── Dossiers uploads / reports ─────────────────────────────
@@ -1445,6 +1479,7 @@ def public_student_payload(student):
         "client_games": student.get("client_games", [])[-20:],
         "client_notes": student.get("client_notes", [])[-12:],
         "client_appointments": student.get("client_appointments", [])[-12:],
+        "payments": student.get("payments", [])[-30:],
         "client_feedback": coach_feedback[-20:],
         "client_divers": divers[-20:],
         "client_notifications": ghost_notifications[:20],
@@ -1507,6 +1542,22 @@ def finance_summary(data):
                 paid += amount
                 by_plan[plan.get("name", "Formule")] = by_plan.get(plan.get("name", "Formule"), 0) + amount
             elif u.get("payment_status") in ("pending", "overdue", "restricted", None, "") or u.get("pending_plan_request"):
+                pending += amount
+    # V30 : inclut aussi les versements historiques saisis directement dans les fiches Ghosts,
+    # même s'ils n'ont pas encore été recopiés dans payments_log.
+    seen_payment_ids = {rec.get("id") for rec in logs if rec.get("id")}
+    for idx, stu in enumerate(data.get("students", []) or []):
+        for pmt in stu.get("payments", []) or []:
+            pid = pmt.get("id")
+            if pid and pid in seen_payment_ids:
+                continue
+            amount = safe_int(pmt.get("amount"), 0)
+            label = pmt.get("label") or "Versement fiche Ghost"
+            status = pmt.get("status") or "paid"
+            if status in ("paid", "validated", "confirmed"):
+                paid += amount
+                by_plan[label] = by_plan.get(label, 0) + amount
+            elif status in ("pending", "awaiting_validation"):
                 pending += amount
     # demandes d'inscription en attente : visibilité dans la finance mais non encaissé validé
     for req in data.get("registration_requests", []) or []:
@@ -1638,7 +1689,8 @@ def index():
         pairs=data.get("pairs",[]),
         dashboard_tournaments=enriched_tournaments(data, 3),
         price_grid=data.get("price_grid",{}),
-        price_plans=data.get("client_price_plans") or default_client_price_plans())
+        price_plans=data.get("client_price_plans") or default_client_price_plans(),
+        visit_stats=data.get("visit_stats", {}))
 
 @app.route("/student/<int:idx>")
 def student_page(idx):
@@ -2248,7 +2300,7 @@ def update_finance():
     action = body.get("action")
     if action == "add_payment":
         entry = {
-            "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+            "id": datetime.now().strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:4],
             "date": body.get("date", datetime.now().strftime("%d/%m/%Y")),
             "amount": float(body.get("amount", 0)),
             "label": body.get("label", ""),
@@ -2256,13 +2308,32 @@ def update_finance():
             "status": body.get("status", "paid"),
         }
         s.setdefault("payments", []).append(entry)
+        # V30 : un versement saisi dans la fiche individuelle est aussi visible côté Ghost
+        # et comptabilisé dans les finances globales.
+        user = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
+        if user:
+            rec = {"id": entry["id"], "date": entry["date"], "user_id": user.get("id"), "student_index": idx, "student_name": s.get("name"), "plan_key": entry.get("type"), "plan": entry.get("label") or "Versement", "amount": safe_int(entry.get("amount"), 0), "amount_label": format_fcfa(entry.get("amount")), "status": entry.get("status", "paid"), "source": "student_finance"}
+            user.setdefault("payment_history", []).insert(0, rec)
+            user["payment_history"] = user.get("payment_history", [])[:80]
+            data.setdefault("payments_log", []).insert(0, rec)
+            data["payments_log"] = data.get("payments_log", [])[:400]
     elif action == "delete_payment":
         pid = body.get("payment_id")
         s["payments"] = [p for p in s.get("payments", []) if p.get("id") != pid]
+        for u in data.get("users", []):
+            if u.get("student_index") == idx:
+                u["payment_history"] = [p for p in u.get("payment_history", []) if p.get("id") != pid]
+        data["payments_log"] = [p for p in data.get("payments_log", []) if p.get("id") != pid]
     elif action == "update_status":
         pid = body.get("payment_id"); status = body.get("status")
-        for p in s.get("payments", []):
-            if p.get("id") == pid: p["status"] = status; break
+        for pmt in s.get("payments", []):
+            if pmt.get("id") == pid: pmt["status"] = status; break
+        for u in data.get("users", []):
+            if u.get("student_index") == idx:
+                for pmt in u.get("payment_history", []):
+                    if pmt.get("id") == pid: pmt["status"] = status
+        for pmt in data.get("payments_log", []):
+            if pmt.get("id") == pid: pmt["status"] = status
     elif action == "set_plan":
         s["billing_plan"] = body.get("billing_plan", "")
         s["billing_note"] = body.get("billing_note", "")
@@ -2578,6 +2649,7 @@ def admin_clients():
         payment_logs=data.get("payments_log", [])[:80],
         tournaments=enriched_tournaments(data, 30),
         messages=data.get("student_messages", [])[:30],
+        visit_stats=data.get("visit_stats", {}),
     )
 
 @app.route("/api/client/registration/request", methods=["POST"])
@@ -2687,7 +2759,8 @@ def api_client_register():
         "plan": code.get("plan", "session_60"),
         "payment_status": "free" if code.get("kind") == "app_access" or code.get("plan") == "no_plan" else "pending",
         "amount_due": "0 FCFA" if code.get("kind") == "app_access" or code.get("plan") == "no_plan" else (code.get("amount_due") or default_amount_for_plan(code.get("plan", "session_60"))),
-        "app_access_status": "paid" if code.get("kind") == "app_access" or code.get("plan") == "no_plan" else "pending",
+        "app_access_status": "offered" if code.get("free_access") else ("paid" if code.get("kind") == "app_access" or code.get("plan") == "no_plan" else "pending"),
+        "registration_kind": "offered" if code.get("free_access") else "paid",
         "registration_validated_at": code.get("created_at") if code.get("kind") == "app_access" or code.get("plan") == "no_plan" else "",
         "payment_reminders": 0,
         "access_restricted": False,
@@ -2859,18 +2932,34 @@ def api_admin_generate_code():
     else:
         try: student_index = int(student_index)
         except Exception: student_index = None
-    selected_plan = find_client_plan(data, body.get("plan") or "session_60")
+    access_kind = (body.get("access_kind") or "paid_registration").strip()
+    free_access = access_kind == "free_registration"
+    # V30 : les codes manuels servent à ouvrir l'accès Ghost. On distingue inscription payée et offerte.
     entry = {
         "id": str(uuid.uuid4()),
         "code": code,
+        "kind": "app_access",
         "student_index": student_index,
         "email_hint": (body.get("email") or "").strip().lower(),
-        "plan": selected_plan.get("key") or body.get("plan") or "session_60",
-        "amount_due": selected_plan.get("price") or default_amount_for_plan(body.get("plan") or "session_60"),
+        "plan": "no_plan",
+        "amount_due": "0 FCFA",
         "created_at": now_fr(),
         "used": False,
+        "free_access": free_access,
+        "access_label": "Inscription offerte" if free_access else "Inscription 5 000 FCFA",
     }
     data.setdefault("registration_codes", []).insert(0, entry)
+    if not free_access:
+        # Comptabilise uniquement les inscriptions réellement payées.
+        payment_record = {
+            "id": str(uuid.uuid4()), "date": now_fr(), "user_id": None,
+            "student_index": student_index, "student_name": None,
+            "plan_key": "registration", "plan": "Inscription Ghost",
+            "amount": 5000, "amount_label": "5 000 FCFA", "status": "paid",
+            "source": "manual_code",
+        }
+        data.setdefault("payments_log", []).insert(0, payment_record)
+        data["payments_log"] = data.get("payments_log", [])[:300]
     save_data(data)
     return jsonify({"ok": True, "code": entry})
 

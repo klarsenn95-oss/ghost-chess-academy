@@ -26,7 +26,7 @@ button{width:100%;margin-top:18px;border:0;border-radius:14px;background:#cc1a1a
     <div class="sub">Accès coach</div>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
     <label>Identifiant coach</label>
-    <input name="username" value="{{ username }}" autocomplete="username">
+    <input name="username" value="{{ username or '' }}" placeholder="Identifiant coach" autocomplete="username">
     <label>Mot de passe</label>
     <input type="password" name="password" autocomplete="current-password" autofocus>
     <button>Entrer dans le centre coach</button>

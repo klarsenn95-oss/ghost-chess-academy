@@ -462,6 +462,46 @@ document.getElementById('shuffleBtn').addEventListener('click',()=>{
   if(ytPlayer){ try{ ytPlayer.setShuffle(true); ytPlayer.nextVideo(); ytPlayer.playVideo(); setPlayerStatus('Recherche aléatoire…'); }catch(e){ onPlayerError(); } }
 });
 window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo();}catch(e){} } }, {once:true});
+
+// V30 mobile stabilizer: keeps iframe tall enough and makes menu reliable on phones.
+(function(){
+  const isMobile = () => window.matchMedia('(max-width: 820px)').matches;
+  let mobileHeightTimer = null;
+  function hardResizeFrame(){
+    if(!frame) return;
+    try{
+      const d = frame.contentDocument || frame.contentWindow.document;
+      if(!d) return;
+      const h = Math.max(
+        window.innerHeight || 720,
+        d.documentElement.scrollHeight || 0,
+        d.body ? d.body.scrollHeight : 0,
+        d.body ? d.body.offsetHeight : 0,
+        d.documentElement.offsetHeight || 0
+      ) + (isMobile()?520:260);
+      frame.style.height = h + 'px';
+      const fw = document.getElementById('frameWrap');
+      if(fw) fw.style.minHeight = Math.min(h, 2600) + 'px';
+    }catch(e){ if(isMobile()) frame.style.height='2200px'; }
+  }
+  function bindMobileScrollFix(){
+    clearInterval(mobileHeightTimer);
+    hardResizeFrame();
+    [80,250,600,1200,2200,4200].forEach(ms=>setTimeout(hardResizeFrame,ms));
+    if(isMobile()) mobileHeightTimer = setInterval(hardResizeFrame, 1600);
+  }
+  if(frame){ frame.addEventListener('load', bindMobileScrollFix); }
+  window.addEventListener('resize', bindMobileScrollFix, {passive:true});
+  window.addEventListener('orientationchange', ()=>setTimeout(bindMobileScrollFix,450), {passive:true});
+  document.querySelectorAll('.shell-link').forEach(btn=>{
+    btn.addEventListener('touchend', ()=>setTimeout(()=>{
+      try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+      bindMobileScrollFix();
+    },120), {passive:true});
+  });
+  bindMobileScrollFix();
+})();
+
 </script>
 </body>
 </html>
