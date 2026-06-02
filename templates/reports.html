@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>📄 Rapports — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{overflow:auto!important;height:auto!important;display:block!important;background:#050505;}
+.rp-wrap{max-width:900px;margin:0 auto;padding:28px 20px 100px;}
+.rp-header{display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap;}
+.rp-title{font-size:24px;font-weight:800;color:#fff;}
+
+.rp-panel{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:14px;padding:20px;margin-bottom:16px;}
+.rp-section-title{font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
+
+.fi{background:#060606;border:1px solid #1e1e1e;border-radius:8px;color:#aaa;font-size:13px;padding:8px 12px;font-family:inherit;}
+.fi:focus{outline:none;border-color:#444;}
+
+/* Ghost selector */
+.ghost-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.ghost-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
+  background:#111;border:1px solid #1e1e1e;font-size:12px;color:#666;cursor:pointer;transition:.15s;font-family:inherit;}
+.ghost-chip:hover{border-color:#333;color:#aaa;}
+.ghost-chip.selected{border-color:var(--red);color:#fff;background:#cc1a1a18;}
+.ghost-chip .gc-emoji{font-size:14px;}
+
+/* Week picker */
+.week-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.week-btn{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:6px 14px;
+  font-size:12px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;}
+.week-btn:hover{border-color:#333;color:#aaa;}
+.week-btn.active{border-color:var(--red);color:var(--red);background:#cc1a1a11;}
+
+/* PDF list */
+.pdf-list{display:flex;flex-direction:column;gap:6px;}
+.pdf-row{display:flex;align-items:center;gap:12px;padding:10px 14px;
+  background:#060606;border:1px solid #111;border-radius:10px;transition:.15s;}
+.pdf-row:hover{border-color:#222;}
+.pdf-icon{font-size:18px;flex-shrink:0;}
+.pdf-name{font-size:13px;color:#ccc;flex:1;word-break:break-all;}
+.pdf-meta{font-size:11px;color:#444;white-space:nowrap;}
+.pdf-dl{background:none;border:1px solid #1e1e1e;border-radius:6px;padding:4px 10px;
+  color:#555;font-size:11px;cursor:pointer;font-family:inherit;transition:.15s;text-decoration:none;display:inline-block;}
+.pdf-dl:hover{border-color:#444;color:#aaa;}
+
+/* Cron info */
+.cron-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;background:#0a0a0a;border:1px solid #1a1a1a;font-size:11px;color:#555;}
+.cron-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Progress */
+.gen-progress{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;display:none;}
+.gen-progress.visible{display:block;}
+.gen-result-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="rp-wrap">
+
+  <div class="rp-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
+    <div class="rp-title">📄 Rapports PDF</div>
+    <div class="cron-badge" style="margin-left:auto">
+      <span class="cron-dot"></span>
+      Génération auto · lundi 8h
+    </div>
+  </div>
+
+  <!-- Génération manuelle -->
+  <div class="rp-panel">
+    <div class="rp-section-title">⚡ Générer manuellement</div>
+
+    <!-- Sélection Ghosts -->
+    <div style="font-size:11px;color:#444;margin-bottom:8px">Ghosts à inclure</div>
+    <div style="margin-bottom:8px">
+      <button class="week-btn" onclick="selectAllGhosts()">Tous</button>
+      <button class="week-btn" onclick="selectNoGhosts()">Aucun</button>
+    </div>
+    <div class="ghost-grid" id="ghost-grid">
+      {% for s in students %}
+      <button class="ghost-chip selected" data-idx="{{ loop.index0 }}"
+        onclick="toggleGhost(this,{{ loop.index0 }})">
+        <span class="gc-emoji">{{ s._rank.emoji }}</span>
+        <span>{{ s.name or '?' }}</span>
+        <span style="font-size:10px;opacity:.5">{{ '🎖️' if s._rank.branch=='marine' else '🏴‍☠️' }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Sélection période -->
+    <div style="font-size:11px;color:#444;margin-bottom:8px;margin-top:14px">Période</div>
+    <div class="week-btns">
+      <button class="week-btn active" id="week-prev" onclick="setWeek('prev',this)">Semaine précédente</button>
+      <button class="week-btn" id="week-curr" onclick="setWeek('curr',this)">Semaine en cours</button>
+      <button class="week-btn" id="week-custom" onclick="setWeek('custom',this)">Période personnalisée</button>
+    </div>
+    <div id="custom-dates" style="display:none;display:none;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="fi" id="date-from" style="max-width:160px">
+      <span style="color:#444">→</span>
+      <input type="date" class="fi" id="date-to"   style="max-width:160px">
+    </div>
+    <div style="font-size:11px;color:#555;margin-bottom:14px" id="period-label"></div>
+
+    <button class="btn btn-red" onclick="generateReports()" id="gen-btn"
+      style="font-size:14px;padding:11px 28px">
+      ⚙️ Générer les rapports
+    </button>
+
+    <!-- Résultats génération -->
+    <div class="gen-progress" id="gen-progress" style="margin-top:14px">
+      <div style="font-size:11px;color:#444;margin-bottom:8px" id="gen-period-lbl"></div>
+      <div id="gen-results"></div>
+    </div>
+  </div>
+
+  <!-- Liste PDFs existants -->
+  <div class="rp-panel">
+    <div class="rp-section-title" style="display:flex;align-items:center;gap:8px">
+      📁 Rapports générés
+      <span style="font-size:10px;color:#333;font-weight:400;text-transform:none">{{ pdfs|length }} fichier{{ 's' if pdfs|length > 1 }}</span>
+    </div>
+
+    {% if pdfs %}
+    <div class="pdf-list" id="pdf-list">
+      {% for p in pdfs %}
+      <div class="pdf-row">
+        <span class="pdf-icon">📄</span>
+        <span class="pdf-name">{{ p.filename }}</span>
+        <span class="pdf-meta">{{ p.size_kb }} Ko · {{ p.date }}</span>
+        <a class="pdf-dl" href="/reports/download/{{ p.filename }}">⬇ Télécharger</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:#333;font-size:13px;text-align:center;padding:24px">
+      Aucun rapport généré pour l'instant.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+var selectedGhosts = new Set({{ range(students|length)|list|tojson }});
+var weekMode = 'prev';
+
+// ── Ghosts ────────────────────────────────────────────────────────
+function toggleGhost(el, idx){
+  if(selectedGhosts.has(idx)){ selectedGhosts.delete(idx); el.classList.remove('selected'); }
+  else { selectedGhosts.add(idx); el.classList.add('selected'); }
+}
+function selectAllGhosts(){
+  document.querySelectorAll('.ghost-chip').forEach(function(el){
+    selectedGhosts.add(parseInt(el.dataset.idx)); el.classList.add('selected');
+  });
+}
+function selectNoGhosts(){
+  selectedGhosts.clear();
+  document.querySelectorAll('.ghost-chip').forEach(function(el){ el.classList.remove('selected'); });
+}
+
+// ── Semaines ──────────────────────────────────────────────────────
+function setWeek(mode, btn){
+  weekMode = mode;
+  document.querySelectorAll('.week-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var custom = document.getElementById('custom-dates');
+  custom.style.display = mode==='custom' ? 'flex' : 'none';
+  updatePeriodLabel();
+}
+
+function getMonday(d){ var day=d.getDay(),diff=d.getDate()-day+(day==0?-6:1); return new Date(d.setDate(diff)); }
+function fmtDate(d){ return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear(); }
+
+function updatePeriodLabel(){
+  var lbl = document.getElementById('period-label');
+  var today = new Date();
+  if(weekMode==='prev'){
+    var mon = getMonday(new Date(today)); mon.setDate(mon.getDate()-7);
+    var sun = new Date(mon); sun.setDate(sun.getDate()+6);
+    lbl.textContent = 'Période : '+fmtDate(mon)+' → '+fmtDate(sun);
+  } else if(weekMode==='curr'){
+    var mon = getMonday(new Date(today));
+    var sun = new Date(mon); sun.setDate(sun.getDate()+6);
+    lbl.textContent = 'Période : '+fmtDate(mon)+' → '+fmtDate(sun);
+  } else {
+    lbl.textContent = '';
+  }
+}
+
+// ── Génération ────────────────────────────────────────────────────
+function generateReports(){
+  if(!selectedGhosts.size){ alert('Sélectionne au moins un Ghost.'); return; }
+
+  var payload = { student_indices: [...selectedGhosts] };
+  if(weekMode==='prev')   payload.week_offset = 1;
+  else if(weekMode==='curr') payload.week_offset = 0;
+  else {
+    payload.date_from = document.getElementById('date-from').value;
+    payload.date_to   = document.getElementById('date-to').value;
+    if(!payload.date_from||!payload.date_to){ alert('Sélectionne une période.'); return; }
+  }
+
+  var btn = document.getElementById('gen-btn');
+  btn.disabled=true; btn.textContent='⏳ Génération…';
+  var prog = document.getElementById('gen-progress');
+  prog.classList.add('visible');
+  document.getElementById('gen-results').innerHTML = '<span style="color:#444;font-size:12px">Génération en cours…</span>';
+
+  fetch('/api/reports/generate',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false; btn.textContent='⚙️ Générer les rapports';
+    document.getElementById('gen-period-lbl').textContent = 'Période : '+(d.period||'');
+    var html = '';
+    (d.results||[]).forEach(function(r){
+      if(r.ok){
+        html += '<div class="gen-result-row">'+
+          '<span style="color:#4ade80">✅</span>'+
+          '<span style="color:#ccc">'+r.name+'</span>'+
+          '<a href="/reports/download/'+r.file+'" class="pdf-dl" style="margin-left:auto">⬇ Télécharger</a>'+
+          '</div>';
+      } else {
+        html += '<div class="gen-result-row">'+
+          '<span style="color:#ef4444">❌</span>'+
+          '<span style="color:#888">'+r.name+' — '+r.error+'</span>'+
+          '</div>';
+      }
+    });
+    document.getElementById('gen-results').innerHTML = html || '<span style="color:#444">Aucun résultat.</span>';
+    // Recharge la liste PDF après 1s
+    setTimeout(function(){ location.reload(); }, 1500);
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='⚙️ Générer les rapports';
+    document.getElementById('gen-results').innerHTML='<span style="color:#ef4444">Erreur réseau.</span>';
+  });
+}
+
+updatePeriodLabel();
+</script>
+</body>
+</html>

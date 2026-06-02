@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>📋 Plan de Travail — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{overflow:auto!important;height:auto!important;display:block!important;background:#050505;}
+
+:root{
+  --red:#cc1a1a;
+  --gold:#fbbf24;
+  --blue:#60a5fa;
+  --pink:#f472b6;
+  --green:#4ade80;
+  --surface:#0a0a0a;
+  --border:#1a1a1a;
+  --text:#aaa;
+  --muted:#444;
+}
+
+.wp-wrap{max-width:960px;margin:0 auto;padding:28px 20px 100px;}
+
+/* Header */
+.wp-header{display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap;}
+.wp-title{font-size:24px;font-weight:800;color:#fff;}
+
+/* Student selector */
+.student-selector{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;
+  padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;
+}
+.student-tile{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:30px;
+  background:#111;border:1px solid #1e1e1e;cursor:pointer;transition:.2s;
+  font-size:13px;color:#666;font-family:inherit;
+}
+.student-tile:hover{border-color:#333;color:#aaa;}
+.student-tile.active{border-color:var(--red);color:#fff;background:#cc1a1a15;}
+.student-tile .st-emoji{font-size:16px;}
+
+/* Panel */
+.wp-panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:20px 22px;margin-bottom:14px;
+}
+.wp-section-title{
+  font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+
+/* Form elements */
+.fi{
+  background:#060606;border:1px solid #1e1e1e;border-radius:8px;
+  color:#aaa;font-size:13px;padding:8px 12px;font-family:inherit;
+  width:100%;box-sizing:border-box;transition:.15s;
+}
+.fi:focus{outline:none;border-color:#444;color:#ddd;}
+.fi-label{font-size:11px;color:var(--muted);margin-bottom:5px;display:block;}
+
+.fi-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.fi-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.fi-full{margin-bottom:10px;}
+
+/* Tags / quick buttons */
+.quick-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.qtag{
+  background:#111;border:1px solid #1e1e1e;border-radius:6px;
+  padding:3px 9px;font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;
+}
+.qtag:hover{border-color:#444;color:#aaa;}
+.qtag.sel{border-color:var(--red);color:var(--red);background:#cc1a1a11;}
+
+/* Objectives list */
+.obj-list{display:flex;flex-direction:column;gap:6px;}
+.obj-item{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;
+  background:#060606;border:1px solid #111;border-radius:8px;
+}
+.obj-check{
+  width:18px;height:18px;border:2px solid #333;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  cursor:pointer;transition:.15s;
+}
+.obj-check.done{background:var(--green);border-color:var(--green);}
+.obj-text{flex:1;font-size:13px;color:#aaa;}
+.obj-prio{font-size:10px;padding:1px 7px;border-radius:12px;border:1px solid currentColor;}
+.obj-del{background:none;border:none;color:#333;cursor:pointer;font-size:14px;padding:0 2px;transition:.15s;}
+.obj-del:hover{color:#ef4444;}
+
+.add-obj-row{display:flex;gap:6px;margin-top:8px;}
+
+/* Star rating */
+.star-row{display:flex;gap:4px;margin-top:4px;}
+.star{font-size:18px;cursor:pointer;color:#222;transition:.15s;user-select:none;}
+.star.lit{color:var(--gold);}
+
+/* Resources */
+.resource-list{display:flex;flex-direction:column;gap:5px;}
+.resource-row{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;
+  background:#060606;border:1px solid #111;border-radius:7px;
+}
+.resource-icon{font-size:14px;flex-shrink:0;}
+.resource-text{flex:1;font-size:12px;color:#888;}
+.resource-del{background:none;border:none;color:#333;cursor:pointer;font-size:12px;transition:.15s;}
+.resource-del:hover{color:#ef4444;}
+
+/* Elo target */
+.elo-target-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.elo-current{font-size:28px;font-weight:800;color:var(--gold);}
+.elo-arrow{font-size:24px;color:#333;}
+.elo-target-input{width:90px!important;font-size:20px!important;font-weight:800!important;text-align:center;color:var(--green)!important;}
+.elo-progress{flex:1;min-width:120px;}
+.elo-bar{height:6px;background:#111;border-radius:3px;overflow:hidden;margin-top:4px;}
+.elo-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--gold));transition:.4s;}
+
+/* Action buttons */
+.wp-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;}
+.btn-wp{
+  padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;
+  cursor:pointer;transition:.2s;font-family:inherit;border:none;
+}
+.btn-save{background:var(--red);color:#fff;}
+.btn-save:hover{background:#a01212;}
+.btn-pdf{background:#111;border:1px solid #333;color:#aaa;}
+.btn-pdf:hover{border-color:#555;color:#fff;}
+.btn-clear{background:none;border:1px solid #1e1e1e;color:#444;}
+.btn-clear:hover{border-color:#333;color:#888;}
+
+/* Ghost info header */
+.ghost-info-bar{
+  display:flex;align-items:center;gap:14px;padding:14px 16px;
+  background:#060606;border:1px solid #111;border-radius:10px;margin-bottom:16px;flex-wrap:wrap;
+}
+.gi-avatar{font-size:28px;}
+.gi-name{font-size:18px;font-weight:800;color:#fff;}
+.gi-rank{font-size:12px;color:var(--muted);margin-top:2px;}
+.gi-elo-chip{
+  padding:4px 12px;border-radius:20px;border:1px solid var(--gold);
+  color:var(--gold);font-size:12px;font-weight:700;margin-left:auto;
+}
+
+/* Empty state */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--muted);
+  font-size:14px;
+}
+.empty-state .es-icon{font-size:48px;margin-bottom:14px;}
+
+/* History */
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;}
+.history-item{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:#060606;border:1px solid #111;border-radius:8px;cursor:pointer;
+  transition:.15s;
+}
+.history-item:hover{border-color:#222;background:#0a0a0a;}
+.history-date{font-size:10px;color:#333;white-space:nowrap;}
+.history-preview{font-size:12px;color:#666;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.history-del{background:none;border:none;color:#222;cursor:pointer;font-size:12px;transition:.15s;}
+.history-del:hover{color:#ef4444;}
+
+/* Status badge */
+.status-badge{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+  border-radius:20px;font-size:11px;font-weight:600;border:1px solid currentColor;
+}
+
+/* Print/PDF overlay */
+#pdf-overlay{
+  display:none;position:fixed;inset:0;background:#000a;z-index:999;
+  align-items:center;justify-content:center;
+}
+#pdf-overlay.show{display:flex;}
+.pdf-modal{
+  background:#0d0d0d;border:1px solid #2a2a2a;border-radius:16px;
+  padding:28px;width:360px;text-align:center;
+}
+.pdf-modal h3{color:#fff;font-size:18px;margin:0 0 8px;}
+.pdf-modal p{color:#444;font-size:13px;margin:0 0 20px;}
+.pdf-options{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.pdf-opt-btn{
+  padding:10px;border-radius:8px;background:#111;border:1px solid #222;
+  color:#888;font-size:13px;cursor:pointer;transition:.15s;font-family:inherit;text-align:left;
+}
+.pdf-opt-btn:hover{border-color:#444;color:#ccc;}
+</style>
+</head>
+<body>
+<div class="wp-wrap">
+
+  <!-- Header -->
+  <div class="wp-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
+    <div>
+      <div class="wp-title">📋 Plan de Travail</div>
+      <div style="font-size:12px;color:#444;margin-top:2px">Progression personnalisée par Ghost</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn-wp btn-pdf" onclick="openPdfModal()">⬇ Exporter PDF</button>
+    </div>
+  </div>
+
+  <!-- Student Selector -->
+  <div class="student-selector" id="student-selector">
+    {% if students %}
+      {% for s in students %}
+      <button class="student-tile {% if loop.first %}active{% endif %}"
+        data-idx="{{ loop.index0 }}"
+        onclick="selectStudent({{ loop.index0 }}, this)">
+        <span class="st-emoji">{{ s._rank.emoji }}</span>
+        <span>{{ s.name or '?' }}</span>
+        <span style="font-size:10px;opacity:.5">{{ '🎖️' if s._rank.branch=='marine' else '🏴‍☠️' }}</span>
+      </button>
+      {% endfor %}
+    {% else %}
+      <div style="color:#333;font-size:13px">Aucun Ghost enregistré.</div>
+    {% endif %}
+  </div>
+
+  <!-- Main Content -->
+  <div id="wp-content">
+    {% if students %}
+    <!-- Ghost Info Bar -->
+    <div class="ghost-info-bar" id="ghost-info-bar">
+      <div class="gi-avatar" id="gi-emoji">{{ students[0]._rank.emoji }}</div>
+      <div>
+        <div class="gi-name" id="gi-name">{{ students[0].name or '?' }}</div>
+        <div class="gi-rank" id="gi-rank">{{ students[0]._rank.title }} · {{ '🎖️ Marine' if students[0]._rank.branch=='marine' else '🏴‍☠️ Pirates' }}</div>
+      </div>
+      <div class="gi-elo-chip" id="gi-elo">⚡ {{ students[0]._avg_elo or '—' }} Elo moy.</div>
+      <div id="gi-status"></div>
+    </div>
+
+    <!-- Elo Target -->
+    <div class="wp-panel">
+      <div class="wp-section-title">🎯 Objectif Elo</div>
+      <div class="elo-target-row">
+        <div>
+          <div style="font-size:10px;color:#444;margin-bottom:4px">Elo actuel</div>
+          <div class="elo-current" id="elo-current-display">—</div>
+        </div>
+        <div class="elo-arrow">→</div>
+        <div>
+          <div style="font-size:10px;color:#444;margin-bottom:4px">Objectif</div>
+          <input type="number" class="fi elo-target-input" id="elo-target" placeholder="1500" min="0" max="3200" oninput="updateEloProgress()">
+        </div>
+        <div class="elo-progress">
+          <div style="font-size:11px;color:#444" id="elo-progress-label">—</div>
+          <div class="elo-bar"><div class="elo-bar-fill" id="elo-bar-fill" style="width:0%"></div></div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#444;margin-bottom:4px">Deadline</div>
+          <input type="date" class="fi" id="elo-deadline" style="width:130px">
+        </div>
+      </div>
+    </div>
+
+    <!-- Thèmes de travail -->
+    <div class="wp-panel">
+      <div class="wp-section-title">🧠 Thèmes prioritaires</div>
+      <div class="quick-tags" id="theme-tags">
+        {% for t in ['Tactique','Finales','Ouvertures','Milieu de jeu','Calcul','Stratégie','Attaque du roi','Structure de pions','Timing','Endgame technique','Défense','Coordination des pièces'] %}
+        <button class="qtag" onclick="toggleTheme(this,'{{ t }}')">{{ t }}</button>
+        {% endfor %}
+      </div>
+      <div class="fi-full" style="margin-top:10px">
+        <label class="fi-label">Thème personnalisé</label>
+        <input type="text" class="fi" id="custom-theme" placeholder="Ajouter un thème…">
+        <button class="qtag" style="margin-top:5px" onclick="addCustomTheme()">+ Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Objectifs -->
+    <div class="wp-panel">
+      <div class="wp-section-title">✅ Objectifs à atteindre</div>
+      <div class="obj-list" id="obj-list"></div>
+      <div class="add-obj-row" style="margin-top:10px">
+        <input type="text" class="fi" id="new-obj-text" placeholder="Nouvel objectif…" style="flex:1" onkeydown="if(event.key==='Enter')addObjective()">
+        <select class="fi" id="new-obj-prio" style="width:100px">
+          <option value="high">🔴 Haute</option>
+          <option value="med" selected>🟡 Moyenne</option>
+          <option value="low">🟢 Basse</option>
+        </select>
+        <button class="qtag" style="padding:8px 12px" onclick="addObjective()">+ Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Points forts / faibles -->
+    <div class="wp-panel">
+      <div class="fi-row">
+        <div>
+          <div class="wp-section-title">💪 Points forts</div>
+          <textarea class="fi" id="points-forts" rows="4" placeholder="Ce que le Ghost maîtrise bien…"></textarea>
+        </div>
+        <div>
+          <div class="wp-section-title">⚠️ Points faibles</div>
+          <textarea class="fi" id="points-faibles" rows="4" placeholder="Axes d'amélioration principaux…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Erreurs récurrentes -->
+    <div class="wp-panel">
+      <div class="wp-section-title">🔄 Erreurs récurrentes</div>
+      <div class="quick-tags" id="error-tags">
+        {% for e in ['Blunder en zeitnot','Mauvaise gestion du temps','Perd le fil en position complexe','Sous-estime les contre-jeux','Attaque prématurée','Finales mal jouées','Ouverture pas maîtrisée','Calcul incomplet','Échange trop rapide','Ne convertit pas l avantage'] %}
+        <button class="qtag" onclick="toggleError(this,'{{ e }}')">{{ e }}</button>
+        {% endfor %}
+      </div>
+      <div class="fi-full" style="margin-top:8px">
+        <textarea class="fi" id="errors-custom" rows="2" placeholder="Autres erreurs à noter…"></textarea>
+      </div>
+    </div>
+
+    <!-- Devoirs / ressources -->
+    <div class="wp-panel">
+      <div class="wp-section-title">📚 Devoirs & Ressources</div>
+      <div class="resource-list" id="resource-list"></div>
+      <div class="add-obj-row" style="margin-top:8px">
+        <select class="fi" id="res-type" style="width:80px">
+          <option value="📖">📖 Livre</option>
+          <option value="🎥">🎥 Vidéo</option>
+          <option value="💻">💻 Lichess</option>
+          <option value="♟">♟ Puzzle</option>
+          <option value="📝">📝 Devoir</option>
+          <option value="🔗">🔗 Lien</option>
+        </select>
+        <input type="text" class="fi" id="new-res-text" placeholder="Ressource ou devoir à faire…" style="flex:1" onkeydown="if(event.key==='Enter')addResource()">
+        <button class="qtag" style="padding:8px 12px" onclick="addResource()">+ Ajouter</button>
+      </div>
+    </div>
+
+    <!-- Évaluation -->
+    <div class="wp-panel">
+      <div class="wp-section-title">⭐ Évaluation globale</div>
+      <div class="fi-row-3">
+        <div>
+          <label class="fi-label">Motivation</label>
+          <div class="star-row" id="stars-motivation" data-key="motivation"></div>
+        </div>
+        <div>
+          <label class="fi-label">Régularité</label>
+          <div class="star-row" id="stars-regularite" data-key="regularite"></div>
+        </div>
+        <div>
+          <label class="fi-label">Progression</label>
+          <div class="star-row" id="stars-progression" data-key="progression"></div>
+        </div>
+      </div>
+      <div class="fi-full" style="margin-top:10px">
+        <label class="fi-label">Comportement & Notes</label>
+        <select class="fi" id="comportement" style="margin-bottom:8px">
+          <option value="">Sélectionner…</option>
+          {% for c in ['😊 Motivé','😐 Régulier','😴 Passif','🔥 Très investi','😤 Têtu','🤔 Curieux'] %}
+          <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+        <textarea class="fi" id="eval-notes" rows="3" placeholder="Observations générales, notes de progression…"></textarea>
+      </div>
+    </div>
+
+    <!-- Prochaine séance -->
+    <div class="wp-panel">
+      <div class="wp-section-title">📅 Prochaine séance</div>
+      <div class="fi-row">
+        <div>
+          <label class="fi-label">Date</label>
+          <input type="date" class="fi" id="next-date">
+        </div>
+        <div>
+          <label class="fi-label">Focus prévu</label>
+          <input type="text" class="fi" id="next-focus" placeholder="Ce qu'on travaillera…">
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes libres -->
+    <div class="wp-panel">
+      <div class="wp-section-title">📝 Notes libres</div>
+      <textarea class="fi" id="free-notes" rows="4" placeholder="Tout ce qui ne rentre pas dans les cases…"></textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="wp-actions">
+      <button class="btn-wp btn-save" onclick="savePlan()">💾 Sauvegarder le plan</button>
+      <button class="btn-wp btn-pdf" onclick="openPdfModal()">⬇ Exporter PDF</button>
+      <button class="btn-wp btn-clear" onclick="clearForm()">🗑 Effacer</button>
+    </div>
+
+    <!-- Historique -->
+    <div class="wp-panel" style="margin-top:20px" id="history-panel">
+      <div class="wp-section-title">🕐 Historique des plans</div>
+      <div class="history-list" id="history-list">
+        <div style="color:#333;font-size:12px;text-align:center;padding:16px">Aucun plan sauvegardé.</div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="es-icon">👻</div>
+      <div>Aucun Ghost enregistré.<br>Ajoute des élèves depuis le dashboard.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- PDF Modal -->
+<div id="pdf-overlay" onclick="if(event.target===this)closePdfModal()">
+  <div class="pdf-modal">
+    <h3>⬇ Exporter le plan</h3>
+    <p>Choisir le format d'export</p>
+    <div class="pdf-options">
+      <button class="pdf-opt-btn" onclick="exportPDF('single')">📄 Plan du Ghost sélectionné</button>
+      <button class="pdf-opt-btn" onclick="exportPDF('all')">📚 Tous les plans (un par Ghost)</button>
+    </div>
+    <button class="btn-wp btn-clear" style="width:100%;font-size:12px" onclick="closePdfModal()">Annuler</button>
+  </div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────
+const STUDENTS = {{ students|tojson }};
+let currentStudentIdx = 0;
+let plans = {}; // keyed by student index
+let selectedThemes = new Set();
+let selectedErrors = new Set();
+let objectives = [];
+let resources = [];
+let stars = {motivation:0, regularite:0, progression:0};
+
+// ── Init ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  initStars();
+  loadPlansFromStorage();
+  if(STUDENTS.length > 0) selectStudent(0, document.querySelector('.student-tile'));
+  updateEloProgress();
+});
+
+function initStars(){
+  ['motivation','regularite','progression'].forEach(key=>{
+    const row = document.getElementById('stars-'+key);
+    row.innerHTML = '';
+    for(let i=1;i<=5;i++){
+      const s = document.createElement('span');
+      s.className='star'; s.textContent='★'; s.dataset.val=i;
+      s.onclick=()=>setStar(key,i);
+      s.onmouseover=()=>hoverStar(key,i);
+      s.onmouseout=()=>renderStars(key);
+      row.appendChild(s);
+    }
+    renderStars(key);
+  });
+}
+
+function setStar(key,val){ stars[key]=val; renderStars(key); }
+function hoverStar(key,val){
+  document.querySelectorAll('#stars-'+key+' .star').forEach(s=>{
+    s.classList.toggle('lit', parseInt(s.dataset.val)<=val);
+  });
+}
+function renderStars(key){
+  document.querySelectorAll('#stars-'+key+' .star').forEach(s=>{
+    s.classList.toggle('lit', parseInt(s.dataset.val)<=stars[key]);
+  });
+}
+
+// ── Student selection ─────────────────────────────────────────────
+function selectStudent(idx, btn){
+  // Save current
+  if(currentStudentIdx !== null) savePlanToMemory(currentStudentIdx);
+
+  currentStudentIdx = idx;
+  document.querySelectorAll('.student-tile').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+
+  const s = STUDENTS[idx];
+  document.getElementById('gi-emoji').textContent = s._rank?.emoji || '👻';
+  document.getElementById('gi-name').textContent = s.name || '?';
+  document.getElementById('gi-rank').textContent = (s._rank?.title||'') + ' · ' + (s._rank?.branch==='marine'?'🎖️ Marine':'🏴‍☠️ Pirates');
+  document.getElementById('gi-elo').textContent = '⚡ ' + (s._avg_elo||'—') + ' Elo moy.';
+  document.getElementById('elo-current-display').textContent = s._avg_elo || '—';
+
+  loadPlanFromMemory(idx);
+  loadHistory(idx);
+}
+
+// ── Plan memory ───────────────────────────────────────────────────
+function savePlanToMemory(idx){
+  plans[idx] = collectFormData(idx);
+}
+
+function loadPlanFromMemory(idx){
+  const plan = plans[idx] || null;
+  applyPlan(plan);
+}
+
+function collectFormData(idx){
+  return {
+    studentIdx: idx,
+    eloTarget: document.getElementById('elo-target')?.value || '',
+    eloDeadline: document.getElementById('elo-deadline')?.value || '',
+    themes: [...selectedThemes],
+    errors: [...selectedErrors],
+    objectives: [...objectives],
+    resources: [...resources],
+    pointsForts: document.getElementById('points-forts')?.value || '',
+    pointsFaibles: document.getElementById('points-faibles')?.value || '',
+    errorsCustom: document.getElementById('errors-custom')?.value || '',
+    comportement: document.getElementById('comportement')?.value || '',
+    evalNotes: document.getElementById('eval-notes')?.value || '',
+    nextDate: document.getElementById('next-date')?.value || '',
+    nextFocus: document.getElementById('next-focus')?.value || '',
+    freeNotes: document.getElementById('free-notes')?.value || '',
+    stars: {...stars},
+  };
+}
+
+function applyPlan(plan){
+  // Reset
+  selectedThemes.clear();
+  selectedErrors.clear();
+  objectives = [];
+  resources = [];
+  stars = {motivation:0, regularite:0, progression:0};
+
+  if(plan){
+    document.getElementById('elo-target').value = plan.eloTarget||'';
+    document.getElementById('elo-deadline').value = plan.eloDeadline||'';
+    document.getElementById('points-forts').value = plan.pointsForts||'';
+    document.getElementById('points-faibles').value = plan.pointsFaibles||'';
+    document.getElementById('errors-custom').value = plan.errorsCustom||'';
+    document.getElementById('comportement').value = plan.comportement||'';
+    document.getElementById('eval-notes').value = plan.evalNotes||'';
+    document.getElementById('next-date').value = plan.nextDate||'';
+    document.getElementById('next-focus').value = plan.nextFocus||'';
+    document.getElementById('free-notes').value = plan.freeNotes||'';
+    (plan.themes||[]).forEach(t=>selectedThemes.add(t));
+    (plan.errors||[]).forEach(e=>selectedErrors.add(e));
+    objectives = plan.objectives||[];
+    resources = plan.resources||[];
+    stars = plan.stars || {motivation:0,regularite:0,progression:0};
+  } else {
+    ['elo-target','elo-deadline','points-forts','points-faibles','errors-custom',
+     'eval-notes','next-date','next-focus','free-notes'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    document.getElementById('comportement').value='';
+  }
+
+  // Sync tags
+  document.querySelectorAll('#theme-tags .qtag').forEach(b=>{
+    b.classList.toggle('sel', selectedThemes.has(b.textContent.trim()));
+  });
+  document.querySelectorAll('#error-tags .qtag').forEach(b=>{
+    b.classList.toggle('sel', selectedErrors.has(b.textContent.trim()));
+  });
+  renderObjectives();
+  renderResources();
+  ['motivation','regularite','progression'].forEach(k=>renderStars(k));
+  updateEloProgress();
+}
+
+// ── Themes & Errors ───────────────────────────────────────────────
+function toggleTheme(btn, theme){
+  if(selectedThemes.has(theme)){ selectedThemes.delete(theme); btn.classList.remove('sel'); }
+  else { selectedThemes.add(theme); btn.classList.add('sel'); }
+}
+function toggleError(btn, err){
+  if(selectedErrors.has(err)){ selectedErrors.delete(err); btn.classList.remove('sel'); }
+  else { selectedErrors.add(err); btn.classList.add('sel'); }
+}
+function addCustomTheme(){
+  const inp = document.getElementById('custom-theme');
+  const t = inp.value.trim();
+  if(!t) return;
+  selectedThemes.add(t);
+  const btn = document.createElement('button');
+  btn.className='qtag sel';
+  btn.textContent=t;
+  btn.onclick=()=>toggleTheme(btn,t);
+  document.getElementById('theme-tags').appendChild(btn);
+  inp.value='';
+}
+
+// ── Objectives ────────────────────────────────────────────────────
+function addObjective(){
+  const text = document.getElementById('new-obj-text').value.trim();
+  const prio = document.getElementById('new-obj-prio').value;
+  if(!text) return;
+  objectives.push({text, prio, done:false, id:Date.now()});
+  document.getElementById('new-obj-text').value='';
+  renderObjectives();
+}
+
+function renderObjectives(){
+  const list = document.getElementById('obj-list');
+  if(!objectives.length){
+    list.innerHTML='<div style="color:#2a2a2a;font-size:12px;padding:4px">Aucun objectif.</div>';
+    return;
+  }
+  list.innerHTML = objectives.map((o,i)=>{
+    const prioMap={high:{color:'#ef4444',label:'Haute'},med:{color:'#fbbf24',label:'Moy.'},low:{color:'#4ade80',label:'Basse'}};
+    const p = prioMap[o.prio]||prioMap.med;
+    return `<div class="obj-item">
+      <div class="obj-check ${o.done?'done':''}" onclick="toggleObj(${i})">
+        ${o.done?'<span style="color:#111;font-size:11px;font-weight:700">✓</span>':''}
+      </div>
+      <div class="obj-text" style="${o.done?'text-decoration:line-through;color:#333':''}">${o.text}</div>
+      <span class="obj-prio" style="color:${p.color};border-color:${p.color}22">${p.label}</span>
+      <button class="obj-del" onclick="deleteObj(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleObj(i){ objectives[i].done=!objectives[i].done; renderObjectives(); }
+function deleteObj(i){ objectives.splice(i,1); renderObjectives(); }
+
+// ── Resources ─────────────────────────────────────────────────────
+function addResource(){
+  const type = document.getElementById('res-type').value;
+  const text = document.getElementById('new-res-text').value.trim();
+  if(!text) return;
+  resources.push({type, text, id:Date.now()});
+  document.getElementById('new-res-text').value='';
+  renderResources();
+}
+
+function renderResources(){
+  const list = document.getElementById('resource-list');
+  if(!resources.length){
+    list.innerHTML='<div style="color:#2a2a2a;font-size:12px;padding:4px">Aucune ressource.</div>';
+    return;
+  }
+  list.innerHTML = resources.map((r,i)=>
+    `<div class="resource-row">
+      <span class="resource-icon">${r.type}</span>
+      <span class="resource-text">${r.text}</span>
+      <button class="resource-del" onclick="deleteRes(${i})">✕</button>
+    </div>`
+  ).join('');
+}
+
+function deleteRes(i){ resources.splice(i,1); renderResources(); }
+
+// ── Elo Progress ──────────────────────────────────────────────────
+function updateEloProgress(){
+  const s = STUDENTS[currentStudentIdx];
+  const current = s?._avg_elo||0;
+  const target = parseInt(document.getElementById('elo-target')?.value)||0;
+  const label = document.getElementById('elo-progress-label');
+  const bar = document.getElementById('elo-bar-fill');
+  if(!target||!current){ 
+    if(label) label.textContent='—';
+    if(bar) bar.style.width='0%';
+    return;
+  }
+  const diff = target - current;
+  const pct = Math.min(100, Math.max(0, (current/(target||1))*100));
+  if(label) label.textContent = (diff>0?'+':'')+diff+' pts · '+Math.round(pct)+'%';
+  if(bar) bar.style.width = pct+'%';
+}
+
+// ── Save to server ────────────────────────────────────────────────
+function savePlan(){
+  savePlanToMemory(currentStudentIdx);
+  const plan = collectFormData(currentStudentIdx);
+  plan.date = new Date().toLocaleDateString('fr',{day:'2-digit',month:'2-digit',year:'numeric'});
+  plan.studentName = STUDENTS[currentStudentIdx]?.name||'?';
+
+  fetch('/api/workplan/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(plan)
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      showToast('✅ Plan sauvegardé !');
+      loadHistory(currentStudentIdx);
+    } else {
+      showToast('❌ Erreur de sauvegarde');
+    }
+  }).catch(()=>showToast('❌ Erreur réseau'));
+}
+
+function loadHistory(idx){
+  const histList = document.getElementById('history-list');
+  fetch('/api/workplan/history?student_index='+idx)
+    .then(r=>r.json()).then(d=>{
+      const plans = d.plans||[];
+      if(!plans.length){
+        histList.innerHTML='<div style="color:#333;font-size:12px;text-align:center;padding:16px">Aucun plan sauvegardé.</div>';
+        return;
+      }
+      histList.innerHTML = plans.reverse().map((p,i)=>
+        `<div class="history-item" onclick="loadHistoryPlan(${plans.length-1-i},${idx})">
+          <span class="history-date">${p.date||'—'}</span>
+          <span class="history-preview">${p.themes?.join(', ')||'Plan sans thème'}</span>
+          <button class="history-del" onclick="event.stopPropagation();deleteHistoryPlan(${plans.length-1-i},${idx})">✕</button>
+        </div>`
+      ).join('');
+    }).catch(()=>{});
+}
+
+function loadHistoryPlan(planIdx, studentIdx){
+  fetch('/api/workplan/history?student_index='+studentIdx)
+    .then(r=>r.json()).then(d=>{
+      const plan = (d.plans||[])[planIdx];
+      if(plan){ applyPlan(plan); plans[studentIdx]=plan; }
+    });
+}
+
+function deleteHistoryPlan(planIdx, studentIdx){
+  fetch('/api/workplan/delete',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({student_index:studentIdx, plan_index:planIdx})
+  }).then(()=>loadHistory(studentIdx));
+}
+
+// ── Clear ─────────────────────────────────────────────────────────
+function clearForm(){
+  if(!confirm('Effacer le formulaire ?')) return;
+  applyPlan(null);
+}
+
+// ── PDF Export ────────────────────────────────────────────────────
+function openPdfModal(){ document.getElementById('pdf-overlay').classList.add('show'); }
+function closePdfModal(){ document.getElementById('pdf-overlay').classList.remove('show'); }
+
+function exportPDF(mode){
+  closePdfModal();
+  const plan = collectFormData(currentStudentIdx);
+  plan.studentName = STUDENTS[currentStudentIdx]?.name||'?';
+  plan.studentRank = STUDENTS[currentStudentIdx]?._rank?.title||'';
+  plan.studentElo = STUDENTS[currentStudentIdx]?._avg_elo||'';
+  plan.studentEmoji = STUDENTS[currentStudentIdx]?._rank?.emoji||'👻';
+  plan.date = new Date().toLocaleDateString('fr',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  fetch('/api/workplan/pdf', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode, plan, student_index: currentStudentIdx})
+  }).then(r=>{
+    if(r.ok) return r.blob();
+    throw new Error();
+  }).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='plan_'+((STUDENTS[currentStudentIdx]?.name||'ghost').replace(/\s+/g,'_'))+'.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('📄 PDF généré !');
+  }).catch(()=>showToast('❌ Erreur génération PDF'));
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';
+    t.style.cssText='position:fixed;bottom:24px;right:24px;background:#111;border:1px solid #333;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;transition:.3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2500);
+}
+</script>
+</body>
+</html>

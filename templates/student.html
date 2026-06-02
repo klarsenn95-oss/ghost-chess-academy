@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>♟ {{ s.name or 'Ghost' }} — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{overflow:auto!important;height:auto!important;display:block!important;}
+.s-wrap{display:grid;grid-template-columns:280px 1fr;min-height:100vh;}
+.s-sidebar{background:#060606;border-right:1px solid #1a1a1a;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;}
+.s-profile{padding:22px 18px 14px;border-bottom:1px solid #1a1a1a;}
+.back-link{font-size:12px;color:#444;text-decoration:none;display:block;margin-bottom:12px;}
+.back-link:hover{color:var(--red);}
+.rank-badge-big{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;margin-bottom:10px;border:1px solid {{ rank.color }}33;background:{{ rank.color }}0d;width:100%;}
+.rbb-emoji{font-size:26px;}
+.rbb-title{font-size:13px;font-weight:700;color:{{ rank.color }};}
+.rbb-branch{font-size:10px;color:#555;}
+.s-name{font-size:20px;font-weight:700;color:#fff;margin-bottom:3px;}
+.s-elo{font-size:18px;font-weight:700;color:var(--red);margin-bottom:4px;}
+.s-vel{font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px;display:inline-block;margin-bottom:8px;}
+.hakis-list{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;}
+.haki-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#111;border:1px solid #222;}
+.elo-target-bar{height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden;margin-top:4px;}
+.elo-target-fill{height:100%;background:var(--red);border-radius:3px;transition:width .6s;}
+.s-tabs{display:flex;flex-direction:column;gap:2px;padding:10px 12px;flex:1;}
+.s-tab{background:transparent;border:none;text-align:left;padding:8px 12px;border-radius:7px;font-size:13px;color:#555;cursor:pointer;transition:.15s;font-family:inherit;}
+.s-tab:hover{background:#0f0f0f;color:#aaa;}
+.s-tab.active{background:#141414;color:#fff;font-weight:500;border-left:2px solid var(--red);}
+.s-main{padding:26px 34px 80px;}
+.s-tab-content{display:none;}
+.s-tab-content.active{display:block;}
+.s-section{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+.s-section-title{font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em;}
+.field-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.field-label{font-size:12px;color:#444;min-width:140px;flex-shrink:0;}
+.fi{flex:1;background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#ddd;font-size:13px;padding:7px 10px;font-family:inherit;}
+.fi:focus{outline:none;border-color:var(--red);}
+.fta{width:100%;background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#ddd;font-size:13px;padding:8px 10px;resize:vertical;font-family:inherit;line-height:1.6;}
+.fta:focus{outline:none;border-color:var(--red);}
+/* ELO */
+.elo-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.elo-card{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:10px 12px;}
+.elo-card-ttl{font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;}
+.elo-num{font-size:20px;font-weight:700;color:var(--red);}
+.elo-sub{font-size:11px;color:#333;}
+/* Chart filters */
+.chart-filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.cf-btn{background:#111;border:1px solid #222;border-radius:6px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;}
+.cf-btn:hover{border-color:#444;color:#aaa;}
+.cf-btn.active{background:var(--red)22;border-color:var(--red);color:var(--red);}
+.chart-wrap{position:relative;height:220px;margin-bottom:8px;}
+/* Progression */
+.prog-item{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.prog-date{font-size:11px;color:var(--red);min-width:70px;}
+.prog-elos{font-size:12px;font-weight:600;color:#ddd;}
+.prog-note{font-size:11px;color:#555;flex:1;}
+/* Devoirs */
+.dev-item{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dev-title{font-size:13px;color:#ccc;flex:1;}
+.dev-due{font-size:11px;color:#444;}
+/* Journal */
+.je{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px 14px;margin-bottom:7px;}
+.je-meta{font-size:11px;color:#333;display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.je-content{font-size:13px;color:#bbb;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.je-footer{display:flex;justify-content:flex-end;gap:5px;margin-top:8px;}
+.mood-row{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+.mood-btn{background:#111;border:1px solid #1e1e1e;border-radius:7px;padding:4px 8px;font-size:15px;cursor:pointer;transition:.15s;}
+.mood-btn:hover,.mood-btn.selected{background:#1a1a1a;border-color:var(--red);transform:scale(1.1);}
+.plat-btn{background:#111;border:1px solid #222;border-radius:7px;padding:5px 14px;font-size:12px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;font-weight:500;}
+.plat-btn:hover{border-color:#444;color:#aaa;}
+.plat-btn.active{background:var(--red)22;border-color:var(--red);color:var(--red);}
+/* Analysis */
+.ana-card{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:10px 12px;margin-bottom:6px;}
+.ana-hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.ana-date{font-size:11px;color:#333;}
+.ana-opening{font-size:12px;color:var(--red);font-weight:600;}
+.ana-notes{font-size:12px;color:#888;line-height:1.5;}
+/* Winrate bar */
+.wr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.wr-card{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:10px 14px;text-align:center;}
+.wr-pct{font-size:22px;font-weight:700;}
+.wr-sub{font-size:11px;color:#444;}
+.op-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.op-name{font-size:11px;color:#888;min-width:160px;}
+.op-bar{flex:1;height:6px;background:#111;border-radius:3px;overflow:hidden;}
+.op-fill{height:100%;border-radius:3px;}
+.op-wr{font-size:10px;min-width:36px;text-align:right;}
+/* Theme tags */
+.theme-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#111;border:1px solid #1e1e1e;font-size:12px;color:#555;cursor:pointer;margin:3px;}
+.theme-tag.active{background:var(--red)1a;border-color:var(--red);color:#ddd;}
+/* Error tags */
+.err-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#111;border:1px solid #1e1e1e;font-size:12px;color:#555;cursor:pointer;margin:3px;}
+.err-tag.active{background:#1a0a0a;border-color:#cc1a1a55;color:#cc6666;}
+/* Scroll */
+.scroll-btns{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:6px;z-index:50;}
+.scroll-btn{width:32px;height:32px;border-radius:50%;background:#111;border:1px solid #222;color:#555;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;}
+.scroll-btn:hover{background:#1a1a1a;color:var(--red);}
+/* Override rang/corps */
+.override-section{background:#0a0505;border:1px solid #2a1010;border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+.override-title{font-size:12px;font-weight:600;color:#f472b6;margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;}
+.branch-btn{background:#111;border:1px solid #222;border-radius:8px;padding:7px 16px;font-size:13px;color:#555;cursor:pointer;font-family:inherit;transition:.2s;font-weight:500;}
+.branch-btn:hover{border-color:#555;color:#aaa;}
+.branch-btn.active-marine{background:#1a3040;border-color:#60a5fa;color:#60a5fa;}
+.branch-btn.active-pirates{background:#2a1030;border-color:#f472b6;color:#f472b6;}
+.lock-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:#555;cursor:pointer;user-select:none;}
+.lock-toggle input[type=checkbox]{accent-color:var(--red);cursor:pointer;}
+.rank-preview{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#060606;border:1px solid #1e1e1e;border-radius:8px;margin-bottom:8px;}
+.rank-preview-emoji{font-size:22px;}
+.rank-preview-info{flex:1;}
+.rank-preview-title{font-size:13px;font-weight:700;}
+.rank-preview-hint{font-size:10px;color:#444;margin-top:2px;}
+.locked-badge{font-size:10px;padding:2px 7px;border-radius:20px;background:#2a1010;color:#f87171;border:1px solid #f8717133;}
+.auto-badge{font-size:10px;padding:2px 7px;border-radius:20px;background:#0a1a0a;color:#4ade80;border:1px solid #4ade8033;}
+/* Haki override */
+.haki-override-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #111;}
+.haki-override-row:last-child{border-bottom:none;}
+.haki-override-label{font-size:13px;}
+.haki-toggle-btn{background:#111;border:1px solid #222;border-radius:20px;padding:3px 12px;font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.2s;}
+.haki-toggle-btn.active{border-color:currentColor;background:#111;}
+</style>
+</head>
+<body class="student-body">
+<div class="s-wrap">
+
+<aside class="s-sidebar">
+  <div class="s-profile">
+    <a href="/" class="back-link">← Retour</a>
+    <div class="rank-badge-big" id="sidebar-rank-badge">
+      <span class="rbb-emoji" id="sidebar-rank-emoji">{{ rank.emoji }}</span>
+      <div>
+        <div class="rbb-title" id="sidebar-rank-title">
+          {{ rank.title }}
+          <span style="font-size:14px;margin-left:4px" title="{{ rank.flame.label }}">{{ rank.flame.icon }}</span>
+          {% if rank.rank_locked %}<span class="locked-badge" style="font-size:9px;margin-left:4px">🔒</span>{% endif %}
+        </div>
+        <div class="rbb-branch" id="sidebar-rank-branch">{% if rank.branch=='marine' %}🎖️ Marine{% else %}🏴‍☠️ Pirates{% endif %} · {{ rank.suf_emoji }} {{ rank.suf_label }}</div>
+        {% if rank.qg %}
+          <div style="font-size:10px;color:{{ rank.color }};margin-top:2px;opacity:.8">⚓ Au QG</div>
+        {% else %}
+          <div style="font-size:10px;color:#60a5fa;margin-top:2px;opacity:.7">🔵 En retrait du QG</div>
+        {% endif %}
+        {% if rank.peak_elo and rank.peak_elo > rank.best_elo %}
+          <div style="font-size:10px;color:#555;margin-top:2px">🏆 Pic : {{ rank.peak_elo }}</div>
+        {% endif %}
+        <div style="margin-top:6px;display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;border:1px solid {{ island.color }}55;background:{{ island.color }}10;font-size:10px;font-weight:700;color:{{ island.color }}">
+          {{ island.emoji }} {{ island.name }}{% if island.manual %} <span style="opacity:.6;font-weight:400">✋</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="s-name">{{ s.name or 'Ghost' }}</div>
+    <div class="s-meta" style="font-size:12px;color:#444">{{ [s.age~' ans' if s.age, s.city, s.job]|select|join(' · ') }}</div>
+    {% if rank.best_elo %}
+    <div class="s-elo" id="sidebar-elo-display">
+      ⚡ {{ rank.best_elo }}
+      {% set li_max = [(s.get('elo_li_blitz') or 0)|int, (s.get('elo_li_bullet') or 0)|int, (s.get('elo_li_rapid') or 0)|int]|max %}
+      {% set cc_max = [(s.get('elo_cc_blitz') or 0)|int, (s.get('elo_cc_bullet') or 0)|int, (s.get('elo_cc_rapid') or 0)|int]|max %}
+      {% if cc_max > li_max %}
+        <span style="font-size:11px;color:#888;font-weight:400">🟡 CC</span>
+      {% elif li_max > 0 %}
+        <span style="font-size:11px;color:#888;font-weight:400">🟢 Li</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    <span class="s-vel" style="background:{{ badge_color }}22;color:{{ badge_color }};border:1px solid {{ badge_color }}44">
+      {{ badge_label }}{% if delta %} ({% if delta>0 %}+{% endif %}{{ delta }}){% endif %}
+    </span>
+    {% if hakis %}
+    <div class="hakis-list">
+      {% for h in hakis %}<span class="haki-pill" style="color:{{ h.color }};border-color:{{ h.color }}44">{{ h.label }}{% if h.manual %} ✋{% endif %}</span>{% endfor %}
+    </div>
+    {% endif %}
+    {% if s.elo_target %}
+    <div style="font-size:10px;color:#444">Objectif : {{ s.elo_target }} ELO</div>
+    <div class="elo-target-bar"><div class="elo-target-fill" style="width:{{ elo_target_pct }}%"></div></div>
+    <div style="font-size:10px;color:#333;margin-top:2px">{{ elo_target_pct }}%</div>
+    {% endif %}
+    {% if alerts %}
+    {% for a in alerts %}<div style="background:#1a0808;border:1px solid var(--red)33;border-radius:7px;padding:6px 10px;margin-top:8px;font-size:11px;color:#cc8888">{{ a.icon }} {{ a.text }}</div>{% endfor %}
+    {% endif %}
+    <!-- Binômes -->
+    {% set student_pairs = [] %}
+    {% for p in pairs %}
+      {% if p.a == s.name or p.b == s.name %}{% set _ = student_pairs.append(p) %}{% endif %}
+    {% endfor %}
+    {% if student_pairs %}
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #111">
+      <div style="font-size:10px;color:#444;margin-bottom:5px">🤝 Binômes</div>
+      {% for p in student_pairs %}
+      {% set partner = p.b if p.a == s.name else p.a %}
+      {% set partner_student = students|selectattr('name','equalto',partner)|first %}
+      <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px">
+        {% if p.type=='mentor' %}🎓{% elif p.type=='rival' %}⚔️{% elif p.type=='project' %}📚{% else %}🤝{% endif %}
+        {% if partner_student is defined %}<a href="/student/{{ partner_student._index }}" style="color:#aaa;text-decoration:none">{{ partner }}</a>
+        {% else %}<span style="color:#666">{{ partner }}</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="s-tabs">
+    <button class="s-tab active" onclick="showTab('fiche',this)">Fiche</button>
+    <button class="s-tab" onclick="showTab('elo',this)">ELO &amp; Progression</button>
+    <button class="s-tab" onclick="showTab('devoirs',this)">Devoirs</button>
+    <button class="s-tab" onclick="showTab('remarques',this)">Remarques</button>
+    <button class="s-tab" onclick="showTab('workplan',this)">Plan de travail</button>
+    <button class="s-tab" onclick="showTab('parties',this)">Parties</button>
+    <button class="s-tab" onclick="showTab('journal',this)">Journal</button>
+    <button class="s-tab" onclick="showTab('grade',this)">🎖️ Passage de Grade</button>
+    <button class="s-tab" onclick="showTab('agenda',this)">📅 Agenda</button>
+    <button class="s-tab" onclick="showTab('finances',this)">💰 Finances</button>
+  </div>
+</aside>
+
+<main class="s-main">
+
+<!-- FICHE -->
+<div id="tab-fiche" class="s-tab-content active">
+  <div class="s-section">
+    <div class="s-section-title" style="color:#cc1a1a">🪪 Identité</div>
+    <div class="field-row"><label class="field-label">Prénom / Pseudo</label><input class="fi" id="f-name" value="{{ s.name or '' }}"></div>
+    <div class="field-row"><label class="field-label">Âge</label><input class="fi" id="f-age" value="{{ s.age or '' }}" placeholder="17"></div>
+    <div class="field-row"><label class="field-label">Ville</label><input class="fi" id="f-city" value="{{ s.city or '' }}"></div>
+    <div class="field-row"><label class="field-label">Téléphone</label><input class="fi" id="f-phone" value="{{ s.phone or '' }}"></div>
+    <div class="field-row"><label class="field-label">Études / Métier</label><input class="fi" id="f-job" value="{{ s.job or '' }}"></div>
+    <div class="field-row"><label class="field-label">Pseudo Lichess</label><input class="fi" id="f-lichess" value="{{ s.lichess or '' }}"></div>
+    <div class="field-row"><label class="field-label">Pseudo Chess.com</label><input class="fi" id="f-chesscom" value="{{ s.chesscom or '' }}"></div>
+  </div>
+
+  <!-- ═══ SECTION CORPS & RANG OVERRIDE ════════════════════ -->
+  <div class="override-section">
+    <div class="override-title">⚓ Corps & Rang</div>
+
+    <!-- Corps -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#555;margin-bottom:8px">Corps du ghost</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="branch-btn {% if rank.branch=='marine' %}active-marine{% endif %}" id="btn-marine" onclick="selectBranch('marine')">🎖️ Marine</button>
+        <button class="branch-btn {% if rank.branch=='pirates' %}active-pirates{% endif %}" id="btn-pirates" onclick="selectBranch('pirates')">🏴‍☠️ Pirates</button>
+        <label class="lock-toggle">
+          <input type="checkbox" id="branch-lock-chk" {% if s.branch_locked %}checked{% endif %} onchange="onBranchLockChange()">
+          <span id="branch-lock-label">{% if s.branch_locked %}🔒 Verrouillé{% else %}🔓 Auto (ELO){% endif %}</span>
+        </label>
+      </div>
+      <div style="font-size:10px;color:#333;margin-top:6px" id="branch-hint">
+        {% if s.branch_locked %}Corps assigné manuellement. Décocher pour revenir à l'attribution automatique.{% else %}Attribution automatique selon le niveau ELO (alternance par rang).{% endif %}
+      </div>
+    </div>
+
+    <!-- Rang -->
+    <div style="border-top:1px solid #1a1a1a;padding-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;color:#555">Rang du ghost</div>
+        <label class="lock-toggle">
+          <input type="checkbox" id="rank-lock-chk" {% if rank.rank_locked %}checked{% endif %} onchange="onRankLockChange()">
+          <span id="rank-lock-label">{% if rank.rank_locked %}🔒 Manuel{% else %}🔓 Auto (ELO){% endif %}</span>
+        </label>
+      </div>
+
+      <div class="rank-preview" id="rank-preview">
+        <span class="rank-preview-emoji" id="preview-emoji">{{ rank.emoji }}</span>
+        <div class="rank-preview-info">
+          <div class="rank-preview-title" id="preview-title" style="color:{{ rank.color }}">{{ rank.title }}</div>
+          <div class="rank-preview-hint" id="preview-hint">
+            {% if rank.rank_locked %}🔒 Rang verrouillé manuellement{% else %}✅ Calculé automatiquement (pic ELO : {{ rank.peak_elo or '—' }}){% endif %}
+          </div>
+        </div>
+        {% if rank.rank_locked %}<span class="locked-badge">🔒 Manuel</span>{% else %}<span class="auto-badge">⚡ Auto</span>{% endif %}
+      </div>
+
+      <select class="fi" id="rank-select" {% if not rank.rank_locked %}disabled{% endif %} style="opacity:{% if rank.rank_locked %}1{% else %}.35{% endif %};margin-bottom:8px" onchange="onRankSelectChange()">
+        <!-- Rempli par JS -->
+      </select>
+    </div>
+
+    <!-- Hakis manuels -->
+    <div style="border-top:1px solid #1a1a1a;padding-top:14px;margin-top:6px">
+      <div style="font-size:11px;color:#555;margin-bottom:10px">Hakis <span style="color:#333">(cocher pour attribuer manuellement si l'ELO n'est pas encore atteint)</span></div>
+      {% for h in haki_list %}
+      <div class="haki-override-row">
+        <span class="haki-override-label" style="color:{{ h.color }}">{{ h.label }}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:#333">≥ {{ h.threshold }} ELO {% if h.cad != 'any' %}({{ h.cad }}){% endif %}</span>
+          <button class="haki-toggle-btn {% if h.key in (s.manual_hakis or []) %}active{% endif %}" id="haki-btn-{{ h.key }}" style="{% if h.key in (s.manual_hakis or []) %}color:{{ h.color }};border-color:{{ h.color }}{% endif %}" onclick="toggleHaki('{{ h.key }}','{{ h.color }}')">
+            {% if h.key in (s.manual_hakis or []) %}✋ Manuel{% else %}➕ Attribuer{% endif %}
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <button class="btn btn-red btn-sm" style="margin-top:14px;width:100%" onclick="saveRankOverride()">💾 Sauvegarder corps & rang</button>
+  </div>
+
+  <!-- ══ ISLAND OVERRIDE ══════════════════════════════════════ -->
+  <div class="s-section">
+    <div class="s-section-title" style="color:#fbbf24">🗺️ Île assignée</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:22px">{{ island.emoji }}</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:{{ island.color }}">{{ island.name }}</div>
+        <div style="font-size:11px;color:#444">{{ island.desc }}{% if island.manual %} · <span style="color:#fbbf24">✋ Override manuel</span>{% else %} · <span style="color:#4ade80">⚡ Auto (Elo moyen : {{ s._avg_elo if s._avg_elo else '—' }})</span>{% endif %}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select id="island-select" style="flex:1;background:#060606;border:1px solid #1e1e1e;border-radius:8px;color:#aaa;font-size:12px;padding:6px 10px;font-family:inherit">
+        <option value="">⚡ Automatique (Elo moyen)</option>
+        {% for isl in islands_list %}
+        <option value="{{ isl.name }}" {% if island.manual and island.name == isl.name %}selected{% endif %}>{{ isl.emoji }} {{ isl.name }} — {{ isl.desc }} (≥{{ isl.threshold }})</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="saveIslandOverride()">💾</button>
+      {% if island.manual %}
+      <button class="btn btn-ghost btn-sm" style="color:#f87171;border-color:#f8717133" onclick="resetIsland()">✕ Reset</button>
+      {% endif %}
+    </div>
+  </div>
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="s-section">
+    <div class="s-section-title" style="color:#a78bfa">🎯 Style de jeu</div>
+    <div class="field-row"><label class="field-label">Style</label><input class="fi" id="f-style" value="{{ s.style or '' }}" placeholder="Tactique / Positionnel…"></div>
+    <div class="field-row"><label class="field-label">Ouvertures Blancs</label><input class="fi" id="f-opening-white" value="{{ s.opening_white or '' }}"></div>
+    <div class="field-row"><label class="field-label">Ouvertures Noirs</label><input class="fi" id="f-opening-black" value="{{ s.opening_black or '' }}"></div>
+    <div class="field-row"><label class="field-label">Points forts</label><input class="fi" id="f-strengths" value="{{ s.strengths or '' }}"></div>
+    <div class="field-row"><label class="field-label">Points faibles</label><input class="fi" id="f-weaknesses" value="{{ s.weaknesses or '' }}"></div>
+  </div>
+  <div class="s-section">
+    <div class="s-section-title" style="color:#f472b6">📖 Histoire & personnalité</div>
+    <div class="field-row"><label class="field-label">Début aux échecs</label><input class="fi" id="f-chess-start" value="{{ s.chess_start or '' }}"></div>
+    <div class="field-row"><label class="field-label">Comportement</label>
+      <select class="fi" id="f-behavior">{% for b in comportement %}<option {% if s.behavior==b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select>
+    </div>
+    <div style="margin-bottom:8px"><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Notes perso</label><textarea class="fta" id="f-personality" rows="3">{{ s.personality or '' }}</textarea></div>
+    <div><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Notes libres</label><textarea class="fta" id="f-misc" rows="3">{{ s.misc or '' }}</textarea></div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="btn btn-red" style="flex:1" onclick="saveFiche()">💾 Sauvegarder</button>
+    <button class="btn btn-danger" onclick="deleteCurrentStudent()">🗑 Supprimer</button>
+  </div>
+</div>
+
+<!-- ELO -->
+<div id="tab-elo" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">⚡ Sync API</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" id="sync-li-btn" onclick="syncLichess()">🟢 Sync Lichess</button>
+      <button class="btn btn-ghost btn-sm" id="sync-cc-btn" onclick="syncChesscom()">🟡 Sync Chess.com</button>
+      <span id="sync-msg" style="font-size:12px;color:#444"></span>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">
+      <span style="font-size:11px;color:#444;margin-right:4px">Afficher :</span>
+      <button class="plat-btn active" id="plat-li" onclick="switchPlat('li')">🟢 Lichess</button>
+      <button class="plat-btn" id="plat-cc" onclick="switchPlat('cc')">🟡 Chess.com</button>
+    </div>
+
+    <div class="elo-cards" id="cards-li">
+      <div class="elo-card">
+        <div class="elo-card-ttl">🟢 Lichess Blitz</div>
+        <div class="elo-num">{{ s.elo_li_blitz or '—' }}</div>
+        <div class="elo-sub">Bullet {{ s.elo_li_bullet or '—' }} · Rapid {{ s.elo_li_rapid or '—' }}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">Classical / OTB</div>
+        <div class="elo-num">{{ s.elo_li_classical or s.elo_otb or '—' }}</div>
+        <div class="elo-sub">FIDE/OTB: {{ s.elo_otb or '—' }}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">Parties jouées</div>
+        <div class="elo-num" style="font-size:16px">{{ s.li_games or '—' }}</div>
+        <div class="elo-sub">Dernière co. {{ s.li_last_online or '—' }}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">Pseudo</div>
+        <div class="elo-num" style="font-size:14px;color:#888">{{ s.lichess or '—' }}</div>
+        <div class="elo-sub">{% if s.lichess %}<a href="https://lichess.org/@/{{ s.lichess }}" target="_blank" style="color:#555;font-size:11px">Voir profil ↗</a>{% endif %}</div>
+      </div>
+    </div>
+
+    <div class="elo-cards" id="cards-cc" style="display:none">
+      <div class="elo-card">
+        <div class="elo-card-ttl">🟡 Chess.com Blitz</div>
+        <div class="elo-num">{{ s.elo_cc_blitz or '—' }}</div>
+        <div class="elo-sub">Bullet {{ s.elo_cc_bullet or '—' }} · Rapid {{ s.elo_cc_rapid or '—' }}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">Parties jouées</div>
+        <div class="elo-num" style="font-size:16px">{{ s.cc_games or '—' }}</div>
+        <div class="elo-sub">Membre depuis {{ s.cc_joined or '—' }}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">Pseudo</div>
+        <div class="elo-num" style="font-size:14px;color:#888">{{ s.chesscom or '—' }}</div>
+        <div class="elo-sub">{% if s.chesscom %}<a href="https://chess.com/member/{{ s.chesscom }}" target="_blank" style="color:#555;font-size:11px">Voir profil ↗</a>{% endif %}</div>
+      </div>
+      <div class="elo-card">
+        <div class="elo-card-ttl">vs Lichess</div>
+        {% set li_best = [(s.get('elo_li_blitz') or 0)|int, (s.get('elo_li_bullet') or 0)|int, (s.get('elo_li_rapid') or 0)|int]|max %}
+        {% set cc_best = [(s.get('elo_cc_blitz') or 0)|int, (s.get('elo_cc_bullet') or 0)|int, (s.get('elo_cc_rapid') or 0)|int]|max %}
+        {% if cc_best > li_best %}
+          <div class="elo-num" style="font-size:14px;color:#4ade80">+{{ cc_best - li_best }}</div>
+          <div class="elo-sub">Meilleur sur Chess.com 🟡</div>
+        {% elif li_best > cc_best %}
+          <div class="elo-num" style="font-size:14px;color:#f97316">-{{ li_best - cc_best }}</div>
+          <div class="elo-sub">Meilleur sur Lichess 🟢</div>
+        {% else %}
+          <div class="elo-num" style="font-size:14px;color:#888">=</div>
+          <div class="elo-sub">Équivalent</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">📈 Courbe ELO</div>
+    <div class="chart-filters">
+      <button class="cf-btn active" onclick="filterChart(7,this)">7j</button>
+      <button class="cf-btn" onclick="filterChart(30,this)">30j</button>
+      <button class="cf-btn" onclick="filterChart(90,this)">90j</button>
+      <button class="cf-btn" onclick="filterChart(0,this)">Tout</button>
+      <span style="width:1px;background:#222;margin:0 4px"></span>
+      <span id="chart-cadences-li">
+        <button class="cf-btn active" onclick="toggleCadence('blitz_li',this)" data-cad="blitz_li">🟢 Blitz</button>
+        <button class="cf-btn" onclick="toggleCadence('bullet_li',this)" data-cad="bullet_li">🟢 Bullet</button>
+        <button class="cf-btn" onclick="toggleCadence('rapid_li',this)" data-cad="rapid_li">🟢 Rapid</button>
+      </span>
+      <span id="chart-cadences-cc" style="display:none">
+        <button class="cf-btn active" onclick="toggleCadence('blitz_cc',this)" data-cad="blitz_cc">🟡 Blitz</button>
+        <button class="cf-btn" onclick="toggleCadence('bullet_cc',this)" data-cad="bullet_cc">🟡 Bullet</button>
+        <button class="cf-btn" onclick="toggleCadence('rapid_cc',this)" data-cad="rapid_cc">🟡 Rapid</button>
+      </span>
+    </div>
+    <div class="chart-wrap"><canvas id="elo-chart"></canvas></div>
+    <div id="elo-legend" style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#444"></div>
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">➕ Entrée manuelle</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date</label><input type="date" class="fi" id="prog-date"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">ELO Lichess blitz</label><input class="fi" id="prog-li" placeholder="1250"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">ELO Chess.com blitz</label><input class="fi" id="prog-cc" placeholder="1100"></div>
+      <button class="btn btn-red btn-sm" onclick="addProgression()">➕</button>
+    </div>
+    <input class="fi" id="prog-note" placeholder="Note de session…" style="width:100%">
+  </div>
+
+  <div id="prog-list">
+    {% for e in s.get('elo_history',[])|reverse %}
+    <div class="prog-item">
+      <span class="prog-date">{{ e.date }}</span>
+      <span class="prog-elos">{% if e.elo_li_blitz or e.elo_li %}Li {{ e.elo_li_blitz or e.elo_li }}{% endif %}{% if e.elo_cc_blitz or e.elo_cc %}  CC {{ e.elo_cc_blitz or e.elo_cc }}{% endif %}</span>
+      {% if e.note %}<span class="prog-note">{{ e.note }}</span>{% endif %}
+      <button class="btn btn-danger btn-xs" onclick="deleteProgression({{ s.get('elo_history',[])|length-loop.index }})">🗑</button>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucune entrée.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- DEVOIRS -->
+<div id="tab-devoirs" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">➕ Nouveau devoir</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Titre</label><input class="fi" id="dev-title" placeholder="Étudier la Sicilienne…"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Pour le</label><input type="date" class="fi" id="dev-due"></div>
+      <button class="btn btn-red btn-sm" onclick="addDevoir()">➕</button>
+    </div>
+    <input class="fi" id="dev-note" placeholder="Note optionnelle…" style="width:100%">
+  </div>
+  <div id="devoirs-list">
+    {% for d in s.get('devoirs',[]) %}
+    <div class="dev-item">
+      <span class="dev-title">{{ d.title }}</span>
+      {% if d.due %}<span class="dev-due">📅 {{ d.due }}</span>{% endif %}
+      <select class="fi" style="width:140px;padding:4px 8px" onchange="changeDevStatus({{ loop.index0 }},this.value)">
+        {% for st in devoir_status %}<option {% if d.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-danger btn-xs" onclick="deleteDevoir({{ loop.index0 }})">🗑</button>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun devoir.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- REMARQUES -->
+<div id="tab-remarques" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">➕ Nouvelle remarque</div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
+      {% for tag in ['💡 Idée','⚡ Progrès','⚠️ Difficulté','🎯 Objectif','🎓 Session','📈 Percée'] %}
+      <button class="btn btn-ghost btn-xs" onclick="insertTag('{{ tag }}')">{{ tag }}</button>
+      {% endfor %}
+    </div>
+    <textarea class="fta" id="rem-text" rows="3" placeholder="Observation, note de séance…"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+      <input type="datetime-local" class="fi" id="rem-date" style="flex:1">
+      <button class="btn btn-red btn-sm" onclick="addRemarque()">➕</button>
+    </div>
+  </div>
+  <div id="remarques-list">
+    {% for r in s.get('remarques',[])|reverse %}
+    <div class="je">
+      <div class="je-meta"><span>🕐 {{ r.date }}</span>{% if r.tag %}<span style="color:var(--red)">{{ r.tag }}</span>{% endif %}</div>
+      <div class="je-content">{{ r.text }}</div>
+      <div class="je-footer"><button class="btn btn-danger btn-xs" onclick="deleteRemarque({{ s.get('remarques',[])|length-loop.index }})">🗑</button></div>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucune remarque.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- PLAN DE TRAVAIL -->
+<div id="tab-workplan" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">🎯 Thèmes à travailler</div>
+    <div id="theme-tags">
+      {% set ct = s.get('work_plan',{}).get('themes',[]) %}
+      {% for t in work_themes %}
+      <span class="theme-tag {% if t in ct %}active{% endif %}" onclick="toggleTheme(this,'{{ t }}')">{{ t }}</span>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px"><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Notes du plan</label>
+    <textarea class="fta" id="workplan-notes" rows="4" placeholder="Priorités, méthodes, ressources…">{{ s.get('work_plan',{}).get('notes','') }}</textarea></div>
+  </div>
+  <div class="s-section">
+    <div class="s-section-title">⚠️ Erreurs récurrentes</div>
+    <div id="error-tags">
+      {% set ce = s.get('recurring_errors',[]) %}
+      {% for e in recurring_errors %}
+      <span class="err-tag {% if e in ce %}active{% endif %}" onclick="toggleError(this,'{{ e }}')">{{ e }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="s-section">
+    <div class="s-section-title">🏆 Objectif ELO</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">ELO cible</label><input class="fi" id="elo-target" value="{{ s.elo_target or '' }}" placeholder="1500"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date cible</label><input type="date" class="fi" id="elo-target-date" value="{{ s.elo_target_date or '' }}"></div>
+    </div>
+    {% if s.elo_target %}
+    <div class="elo-target-bar"><div class="elo-target-fill" style="width:{{ elo_target_pct }}%"></div></div>
+    <div style="font-size:11px;color:#444;margin-top:3px">{{ elo_target_pct }}% — actuel {{ rank.best_elo }} → {{ s.elo_target }}</div>
+    {% endif %}
+  </div>
+  <button class="btn btn-red" onclick="saveWorkplan()">💾 Sauvegarder le plan</button>
+</div>
+
+<!-- PARTIES -->
+<div id="tab-parties" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">🔍 Import & analyse Lichess</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="fi" id="parties-pseudo" value="{{ s.lichess or '' }}" placeholder="pseudo_lichess" style="flex:1">
+      <button class="btn btn-red btn-sm" id="parties-btn" onclick="importParties()">🔍 Analyser 30 parties</button>
+    </div>
+    <div id="parties-status" style="font-size:12px;color:#444;margin-top:6px"></div>
+  </div>
+
+  <div id="parties-result">
+    {% if s.games_analysis %}{% set ga=s.games_analysis %}
+    <div class="s-section">
+      <div class="s-section-title">📊 Analyse — {{ ga.total }} parties</div>
+      <div class="wr-grid">
+        {% for cname,res,em in [('Blancs ♔',ga.white_results,'⬜'),('Noirs ♚',ga.black_results,'⬛')] %}
+        {% set t=res.win+res.loss+res.draw %}{% set pct=(res.win/t*100)|int if t else 0 %}
+        <div class="wr-card">
+          <div style="font-size:13px;color:#888;margin-bottom:4px">{{ em }} {{ cname }}</div>
+          <div class="wr-pct" style="color:{% if pct>=50 %}var(--red){% else %}var(--orange){% endif %}">{{ pct }}%</div>
+          <div class="wr-sub">✅{{ res.win }} ½{{ res.draw }} ❌{{ res.loss }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if ga.top_openings %}
+      <div style="font-size:11px;color:#444;margin-bottom:8px">🎯 Ouvertures — winrate</div>
+      {% for op in ga.top_openings %}
+      <div class="op-bar-row">
+        <span class="op-name">{{ op.name }}</span>
+        {% set max_count = ga.top_openings[0].get('count',1) if ga.top_openings else 1 %}
+        <div class="op-bar"><div class="op-fill" style="width:{{ ((op.get('count',0)/max_count)*100)|int }}%;background:{% if op.winrate>=55 %}#22c55e{% elif op.winrate>=45 %}var(--orange){% else %}var(--red){% endif %}"></div></div>
+        <span class="op-wr" style="color:{% if op.winrate>=55 %}#22c55e{% elif op.winrate>=45 %}var(--orange){% else %}var(--red){% endif %}">{{ op.winrate }}%</span>
+        <span style="font-size:10px;color:#333;min-width:28px">{{ op.count }}p</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="color:#333;text-align:center;padding:20px;font-size:13px">Clique sur Analyser pour importer les parties.</div>
+    {% endif %}
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">📥 Parties reçues depuis l’espace Ghost</div>
+    {% if s.get('client_games') %}
+      {% for g in s.get('client_games', []) %}
+      <div class="ana-card" style="border-color:#2a2a44">
+        <div class="ana-hdr">
+          <span class="ana-date">{{ g.date }}</span>
+          <span class="ana-opening">{{ g.status or 'nouveau' }}</span>
+          {% if g.url %}<a href="{{ g.url }}" target="_blank" style="font-size:11px;color:var(--red)">🔗 Ouvrir</a>{% endif %}
+        </div>
+        {% if g.note %}<div class="ana-notes">{{ g.note }}</div>{% endif %}
+        {% if g.position_fen %}<div class="ana-notes" style="font-family:monospace;color:#a78bfa;word-break:break-word">FEN : {{ g.position_fen }}</div><a href="{{ lichess_analysis_url(g.position_fen) }}" target="_blank" style="font-size:11px;color:#a78bfa">♟ Ouvrir sur Lichess</a>{% endif %}
+        {% if g.pgn %}<div class="ana-notes" style="font-family:monospace;max-height:90px;overflow:auto;color:#888">{{ g.pgn[:800] }}{% if g.pgn|length > 800 %}…{% endif %}</div><a href="{{ lichess_paste_url() }}" target="_blank" style="font-size:11px;color:#a78bfa">Importer PGN</a>{% endif %}
+        {% if g.attachments %}<div style="margin-top:8px">{% for a in g.attachments %}<a href="{{ a }}" target="_blank" style="font-size:11px;color:#c4b5fd;margin-right:8px">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="color:#333;text-align:center;padding:16px">Aucune partie envoyée depuis l’espace Ghost.</div>
+    {% endif %}
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">📝 Parties annotées</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Lien Lichess</label><input class="fi" id="ana-url" placeholder="https://lichess.org/…"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Ouverture</label><input class="fi" id="ana-opening" placeholder="Sicilienne…"></div>
+      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Résultat</label>
+        <select class="fi" id="ana-result"><option>✅ Victoire</option><option>❌ Défaite</option><option>½ Nulle</option></select>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="addAnalysis()">➕</button>
+    </div>
+    <textarea class="fta" id="ana-notes" rows="2" placeholder="Ce qu'on a travaillé, erreur principale, point positif…"></textarea>
+  </div>
+  <div id="analyses-list">
+    {% for a in s.get('game_analyses',[])|reverse %}
+    <div class="ana-card">
+      <div class="ana-hdr">
+        <span class="ana-date">{{ a.date }}</span>
+        {% if a.opening %}<span class="ana-opening">{{ a.opening }}</span>{% endif %}
+        <span style="font-size:11px;padding:2px 7px;border-radius:20px;background:{% if 'Victoire' in a.result %}#0a1a0a{% elif 'Défaite' in a.result %}#1a0a0a{% else %}#111{% endif %};color:{% if 'Victoire' in a.result %}#4ade80{% elif 'Défaite' in a.result %}var(--red){% else %}#888{% endif %}">{{ a.result }}</span>
+        {% if a.url %}<a href="{{ a.url }}" target="_blank" style="font-size:11px;color:var(--red)">🔗 Voir</a>{% endif %}
+        <button class="btn btn-danger btn-xs" onclick="deleteAnalysis({{ s.get('game_analyses',[])|length-loop.index }})" style="margin-left:auto">🗑</button>
+      </div>
+      {% if a.notes %}<div class="ana-notes">{{ a.notes }}</div>{% endif %}
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:16px">Aucune partie annotée.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- JOURNAL -->
+<div id="tab-journal" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">✍️ Nouvelle entrée</div>
+    <div class="mood-row">{% for m in ['😊','🔥','😤','💡','⚡','🎯','📈','😴','🏆','🤔','♟','🧠'] %}<button class="mood-btn" onclick="selectMood(this,'{{ m }}')">{{ m }}</button>{% endfor %}</div>
+    <textarea class="fta" id="journal-text" rows="4" placeholder="Notes de séance, observations, impressions…"></textarea>
+    <div style="margin-top:8px;text-align:right"><button class="btn btn-red btn-sm" onclick="addJournalEntry()">➕ Ajouter</button></div>
+  </div>
+  <div id="journal-list">
+    {% for e in s.get('journal',[])|reverse %}
+    <div class="je" id="je-{{ e.id }}">
+      <div class="je-meta">{% if e.mood %}<span>{{ e.mood }}</span>{% endif %}<span>{{ e.date }} {{ e.time }}</span>{% if e.get('edited') %}<span style="color:#222;font-style:italic">modifié {{ e.edited }}</span>{% endif %}</div>
+      <div class="je-content" id="jec-{{ e.id }}">{{ e.content }}</div>
+      <div class="je-footer">
+        <button class="btn btn-ghost btn-xs" onclick="startEditJournal('{{ e.id }}',{{ e.content|tojson }})">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteJournalEntry('{{ e.id }}')">🗑</button>
+      </div>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucune entrée.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- PASSAGE DE GRADE -->
+<div id="tab-grade" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">🎖️ Statut actuel</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="font-size:32px">{{ rank.emoji }}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:{{ rank.color }}">{{ rank.title }}</div>
+        <div style="font-size:12px;color:#555;margin-top:3px">{% if rank.branch=='marine' %}🎖️ Marine{% else %}🏴‍☠️ Pirates{% endif %}</div>
+        <div style="font-size:11px;color:#444;margin-top:2px">ELO actuel : <b style="color:#ccc">{{ rank.best_elo or '—' }}</b></div>
+        {% if rank.branch=='marine' %}
+        <div style="font-size:10px;color:#555;margin-top:4px">⚠️ Amiral requiert ≥ 2100 ELO dans au moins 2 cadences.</div>
+        {% endif %}
+      </div>
+      {% if s.get('exam_grade_unlocked') %}
+      <div style="margin-left:auto">
+        <div style="font-size:10px;color:#444;margin-bottom:4px">🏅 Badges examens</div>
+        {% for g in s.exam_grade_unlocked %}
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#1a1200;color:#fbbf24;border:1px solid #fbbf2433;margin:2px;display:inline-block">🏅 {{ g }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Passer un examen — nouveau système interactif -->
+  <div class="s-section">
+    <div class="s-section-title">📋 Faire passer l'examen</div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Grade cible</label>
+      <select class="fi" id="exam-grade-select" onchange="loadExamQuestions(this.value)">
+        <option value="">— Sélectionner un grade —</option>
+        {% for branch_ranks in [ranks_pirates, ranks_marine] %}
+        {% for r in branch_ranks %}
+        <option value="{{ r.emoji }}_{{ r.title }}">{{ r.emoji }} {{ r.title }} (≥ {{ r.threshold }} ELO)</option>
+        {% endfor %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="exam-questions-panel" style="display:none">
+      <div class="s-section" style="background:#060606;margin-bottom:8px;padding:12px 14px">
+        <div class="s-section-title" style="color:#888;margin-bottom:10px">Questions — coche pour chaque réponse</div>
+
+        <!-- Score live -->
+        <div style="display:flex;align-items:center;gap:16px;padding:10px 0 12px;border-bottom:1px solid #111;margin-bottom:12px">
+          <div style="text-align:center">
+            <div id="exam-live-score" style="font-size:28px;font-weight:700;color:var(--red)">0</div>
+            <div style="font-size:10px;color:#444">/ <span id="exam-live-total">0</span> pts</div>
+          </div>
+          <div style="flex:1">
+            <div style="background:#111;border-radius:6px;height:6px;overflow:hidden">
+              <div id="exam-progress-bar" style="background:var(--red);height:100%;width:0%;transition:.3s"></div>
+            </div>
+            <div id="exam-pct-label" style="font-size:11px;color:#555;margin-top:4px">0% — Seuil de réussite : 60%</div>
+          </div>
+          <div id="exam-verdict" style="font-size:22px"></div>
+        </div>
+
+        <div id="exam-q-list"></div>
+      </div>
+
+      <textarea class="fta" id="exam-notes" rows="2" placeholder="Notes sur l'examen, points forts/faibles…" style="margin-bottom:8px"></textarea>
+      <button class="btn btn-red" onclick="submitExamResult()">✅ Valider l'examen</button>
+      <span id="exam-msg" style="font-size:12px;color:#888;margin-left:10px"></span>
+    </div>
+  </div>
+
+  <!-- Historique des examens -->
+  <div class="s-section">
+    <div class="s-section-title">📜 Historique des examens</div>
+    {% for r in s.get('exam_results',[])|reverse %}
+    <div class="dev-item" style="background:#060606;border:1px solid {% if r.passed %}#4ade8033{% else %}#cc1a1a33{% endif %}">
+      <div style="font-size:18px">{% if r.passed %}✅{% else %}❌{% endif %}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:#ccc;font-weight:600">{{ r.grade_label }}</div>
+        <div style="font-size:11px;color:#555">{{ r.date }} — Score : {{ r.score }}/{{ r.total }} {% if r.total %}({{ (r.score/r.total*100)|int }}%){% endif %}</div>
+        {% if r.notes %}<div style="font-size:11px;color:#444;margin-top:2px">{{ r.notes }}</div>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div style="color:#333;text-align:center;padding:20px">Aucun examen passé.</div>
+    {% endfor %}
+  </div>
+
+  <!-- Banque de questions — édition -->
+  <div class="s-section">
+    <div class="s-section-title">🗂️ Banque de questions (édition)</div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Grade concerné</label>
+      <select class="fi" id="bank-grade-select" onchange="loadBankGrade(this.value)">
+        <option value="">— Sélectionner un grade —</option>
+        {% for branch_ranks in [ranks_pirates, ranks_marine] %}
+        {% for r in branch_ranks %}
+        <option value="{{ r.emoji }}_{{ r.title }}">{{ r.emoji }} {{ r.title }}</option>
+        {% endfor %}
+        {% endfor %}
+      </select>
+    </div>
+    <div id="bank-editor" style="display:none">
+      <div id="bank-questions-list" style="margin-bottom:8px"></div>
+
+      <!-- Ajouter une question -->
+      <div style="background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-size:11px;color:#555;margin-bottom:8px;font-weight:600">➕ Nouvelle question</div>
+        <input class="fi" id="bank-new-q" placeholder="Énoncé de la question…" style="width:100%;margin-bottom:6px">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <div>
+            <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Type</label>
+            <select class="fi" id="bank-new-type" onchange="toggleBankExtraFields()">
+              <option value="text">💬 Texte libre</option>
+              <option value="yesno">✅ Oui/Non</option>
+              <option value="pgn">♟️ Partie PGN</option>
+              <option value="image">🖼️ Image</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Points (défaut 1)</label>
+            <input class="fi" id="bank-new-pts" type="number" value="1" min="0.5" step="0.5">
+          </div>
+        </div>
+
+        <!-- Champ PGN -->
+        <div id="bank-pgn-field" style="display:none;margin-bottom:6px">
+          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Coller le PGN</label>
+          <textarea class="fta" id="bank-new-pgn" rows="3" placeholder="[Event &quot;?&quot;]\n[White &quot;?&quot;]&#10;1. e4 e5 2. Nf3…"></textarea>
+        </div>
+
+        <!-- Champ Image URL -->
+        <div id="bank-image-field" style="display:none;margin-bottom:6px">
+          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">URL de l'image</label>
+          <input class="fi" id="bank-new-image" placeholder="https://… ou chemin local">
+        </div>
+
+        <!-- Réponse attendue (optionnelle) -->
+        <div style="margin-bottom:6px">
+          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Réponse attendue (optionnel)</label>
+          <input class="fi" id="bank-new-answer" placeholder="Réponse modèle visible après correction…">
+        </div>
+
+        <button class="btn btn-ghost btn-sm" onclick="addBankQuestion()">➕ Ajouter à la banque</button>
+      </div>
+
+      <button class="btn btn-red btn-sm" onclick="saveBankGrade()">💾 Sauvegarder la banque</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGENDA -->
+<div id="tab-agenda" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">➕ Ajouter un événement</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date</label>
+        <input class="fi" type="date" id="ag-date">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Heure</label>
+        <input class="fi" type="time" id="ag-time">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Durée (min)</label>
+        <input class="fi" type="number" id="ag-duration" value="60" style="width:80px">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Libellé</label>
+        <input class="fi" id="ag-label" placeholder="Séance, rattrapage, examen…">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Type</label>
+        <select class="fi" id="ag-type">
+          <option value="session">📚 Séance</option>
+          <option value="exam">🎖️ Examen</option>
+          <option value="autre">📌 Autre</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:8px;text-align:right">
+      <button class="btn btn-red btn-sm" onclick="addAgendaEvent()">➕ Ajouter</button>
+    </div>
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">📅 Événements à venir</div>
+    {% set future_events = [] %}
+    {% set past_events = [] %}
+    {% for e in s.get('agenda',[])|sort(attribute='date') %}
+      {% if e.done %}{% set _ = past_events.append(e) %}{% else %}{% set _ = future_events.append(e) %}{% endif %}
+    {% endfor %}
+    {% if future_events %}
+    {% for e in future_events %}
+    <div class="dev-item" style="background:#060606">
+      <div style="font-size:18px">{% if e.type=='exam' %}🎖️{% elif e.type=='session' %}📚{% else %}📌{% endif %}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:#ccc;font-weight:600">{{ e.label or 'Événement' }}</div>
+        <div style="font-size:11px;color:#555">{{ e.date }} {% if e.time %}à {{ e.time }}{% endif %} {% if e.duration %}· {{ e.duration }}min{% endif %}</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="toggleAgendaEvent('{{ e.id }}')" title="Marquer fait">✅</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteAgendaEvent('{{ e.id }}')">🗑</button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color:#333;text-align:center;padding:16px">Aucun événement à venir.</div>
+    {% endif %}
+  </div>
+
+  {% if past_events %}
+  <div class="s-section">
+    <div class="s-section-title" style="color:#333">✅ Passés</div>
+    {% for e in past_events|reverse %}
+    <div class="dev-item" style="background:#060606;opacity:.5">
+      <div style="font-size:18px">✅</div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:#888;text-decoration:line-through">{{ e.label or 'Événement' }}</div>
+        <div style="font-size:11px;color:#444">{{ e.date }} {% if e.time %}à {{ e.time }}{% endif %}</div>
+      </div>
+      <button class="btn btn-danger btn-xs" onclick="deleteAgendaEvent('{{ e.id }}')">🗑</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- FINANCES -->
+<div id="tab-finances" class="s-tab-content">
+  <!-- Résumé -->
+  {% set payments = s.get('payments', []) %}
+  {% set total_paid = payments | selectattr('status', 'equalto', 'paid') | sum(attribute='amount') %}
+  {% set total_pending = payments | selectattr('status', 'equalto', 'pending') | sum(attribute='amount') %}
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:#4ade80">{{ total_paid|int }} FCFA</div>
+      <div style="font-size:10px;color:#444;margin-top:2px">💰 Payé</div>
+    </div>
+    <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:#fbbf24">{{ total_pending|int }} FCFA</div>
+      <div style="font-size:10px;color:#444;margin-top:2px">⏳ En attente</div>
+    </div>
+    <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:var(--red)">{{ (total_paid + total_pending)|int }} FCFA</div>
+      <div style="font-size:10px;color:#444;margin-top:2px">📊 Total</div>
+    </div>
+  </div>
+
+  <!-- Plan tarifaire du ghost -->
+  <div class="s-section">
+    <div class="s-section-title">📋 Forfait / Plan actuel</div>
+    <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+      <div style="flex:1">
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Formule</label>
+        <select class="fi" id="fin-plan">
+          <option value="" {% if not s.get('billing_plan') %}selected{% endif %}>— Sans forfait —</option>
+          <option value="session_30" {% if s.get('billing_plan')=='session_30' %}selected{% endif %}>Séance découverte — 2 000 FCFA</option>
+          <option value="session_60" {% if s.get('billing_plan')=='session_60' %}selected{% endif %}>Séance standard — 3 500 FCFA</option>
+          <option value="pack_progression" {% if s.get('billing_plan')=='pack_progression' %}selected{% endif %}>Pack progression — 9 000 FCFA</option>
+          <option value="tournament_prep" {% if s.get('billing_plan')=='tournament_prep' %}selected{% endif %}>Préparation tournoi — 10 000 FCFA</option>
+          <option value="ghost_premium" {% if s.get('billing_plan')=='ghost_premium' %}selected{% endif %}>Offre Ghost — 20 000 FCFA</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Note (conditions spéciales…)</label>
+        <input class="fi" id="fin-plan-note" value="{{ s.get('billing_note', '') }}" placeholder="Tarif négocié, remise famille…">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="saveBillingPlan()">💾</button>
+    </div>
+  </div>
+
+  <!-- Ajouter un paiement -->
+  <div class="s-section">
+    <div class="s-section-title">➕ Enregistrer un paiement</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date</label>
+        <input class="fi" type="date" id="pay-date">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Montant (FCFA)</label>
+        <input class="fi" type="number" id="pay-amount" placeholder="3500" min="0" step="500">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Statut</label>
+        <select class="fi" id="pay-status">
+          <option value="paid">✅ Payé</option>
+          <option value="pending">⏳ En attente</option>
+        </select>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="addPayment()" style="margin-bottom:0">➕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+      <input class="fi" id="pay-label" placeholder="Libellé (Séance #3, Forfait oct…)">
+      <select class="fi" id="pay-type" style="max-width:150px">
+        <option value="session">📚 Séance</option>
+        <option value="forfait">📦 Forfait</option>
+        <option value="autre">💳 Autre</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Historique des paiements -->
+  <div class="s-section">
+    <div class="s-section-title">📜 Historique des paiements</div>
+    {% if payments %}
+    {% for p in payments|reverse %}
+    <div class="dev-item" style="background:#060606;border-color:{% if p.status=='paid' %}#4ade8022{% else %}#fbbf2422{% endif %}">
+      <div style="font-size:18px">{% if p.status=='paid' %}💰{% else %}⏳{% endif %}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:#ccc;font-weight:600">{{ p.amount|int }} FCFA — {{ p.label or p.type }}</div>
+        <div style="font-size:11px;color:#555">{{ p.date }}</div>
+      </div>
+      {% if p.status=='pending' %}
+      <button class="btn btn-ghost btn-xs" onclick="markPaymentPaid('{{ p.id }}')" title="Marquer payé">✅</button>
+      {% endif %}
+      <button class="btn btn-danger btn-xs" onclick="deletePayment('{{ p.id }}')">🗑</button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color:#333;text-align:center;padding:20px">Aucun paiement enregistré.</div>
+    {% endif %}
+  </div>
+</div>
+
+</main>
+</div>
+
+<div class="scroll-btns">
+  <button class="scroll-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+  <button class="scroll-btn" onclick="window.scrollTo({top:99999,behavior:'smooth'})">↓</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var STUDENT_IDX = {{ idx }};
+var CHART_DATA = {{ chart_data|tojson }};
+var CAD_COLORS = {blitz_li:'#cc1a1a',blitz_cc:'#fbbf24',bullet_li:'#ff3a1a',bullet_cc:'#f59e0b',rapid_li:'#f472b6',classical_li:'#a78bfa',rapid_cc:'#fb923c'};
+var CAD_LABELS = {blitz_li:'🟢 Blitz',blitz_cc:'🟡 Blitz',bullet_li:'🟢 Bullet',bullet_cc:'🟡 Bullet',rapid_li:'🟢 Rapid',classical_li:'🟢 Classical',rapid_cc:'🟡 Rapid'};
+var selectedMood='';
+var currentPlat='li';
+var activeCadences=['blitz_li'];
+var activeFilter=7;
+var eloChart=null;
+var activeThemes={{ s.get('work_plan',{}).get('themes',[])|tojson }};
+var activeErrors={{ s.get('recurring_errors',[])|tojson }};
+
+// ── Rang & Corps override ─────────────────────────────────
+var RANKS_PIRATES = {{ ranks_pirates|tojson }};
+var RANKS_MARINE  = {{ ranks_marine|tojson }};
+var currentBranch = '{{ rank.branch }}';
+var currentRankLocked = {{ 'true' if rank.rank_locked else 'false' }};
+var currentBranchLocked = {{ 'true' if s.branch_locked else 'false' }};
+var currentManualRankIdx = {{ rank.manual_rank_index if rank.manual_rank_index is not none else 'null' }};
+var manualHakis = {{ (s.manual_hakis or [])|tojson }};
+
+function getCurrentRanks() {
+  return currentBranch === 'marine' ? RANKS_MARINE : RANKS_PIRATES;
+}
+
+function buildRankSelect() {
+  var sel = document.getElementById('rank-select');
+  var ranks = getCurrentRanks();
+  sel.innerHTML = '';
+  ranks.forEach(function(r) {
+    var opt = document.createElement('option');
+    opt.value = r.idx;
+    opt.textContent = r.emoji + ' ' + r.title + (r.threshold > 0 ? ' (≥' + r.threshold + ')' : ' (débutant)');
+    if (r.idx === currentManualRankIdx) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function selectBranch(branch) {
+  currentBranch = branch;
+  document.getElementById('btn-marine').className = 'branch-btn' + (branch === 'marine' ? ' active-marine' : '');
+  document.getElementById('btn-pirates').className = 'branch-btn' + (branch === 'pirates' ? ' active-pirates' : '');
+  buildRankSelect();
+  if (currentRankLocked) onRankSelectChange();
+}
+
+function onBranchLockChange() {
+  var chk = document.getElementById('branch-lock-chk');
+  currentBranchLocked = chk.checked;
+  document.getElementById('branch-lock-label').textContent = chk.checked ? '🔒 Verrouillé' : '🔓 Auto (ELO)';
+  document.getElementById('branch-hint').textContent = chk.checked
+    ? 'Corps assigné manuellement. Décocher pour revenir à l\'attribution automatique.'
+    : 'Attribution automatique selon le niveau ELO (alternance par rang).';
+}
+
+function onRankLockChange() {
+  var chk = document.getElementById('rank-lock-chk');
+  currentRankLocked = chk.checked;
+  var sel = document.getElementById('rank-select');
+  sel.disabled = !chk.checked;
+  sel.style.opacity = chk.checked ? '1' : '0.35';
+  document.getElementById('rank-lock-label').textContent = chk.checked ? '🔒 Manuel' : '🔓 Auto (ELO)';
+  if (chk.checked) {
+    onRankSelectChange();
+  } else {
+    document.getElementById('preview-hint').textContent = '✅ Calculé automatiquement depuis l\'ELO';
+    document.getElementById('rank-preview').querySelector('.locked-badge, .auto-badge') &&
+      document.getElementById('rank-preview').lastElementChild &&
+      (document.getElementById('rank-preview').lastElementChild.className = 'auto-badge') &&
+      (document.getElementById('rank-preview').lastElementChild.textContent = '⚡ Auto');
+  }
+}
+
+function onRankSelectChange() {
+  var sel = document.getElementById('rank-select');
+  var idx = parseInt(sel.value);
+  currentManualRankIdx = idx;
+  var ranks = getCurrentRanks();
+  var r = ranks[idx];
+  if (!r) return;
+  document.getElementById('preview-emoji').textContent = r.emoji;
+  document.getElementById('preview-title').textContent = r.title;
+  document.getElementById('preview-title').style.color = r.color;
+  document.getElementById('preview-hint').textContent = '🔒 Rang verrouillé manuellement';
+}
+
+function toggleHaki(key, color) {
+  var idx = manualHakis.indexOf(key);
+  var btn = document.getElementById('haki-btn-' + key);
+  if (idx >= 0) {
+    manualHakis.splice(idx, 1);
+    btn.className = 'haki-toggle-btn';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.textContent = '➕ Attribuer';
+  } else {
+    manualHakis.push(key);
+    btn.className = 'haki-toggle-btn active';
+    btn.style.color = color;
+    btn.style.borderColor = color;
+    btn.textContent = '✋ Manuel';
+  }
+}
+
+function saveRankOverride() {
+  var payload = {
+    index: STUDENT_IDX,
+    branch_locked: currentBranchLocked,
+    branch: currentBranch,
+    rank_locked: currentRankLocked,
+    manual_rank_index: currentRankLocked ? currentManualRankIdx : null,
+    manual_hakis: manualHakis
+  };
+  post('/api/students/set_rank', payload, function(r) {
+    if (r.ok) { toast('Corps & rang sauvegardés'); setTimeout(function(){location.reload();}, 800); }
+    else toast('Erreur lors de la sauvegarde');
+  });
+}
+
+// Init rank select
+buildRankSelect();
+// ──────────────────────────────────────────────────────────
+
+function saveIslandOverride() {
+  var sel = document.getElementById('island-select');
+  var val = sel ? sel.value : '';
+  var payload = { index: STUDENT_IDX };
+  if (!val) { payload.reset = true; }
+  else { payload.island = val; }
+  post('/api/students/island', payload, function(r) {
+    if (r.ok) { toast('Île sauvegardée ✅'); setTimeout(function(){ location.reload(); }, 700); }
+    else toast('Erreur sauvegarde île');
+  });
+}
+
+function resetIsland() {
+  post('/api/students/island', { index: STUDENT_IDX, reset: true }, function(r) {
+    if (r.ok) { toast('Île remise en auto ✅'); setTimeout(function(){ location.reload(); }, 700); }
+  });
+}
+
+function hasCad(c){return activeCadences.indexOf(c)>=0;}
+
+function showTab(tab,btn){
+  var tabs=document.querySelectorAll('.s-tab-content');
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
+  var btns=document.querySelectorAll('.s-tab');
+  for(var i=0;i<btns.length;i++) btns[i].classList.remove('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(tab==='elo') renderEloChart();
+}
+
+function switchPlat(plat){
+  currentPlat = plat;
+  document.getElementById('cards-li').style.display = plat==='li' ? '' : 'none';
+  document.getElementById('cards-cc').style.display = plat==='cc' ? '' : 'none';
+  document.getElementById('chart-cadences-li').style.display = plat==='li' ? '' : 'none';
+  document.getElementById('chart-cadences-cc').style.display = plat==='cc' ? '' : 'none';
+  document.getElementById('plat-li').classList.toggle('active', plat==='li');
+  document.getElementById('plat-cc').classList.toggle('active', plat==='cc');
+  activeCadences = plat==='li' ? ['blitz_li'] : ['blitz_cc'];
+  var cfs = document.querySelectorAll('.cf-btn[data-cad]');
+  for(var i=0;i<cfs.length;i++){
+    var c = cfs[i].getAttribute('data-cad');
+    cfs[i].classList.toggle('active', activeCadences.indexOf(c)>=0);
+  }
+  renderEloChart();
+}
+
+function filterChart(days,btn){
+  activeFilter=days;
+  var cbs=document.querySelectorAll('.cf-btn');
+  for(var i=0;i<cbs.length;i++){
+    var t=cbs[i].textContent.trim();
+    if(t==='7j'||t==='30j'||t==='90j'||t==='Tout') cbs[i].classList.remove('active');
+  }
+  btn.classList.add('active');
+  renderEloChart();
+}
+
+function toggleCadence(cad,btn){
+  var idx=activeCadences.indexOf(cad);
+  if(idx>=0) activeCadences.splice(idx,1); else activeCadences.push(cad);
+  btn.classList.toggle('active', hasCad(cad));
+  renderEloChart();
+}
+
+function renderEloChart(){
+  var canvas=document.getElementById('elo-chart');
+  if(!canvas) return;
+  if(eloChart){eloChart.destroy();eloChart=null;}
+  var labels=CHART_DATA.labels;
+  var now=new Date();
+  var filteredIndices=[];
+  for(var i=0;i<labels.length;i++){
+    if(activeFilter===0){filteredIndices.push(i);continue;}
+    var cutoff=new Date(now.getTime()-activeFilter*24*60*60*1000);
+    var parts=labels[i].split('/');
+    if(parts.length===2){
+      var dt=new Date(now.getFullYear(),parseInt(parts[1])-1,parseInt(parts[0]));
+      if(dt>=cutoff) filteredIndices.push(i);
+    }
+  }
+  var filtLabels=filteredIndices.map(function(i){return labels[i];});
+  var datasets=[];
+  var legend=document.getElementById('elo-legend');
+  if(legend) legend.innerHTML='';
+  for(var ci=0;ci<activeCadences.length;ci++){
+    var cad=activeCadences[ci];
+    var seriesAll=CHART_DATA.series[cad]||[];
+    var filtData=filteredIndices.map(function(i){return seriesAll[i]!==undefined?seriesAll[i]:null;});
+    var hasData=filtData.some(function(v){return v!==null;});
+    if(!hasData) continue;
+    var col=CAD_COLORS[cad]||'#888';
+    datasets.push({label:CAD_LABELS[cad],data:filtData,borderColor:col,backgroundColor:col+'18',
+      fill:cad==='blitz_li',tension:0.3,pointRadius:3,borderWidth:2,spanGaps:true,
+      borderDash:cad.indexOf('cc')>=0?[5,3]:[]});
+    if(legend){
+      var dot=document.createElement('span');
+      dot.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-right:10px';
+      dot.innerHTML='<span style="background:'+col+';width:10px;height:3px;border-radius:2px;display:inline-block"></span>'+CAD_LABELS[cad];
+      legend.appendChild(dot);
+    }
+  }
+  if(!datasets.length){
+    canvas.parentElement.innerHTML='<p style="color:#333;text-align:center;padding:40px">Aucune donnée pour les filtres sélectionnés.</p>';
+    return;
+  }
+  eloChart=new Chart(canvas,{type:'line',data:{labels:filtLabels,datasets:datasets},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{color:'#333',maxTicksLimit:10},grid:{color:'#0f0f0f'}},
+            y:{ticks:{color:'#333'},grid:{color:'#0f0f0f'}}}
+  }});
+}
+
+function post(url,data,cb){
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',url,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onload=function(){if(cb) cb(JSON.parse(xhr.responseText));};
+  xhr.send(JSON.stringify(data));
+}
+
+function v(id){var el=document.getElementById(id);return el?el.value.trim():'';}
+
+function toast(msg){
+  var t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.classList.add('show');},10);
+  setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.remove();},400);},2500);
+}
+
+function saveFiche(){
+  var s={_index:STUDENT_IDX,
+    name:v('f-name'),age:v('f-age'),city:v('f-city'),phone:v('f-phone'),job:v('f-job'),
+    lichess:v('f-lichess'),chesscom:v('f-chesscom'),
+    style:v('f-style'),opening_white:v('f-opening-white'),opening_black:v('f-opening-black'),
+    strengths:v('f-strengths'),weaknesses:v('f-weaknesses'),chess_start:v('f-chess-start'),
+    behavior:document.getElementById('f-behavior').value,
+    personality:document.getElementById('f-personality').value.trim(),
+    misc:document.getElementById('f-misc').value.trim()};
+  post('/api/students/save',s,function(r){if(r.ok) toast('Fiche sauvegardee');});
+}
+
+function deleteCurrentStudent(){
+  if(!confirm('Supprimer definitivement cet eleve ?')) return;
+  post('/api/students/delete',{index:STUDENT_IDX},function(){window.location='/';});
+}
+
+function syncLichess(){
+  var uname=v('f-lichess'); if(!uname) return;
+  var btn=document.getElementById('sync-li-btn');
+  btn.textContent='...'; btn.disabled=true;
+  post('/api/sync/lichess',{student_index:STUDENT_IDX,username:uname},function(r){
+    btn.textContent='Sync Lichess'; btn.disabled=false;
+    if(r.ok){toast('Lichess OK');location.reload();}
+    else document.getElementById('sync-msg').textContent='Erreur: '+r.error;
+  });
+}
+
+function syncChesscom(){
+  var uname=v('f-chesscom'); if(!uname) return;
+  var btn=document.getElementById('sync-cc-btn');
+  btn.textContent='...'; btn.disabled=true;
+  post('/api/sync/chesscom',{student_index:STUDENT_IDX,username:uname},function(r){
+    btn.textContent='Sync Chess.com'; btn.disabled=false;
+    if(r.ok){toast('Chess.com OK');location.reload();}
+    else document.getElementById('sync-msg').textContent='Erreur: '+r.error;
+  });
+}
+
+function addProgression(){
+  var d=document.getElementById('prog-date').value;
+  var li=v('prog-li'),cc=v('prog-cc'),note=v('prog-note');
+  if(!li&&!cc&&!note) return;
+  var parts=d?d.split('-'):[];
+  var dateStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:new Date().toLocaleDateString('fr');
+  post('/api/students/progression',{student_index:STUDENT_IDX,action:'add',
+    date:dateStr,elo_li_blitz:li,elo_cc_blitz:cc,elo_li:li,elo_cc:cc,note:note},
+    function(){toast('Entree ajoutee');location.reload();});
+}
+function deleteProgression(i){
+  if(!confirm('Supprimer ?')) return;
+  post('/api/students/progression',{student_index:STUDENT_IDX,action:'delete',prog_index:i},function(){location.reload();});
+}
+
+function addDevoir(){
+  var title=v('dev-title'); if(!title) return;
+  var due=document.getElementById('dev-due').value;
+  var parts=due?due.split('-'):[];
+  var dueStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:'';
+  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'add',title:title,due:dueStr,note:v('dev-note')},
+    function(){location.reload();});
+}
+function changeDevStatus(di,status){
+  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'status',devoir_index:di,status:status},null);
+}
+function deleteDevoir(di){
+  if(!confirm('Supprimer ?')) return;
+  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'delete',devoir_index:di},function(){location.reload();});
+}
+
+function insertTag(tag){var ta=document.getElementById('rem-text');ta.value=(ta.value.trim()+' '+tag).trim();}
+function addRemarque(){
+  var text=document.getElementById('rem-text').value.trim(); if(!text) return;
+  var di=document.getElementById('rem-date').value;
+  var date=di?new Date(di).toLocaleString('fr'):new Date().toLocaleString('fr');
+  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'add',text:text,date:date},function(){location.reload();});
+}
+function deleteRemarque(i){
+  if(!confirm('Supprimer ?')) return;
+  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'delete',remarque_index:i},function(){location.reload();});
+}
+
+function toggleTheme(el,t){
+  var i=activeThemes.indexOf(t);
+  if(i>=0){activeThemes.splice(i,1);el.classList.remove('active');}
+  else{activeThemes.push(t);el.classList.add('active');}
+}
+function toggleError(el,e){
+  var i=activeErrors.indexOf(e);
+  if(i>=0){activeErrors.splice(i,1);el.classList.remove('active');}
+  else{activeErrors.push(e);el.classList.add('active');}
+}
+function saveWorkplan(){
+  post('/api/students/workplan',{student_index:STUDENT_IDX,
+    work_plan:{themes:activeThemes,notes:document.getElementById('workplan-notes').value.trim()},
+    elo_target:v('elo-target'),elo_target_date:document.getElementById('elo-target-date').value,
+    recurring_errors:activeErrors},function(){toast('Plan sauvegarde');location.reload();});
+}
+
+function importParties(){
+  var username=v('parties-pseudo'); if(!username) return;
+  var btn=document.getElementById('parties-btn');
+  var status=document.getElementById('parties-status');
+  btn.textContent='Analyse...'; btn.disabled=true;
+  status.textContent='Recuperation des parties...';
+  post('/api/sync/games',{student_index:STUDENT_IDX,username:username},function(r){
+    btn.textContent='Analyser 30 parties'; btn.disabled=false;
+    if(r.ok){status.textContent='OK';renderPartiesResult(r.result);}
+    else status.textContent='Erreur: '+r.error;
+  });
+}
+
+function renderPartiesResult(ga){
+  var c=document.getElementById('parties-result');
+  var wr=ga.white_results,br=ga.black_results;
+  var wt=wr.win+wr.loss+wr.draw, bt=br.win+br.loss+br.draw;
+  var wp=wt?Math.round(wr.win/wt*100):0, bp=bt?Math.round(br.win/bt*100):0;
+  var opHtml='';
+  if(ga.top_openings&&ga.top_openings.length){
+    var maxc=ga.top_openings[0].count||1;
+    opHtml='<div style="font-size:11px;color:#444;margin-bottom:6px">Ouvertures — winrate</div>';
+    for(var i=0;i<ga.top_openings.length;i++){
+      var op=ga.top_openings[i];
+      var col=op.winrate>=55?'#22c55e':op.winrate>=45?'#f97316':'#cc1a1a';
+      opHtml+='<div class="op-bar-row"><span class="op-name">'+op.name+'</span>'+
+        '<div class="op-bar"><div class="op-fill" style="width:'+Math.round(op.count/maxc*100)+'%;background:'+col+'"></div></div>'+
+        '<span class="op-wr" style="color:'+col+'">'+op.winrate+'%</span>'+
+        '<span style="font-size:10px;color:#333;min-width:28px">'+op.count+'p</span></div>';
+    }
+  }
+  c.innerHTML='<div class="s-section"><div class="s-section-title">Analyse — '+ga.total+' parties</div>'+
+    '<div class="wr-grid">'+
+    '<div class="wr-card"><div style="font-size:13px;color:#888;margin-bottom:4px">Blancs</div>'+
+    '<div class="wr-pct" style="color:'+(wp>=50?'var(--red)':'var(--orange)')+'">'+wp+'%</div>'+
+    '<div class="wr-sub">V'+wr.win+' N'+wr.draw+' D'+wr.loss+'</div></div>'+
+    '<div class="wr-card"><div style="font-size:13px;color:#888;margin-bottom:4px">Noirs</div>'+
+    '<div class="wr-pct" style="color:'+(bp>=50?'var(--red)':'var(--orange)')+'">'+bp+'%</div>'+
+    '<div class="wr-sub">V'+br.win+' N'+br.draw+' D'+br.loss+'</div></div>'+
+    '</div>'+opHtml+'</div>';
+}
+
+function addAnalysis(){
+  var url=v('ana-url'),opening=v('ana-opening'),notes=document.getElementById('ana-notes').value.trim();
+  var result=document.getElementById('ana-result').value;
+  post('/api/students/analysis',{student_index:STUDENT_IDX,action:'add',url:url,opening:opening,result:result,notes:notes},
+    function(){location.reload();});
+}
+function deleteAnalysis(i){
+  if(!confirm('Supprimer ?')) return;
+  post('/api/students/analysis',{student_index:STUDENT_IDX,action:'delete',analysis_index:i},function(){location.reload();});
+}
+
+function selectMood(btn,mood){
+  var btns=document.querySelectorAll('.mood-btn');
+  for(var i=0;i<btns.length;i++) btns[i].classList.remove('selected');
+  if(selectedMood===mood){selectedMood='';return;}
+  btn.classList.add('selected'); selectedMood=mood;
+}
+function addJournalEntry(){
+  var content=document.getElementById('journal-text').value.trim(); if(!content) return;
+  post('/api/students/journal',{student_index:STUDENT_IDX,action:'add',content:content,mood:selectedMood},function(){
+    document.getElementById('journal-text').value='';
+    selectedMood='';
+    var btns=document.querySelectorAll('.mood-btn');
+    for(var i=0;i<btns.length;i++) btns[i].classList.remove('selected');
+    location.reload();
+  });
+}
+function startEditJournal(eid,content){
+  var entry=document.getElementById('je-'+eid);
+  document.getElementById('jec-'+eid).style.display='none';
+  entry.querySelector('.je-footer').style.display='none';
+  var old=entry.querySelector('.edit-wrap');
+  if(old) old.remove();
+  var wrap=document.createElement('div'); wrap.className='edit-wrap'; wrap.style.marginTop='8px';
+  var ta=document.createElement('textarea'); ta.className='fta'; ta.value=content; ta.rows=4;
+  var brow=document.createElement('div'); brow.style.cssText='display:flex;gap:6px;justify-content:flex-end;margin-top:6px';
+  brow.innerHTML='<button class="btn btn-ghost btn-xs" onclick="cancelEditJournal(\''+eid+'\')">Annuler</button>'+
+    '<button class="btn btn-red btn-xs" onclick="saveEditJournal(\''+eid+'\')">Sauvegarder</button>';
+  wrap.appendChild(ta); wrap.appendChild(brow);
+  entry.insertBefore(wrap,entry.querySelector('.je-footer'));
+  ta.focus();
+}
+function saveEditJournal(eid){
+  var entry=document.getElementById('je-'+eid);
+  var content=entry.querySelector('.fta').value.trim(); if(!content) return;
+  post('/api/students/journal',{student_index:STUDENT_IDX,action:'edit',entry_id:eid,content:content},function(){location.reload();});
+}
+function cancelEditJournal(eid){
+  var entry=document.getElementById('je-'+eid);
+  var wrap=entry.querySelector('.edit-wrap');
+  if(wrap) wrap.remove();
+  document.getElementById('jec-'+eid).style.display='';
+  entry.querySelector('.je-footer').style.display='';
+}
+function deleteJournalEntry(eid){
+  if(!confirm('Supprimer ?')) return;
+  post('/api/students/journal',{student_index:STUDENT_IDX,action:'delete',entry_id:eid},function(){location.reload();});
+}
+
+// Init
+document.getElementById('prog-date').value='{{ now_date }}';
+var rdi=document.getElementById('rem-date');
+if(rdi){var nd=new Date();rdi.value=nd.getFullYear()+'-'+(nd.getMonth()+1<10?'0':'')+(nd.getMonth()+1)+'-'+(nd.getDate()<10?'0':'')+nd.getDate()+'T'+(nd.getHours()<10?'0':'')+nd.getHours()+':'+(nd.getMinutes()<10?'0':'')+nd.getMinutes();}
+
+// Pre-fill today for agenda & payment
+(function(){
+  var today=new Date();
+  var y=today.getFullYear(),m=(today.getMonth()+1<10?'0':'')+(today.getMonth()+1),d=(today.getDate()<10?'0':'')+today.getDate();
+  var el=document.getElementById('ag-date'); if(el) el.value=y+'-'+m+'-'+d;
+  var pe=document.getElementById('pay-date'); if(pe) pe.value=y+'-'+m+'-'+d;
+})();
+
+// ── EXAM ────────────────────────────────────────────────────
+var EXAM_BANK = {{ exam_bank|tojson }};
+var currentExamGrade = '';
+var bankQuestions = [];
+var examAnswers = {}; // {qIndex: 0 | 0.5 | 1}
+
+function loadExamQuestions(gradeKey){
+  currentExamGrade = gradeKey;
+  examAnswers = {};
+  var panel = document.getElementById('exam-questions-panel');
+  if(!gradeKey){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  var bank = EXAM_BANK[gradeKey];
+  var list = document.getElementById('exam-q-list');
+  if(!bank || !bank.questions || !bank.questions.length){
+    list.innerHTML='<div style="color:#444;font-size:12px;padding:8px">Aucune question dans la banque pour ce grade. Ajoute-en dans la section ci-dessous.</div>';
+    updateExamScore();
+    return;
+  }
+  var html='';
+  bank.questions.forEach(function(q,i){
+    var pts = parseFloat(q.points)||1;
+    var typeBadge = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍'}[q.type]||'💬';
+    html += '<div id="exam-qrow-'+i+'" style="padding:12px 0;border-bottom:1px solid #111">';
+    // En-tête question
+    html += '<div style="display:flex;align-items:flex-start;gap:10px">';
+    html += '<span style="font-size:10px;color:#444;min-width:20px;margin-top:3px">'+(i+1)+'.</span>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-size:13px;color:#ccc;margin-bottom:6px">'+q.question+'</div>';
+
+    // Afficher PGN si présent
+    if(q.type==='pgn' && q.pgn){
+      html += '<div style="background:#060606;border:1px solid #1e1e1e;border-radius:7px;padding:8px;font-size:11px;color:#555;font-family:monospace;white-space:pre-wrap;max-height:100px;overflow-y:auto;margin-bottom:6px">'+escapeHtml(q.pgn)+'</div>';
+    }
+    // Afficher image si présente
+    if(q.type==='image' && q.image){
+      html += '<img src="'+escapeHtml(q.image)+'" style="max-width:100%;border-radius:8px;margin-bottom:6px;border:1px solid #1e1e1e" onerror="this.style.display=\'none\'">';
+    }
+
+    html += '<div style="font-size:10px;color:#555;margin-bottom:8px">'+typeBadge+' '+pts+' pt'+(pts>1?'s':'')+'</div>';
+
+    // Boutons ✅ ½ ❌
+    html += '<div style="display:flex;gap:6px">';
+    html += '<button class="exam-ans-btn" id="ebtn-'+i+'-1" onclick="setExamAnswer('+i+',1,'+pts+')" style="'+ansStyle(examAnswers[i],1)+'">✅ Juste</button>';
+    html += '<button class="exam-ans-btn" id="ebtn-'+i+'-0.5" onclick="setExamAnswer('+i+',0.5,'+pts+')" style="'+ansStyle(examAnswers[i],0.5)+'">½ Partiel</button>';
+    html += '<button class="exam-ans-btn" id="ebtn-'+i+'-0" onclick="setExamAnswer('+i+',0,'+pts+')" style="'+ansStyle(examAnswers[i],0)+'">❌ Faux</button>';
+    html += '</div>';
+
+    // Réponse attendue (masquée, révélée sur clic)
+    if(q.answer){
+      html += '<div style="margin-top:6px">';
+      html += '<button onclick="toggleAnswer('+i+')" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;padding:0">👁 Voir réponse attendue</button>';
+      html += '<div id="exam-ans-'+i+'" style="display:none;font-size:11px;color:#888;background:#060606;border-radius:6px;padding:6px 8px;margin-top:4px">'+escapeHtml(q.answer)+'</div>';
+      html += '</div>';
+    }
+
+    html += '</div></div></div>';
+  });
+  list.innerHTML = html;
+  updateExamScore();
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function ansStyle(current, val){
+  var active = current===val;
+  var colors = {1:'#15803d', 0.5:'#92400e', 0:'#991b1b'};
+  var base = 'font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;transition:.15s;border:1px solid;';
+  if(active) return base+'background:'+colors[val]+';border-color:'+colors[val]+';color:#fff;';
+  return base+'background:#111;border-color:#222;color:#555;';
+}
+
+function setExamAnswer(qIdx, val, pts){
+  examAnswers[qIdx] = val;
+  // Re-render juste les boutons de cette question
+  [1,0.5,0].forEach(function(v){
+    var btn = document.getElementById('ebtn-'+qIdx+'-'+v);
+    if(btn) btn.style.cssText = ansStyle(val,v);
+  });
+  updateExamScore();
+}
+
+function updateExamScore(){
+  var bank = EXAM_BANK[currentExamGrade];
+  if(!bank||!bank.questions) return;
+  var total = bank.questions.reduce(function(s,q){ return s+(parseFloat(q.points)||1); },0);
+  var score = Object.keys(examAnswers).reduce(function(s,i){
+    var pts = parseFloat((bank.questions[parseInt(i)]||{}).points)||1;
+    return s + examAnswers[i]*pts;
+  },0);
+  score = Math.round(score*10)/10;
+  var pct = total>0 ? Math.round(score/total*100) : 0;
+  document.getElementById('exam-live-score').textContent = score;
+  document.getElementById('exam-live-total').textContent = total;
+  var bar = document.getElementById('exam-progress-bar');
+  bar.style.width = pct+'%';
+  bar.style.background = pct>=60?'#22c55e':pct>=40?'#f59e0b':'#ef4444';
+  document.getElementById('exam-pct-label').textContent = pct+'% — Seuil de réussite : 60%';
+  document.getElementById('exam-verdict').textContent = pct>=60?'🎉':Object.keys(examAnswers).length===bank.questions.length?'❌':'';
+}
+
+function toggleAnswer(i){
+  var el = document.getElementById('exam-ans-'+i);
+  if(el) el.style.display = el.style.display==='none'?'':'none';
+}
+
+function submitExamResult(){
+  var gradeKey = document.getElementById('exam-grade-select').value;
+  var bank = EXAM_BANK[gradeKey];
+  var notes = document.getElementById('exam-notes').value.trim();
+  if(!gradeKey||!bank||!bank.questions.length){ document.getElementById('exam-msg').textContent='Sélectionne un grade avec des questions.'; return; }
+  var total = bank.questions.reduce(function(s,q){ return s+(parseFloat(q.points)||1); },0);
+  var score = Object.keys(examAnswers).reduce(function(s,i){
+    var pts = parseFloat((bank.questions[parseInt(i)]||{}).points)||1;
+    return s + examAnswers[i]*pts;
+  },0);
+  score = Math.round(score*10)/10;
+  var passed = total>0 && (score/total)>=0.6;
+  var gradeLabel = document.getElementById('exam-grade-select').options[document.getElementById('exam-grade-select').selectedIndex].text;
+  post('/api/students/exam_result',{student_index:STUDENT_IDX,grade_key:gradeKey,grade_label:gradeLabel,score:score,total:total,passed:passed,notes:notes},function(r){
+    if(r.ok){ toast(passed?'🎉 Examen réussi !':'❌ Examen échoué'); setTimeout(function(){ location.reload(); },1200); }
+    else document.getElementById('exam-msg').textContent='Erreur';
+  });
+}
+
+// ── BANK EDITOR ──────────────────────────────────────────────
+function toggleBankExtraFields(){
+  var type = document.getElementById('bank-new-type').value;
+  document.getElementById('bank-pgn-field').style.display   = type==='pgn'   ? '' : 'none';
+  document.getElementById('bank-image-field').style.display = type==='image' ? '' : 'none';
+}
+
+function loadBankGrade(gradeKey){
+  var editor = document.getElementById('bank-editor');
+  if(!gradeKey){ editor.style.display='none'; return; }
+  editor.style.display='block';
+  var bank = EXAM_BANK[gradeKey];
+  bankQuestions = (bank&&bank.questions) ? JSON.parse(JSON.stringify(bank.questions)) : [];
+  renderBankQuestions();
+}
+
+function renderBankQuestions(){
+  var list = document.getElementById('bank-questions-list');
+  if(!bankQuestions.length){ list.innerHTML='<div style="color:#444;font-size:12px">Aucune question. Ajoute-en ci-dessous.</div>'; return; }
+  var typeLabel = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍'};
+  var html='';
+  bankQuestions.forEach(function(q,i){
+    var pts = parseFloat(q.points)||1;
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #111">';
+    html += '<span style="font-size:10px;color:#444;min-width:18px">'+(i+1)+'.</span>';
+    html += '<div style="flex:1;font-size:12px;color:#ccc">'+escapeHtml(q.question);
+    html += ' <span style="font-size:10px;color:#444">'+(typeLabel[q.type]||'💬')+' '+pts+'pt</span>';
+    if(q.pgn) html += '<span style="font-size:10px;color:#333;margin-left:4px">♟ PGN</span>';
+    if(q.image) html += '<span style="font-size:10px;color:#333;margin-left:4px">🖼</span>';
+    html += '</div>';
+    html += '<button class="btn btn-danger btn-xs" onclick="deleteBankQuestion('+i+')">🗑</button>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function addBankQuestion(){
+  var q = document.getElementById('bank-new-q').value.trim();
+  var t = document.getElementById('bank-new-type').value;
+  var pts = parseFloat(document.getElementById('bank-new-pts').value)||1;
+  var pgn = document.getElementById('bank-new-pgn').value.trim();
+  var image = document.getElementById('bank-new-image').value.trim();
+  var answer = document.getElementById('bank-new-answer').value.trim();
+  if(!q) return;
+  var entry = {question:q, type:t, points:pts};
+  if(pgn) entry.pgn = pgn;
+  if(image) entry.image = image;
+  if(answer) entry.answer = answer;
+  bankQuestions.push(entry);
+  document.getElementById('bank-new-q').value='';
+  document.getElementById('bank-new-pgn').value='';
+  document.getElementById('bank-new-image').value='';
+  document.getElementById('bank-new-answer').value='';
+  renderBankQuestions();
+}
+
+function deleteBankQuestion(i){ bankQuestions.splice(i,1); renderBankQuestions(); }
+
+function saveBankGrade(){
+  var gradeKey = document.getElementById('bank-grade-select').value;
+  var gradeLabel = document.getElementById('bank-grade-select').options[document.getElementById('bank-grade-select').selectedIndex].text;
+  if(!gradeKey) return;
+  post('/api/exams/save',{grade_key:gradeKey,grade_label:gradeLabel,questions:bankQuestions},function(r){
+    if(r.ok){ toast('Banque sauvegardée ✅'); EXAM_BANK[gradeKey]={grade_key:gradeKey,grade_label:gradeLabel,questions:bankQuestions}; }
+    else toast('Erreur');
+  });
+}
+
+// ── AGENDA ───────────────────────────────────────────────────
+function addAgendaEvent(){
+  var d=document.getElementById('ag-date').value;
+  var t=document.getElementById('ag-time').value;
+  var dur=document.getElementById('ag-duration').value;
+  var label=document.getElementById('ag-label').value.trim();
+  var type=document.getElementById('ag-type').value;
+  if(!d&&!label) return;
+  post('/api/students/agenda',{student_index:STUDENT_IDX,action:'add',date:d,time:t,duration:parseInt(dur)||60,label:label,type:type},function(r){
+    if(r.ok){toast('Événement ajouté');location.reload();}
+  });
+}
+
+function toggleAgendaEvent(eid){
+  post('/api/students/agenda',{student_index:STUDENT_IDX,action:'toggle_done',event_id:eid},function(r){
+    if(r.ok) location.reload();
+  });
+}
+
+function deleteAgendaEvent(eid){
+  if(!confirm('Supprimer cet événement ?')) return;
+  post('/api/students/agenda',{student_index:STUDENT_IDX,action:'delete',event_id:eid},function(r){
+    if(r.ok) location.reload();
+  });
+}
+
+// ── FINANCES ─────────────────────────────────────────────────
+function addPayment(){
+  var date=document.getElementById('pay-date').value;
+  var amount=parseFloat(document.getElementById('pay-amount').value)||0;
+  var label=document.getElementById('pay-label').value.trim();
+  var type=document.getElementById('pay-type').value;
+  var status=document.getElementById('pay-status').value;
+  if(!amount) return;
+  // Format date dd/mm/yyyy
+  var parts=date?date.split('-'):[];
+  var dateStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:new Date().toLocaleDateString('fr');
+  post('/api/students/finance',{student_index:STUDENT_IDX,action:'add_payment',date:dateStr,amount:amount,label:label,type:type,status:status},function(r){
+    if(r.ok){toast('Paiement ajouté');location.reload();}
+  });
+}
+
+function markPaymentPaid(pid){
+  post('/api/students/finance',{student_index:STUDENT_IDX,action:'update_status',payment_id:pid,status:'paid'},function(r){
+    if(r.ok) location.reload();
+  });
+}
+
+function deletePayment(pid){
+  if(!confirm('Supprimer ce paiement ?')) return;
+  post('/api/students/finance',{student_index:STUDENT_IDX,action:'delete_payment',payment_id:pid},function(r){
+    if(r.ok) location.reload();
+  });
+}
+
+function saveBillingPlan(){
+  var plan=document.getElementById('fin-plan').value;
+  var note=document.getElementById('fin-plan-note').value.trim();
+  post('/api/students/finance',{student_index:STUDENT_IDX,action:'set_plan',billing_plan:plan,billing_note:note},function(r){
+    if(r.ok) toast('Formule sauvegardée');
+  });
+}
+</script>
+</body>
+</html>

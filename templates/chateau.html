@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🏰 Tournoi des Châteaux — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{overflow:auto!important;height:auto!important;display:block!important;background:#050505;}
+
+:root{
+  --red:#cc1a1a;
+  --gold:#fbbf24;
+  --blue:#60a5fa;
+  --pink:#f472b6;
+  --green:#4ade80;
+  --purple:#a78bfa;
+  --surface:#0a0a0a;
+  --border:#1a1a1a;
+  --marine:#60a5fa;
+  --pirate:#f472b6;
+}
+
+.tc-wrap{max-width:1100px;margin:0 auto;padding:28px 20px 100px;}
+
+/* Header */
+.tc-header{display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap;}
+.tc-title{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.5px;}
+.tc-subtitle{font-size:12px;color:#444;margin-top:2px;}
+
+/* SCREENS */
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* ══════ RESUME BANNER ══════ */
+.resume-banner{
+  background:#0a0a0a;border:1px solid #fbbf2433;border-radius:14px;
+  padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.resume-banner-text{flex:1;font-size:13px;color:#ccc;}
+.resume-banner-meta{font-size:11px;color:#555;margin-top:2px;}
+
+/* ══════ SETUP SCREEN ══════ */
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.setup-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.setup-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;}
+.team-label{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+
+.player-list{display:flex;flex-direction:column;gap:6px;min-height:80px;}
+.player-card{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:#060606;border:1px solid #1e1e1e;border-radius:8px;
+  transition:.15s;position:relative;
+}
+.player-card:hover{border-color:#2a2a2a;}
+.player-role-badge{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;
+  border:1px solid currentColor;white-space:nowrap;
+}
+.player-name-input{
+  flex:1;background:none;border:none;color:#ccc;font-size:13px;
+  font-family:inherit;padding:0;outline:none;
+}
+.player-name-input::placeholder{color:#333;}
+.player-del{background:none;border:none;color:#2a2a2a;cursor:pointer;font-size:14px;transition:.15s;padding:0;}
+.player-del:hover{color:#ef4444;}
+
+.add-player-row{display:flex;gap:6px;margin-top:8px;}
+.fi{background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#aaa;font-size:13px;padding:7px 10px;font-family:inherit;}
+.fi:focus{outline:none;border-color:#444;}
+
+/* Ghost picker for random */
+.ghost-picker{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.ghost-picker-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#555;margin-bottom:12px;}
+.ghost-picker-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.gp-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;
+  background:#111;border:1px solid #1e1e1e;font-size:12px;color:#555;cursor:pointer;transition:.15s;font-family:inherit;
+}
+.gp-chip:hover{border-color:#333;color:#aaa;}
+.gp-chip.selected{border-color:#fbbf2466;color:#fbbf24;background:#fbbf2411;}
+.random-btn{
+  background:#111;border:1px solid #fbbf2433;border-radius:10px;
+  padding:10px 20px;font-size:13px;font-weight:700;color:#fbbf24;cursor:pointer;font-family:inherit;
+  transition:.2s;display:inline-flex;align-items:center;gap:8px;
+}
+.random-btn:hover{background:#fbbf2411;border-color:#fbbf2466;}
+.random-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* Castle preview */
+.castle-preview{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;}
+.castle-slot{width:38px;height:38px;border-radius:8px;border:1px dashed #1e1e1e;display:flex;align-items:center;justify-content:center;font-size:18px;transition:.2s;position:relative;cursor:default;}
+.castle-slot.occupied{border-style:solid;}
+.castle-slot.attacker-slot{border-color:#333;}
+.castle-slot-num{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:9px;color:#333;}
+
+/* Options panel */
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.opt-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.opt-label{font-size:11px;color:#444;margin-bottom:6px;}
+.opt-val{font-size:20px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;}
+.opt-stepper{display:flex;gap:6px;align-items:center;margin-top:4px;}
+.step-btn{width:28px;height:28px;border-radius:6px;border:1px solid #2a2a2a;background:#111;color:#888;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;font-family:inherit;}
+.step-btn:hover{border-color:#444;color:#fff;}
+
+/* Variant/Cadence tags */
+.variant-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.v-tag{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;transition:.15s;font-family:inherit;}
+.v-tag:hover{border-color:#333;color:#aaa;}
+.v-tag.sel{border-color:var(--gold);color:var(--gold);background:#fbbf2411;}
+
+.start-btn{width:100%;padding:16px;border-radius:12px;background:var(--red);color:#fff;font-size:16px;font-weight:800;cursor:pointer;border:none;transition:.2s;font-family:inherit;margin-top:20px;}
+.start-btn:hover{background:#a01212;transform:translateY(-1px);}
+.start-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* ══════ BATTLE SCREEN ══════ */
+.battle-layout{display:grid;grid-template-columns:1fr 3fr 1fr;gap:16px;margin-bottom:20px;}
+
+/* Teams sidebars */
+.team-sidebar{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;}
+.ts-title{font-size:12px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.ts-queue{display:flex;flex-direction:column;gap:5px;}
+.ts-player{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:8px;background:#060606;border:1px solid #111;font-size:12px;color:#666;transition:.2s;}
+.ts-player.current{border-color:currentColor;color:#fff;font-weight:700;}
+.ts-player.defender-current{border-color:var(--gold);}
+.ts-player.attacker-current{border-color:var(--red);}
+.ts-player.eliminated{opacity:.3;text-decoration:line-through;}
+.ts-player.winner{background:#4ade8011;border-color:var(--green);color:var(--green);}
+.ts-hearts{display:flex;gap:2px;margin-left:auto;}
+.ts-heart{font-size:12px;transition:.2s;}
+.ts-heart.lost{filter:grayscale(1);opacity:.3;}
+
+/* Center battle arena */
+.arena{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;}
+.arena-title{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px;}
+
+/* Castle visualization */
+.castle-viz{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding:16px;background:#060606;border-radius:12px;border:1px solid #111;}
+.cv-slot{display:flex;flex-direction:column;align-items:center;gap:4px;width:54px;}
+.cv-slot-num{font-size:9px;color:#333;}
+.cv-slot-piece{width:48px;height:48px;border-radius:10px;border:2px solid #111;display:flex;align-items:center;justify-content:center;font-size:20px;transition:.3s;position:relative;}
+.cv-slot-piece.current-battle{border-color:var(--gold);box-shadow:0 0 20px #fbbf2433;animation:battlePulse 1.5s ease-in-out infinite;}
+.cv-slot-piece.conquered{border-color:var(--red);background:#cc1a1a11;}
+.cv-slot-piece.defended{border-color:var(--blue);}
+.cv-slot-name{font-size:9px;color:#444;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}
+
+@keyframes battlePulse{0%,100%{box-shadow:0 0 20px #fbbf2433;}50%{box-shadow:0 0 35px #fbbf2466;}}
+
+/* VS Display */
+.vs-display{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:20px;flex-wrap:wrap;}
+.vs-fighter{background:#060606;border-radius:14px;border:2px solid #111;padding:16px 20px;min-width:140px;text-align:center;transition:.3s;}
+.vs-fighter.attacker{border-color:var(--red);}
+.vs-fighter.defender{border-color:var(--blue);}
+.vs-fighter-emoji{font-size:32px;margin-bottom:4px;}
+.vs-fighter-name{font-size:15px;font-weight:800;color:#fff;}
+.vs-fighter-role{font-size:10px;margin-top:2px;}
+.vs-fighter-hearts{font-size:14px;margin-top:6px;}
+.vs-center{font-size:32px;font-weight:900;color:#333;}
+
+/* Game info box */
+.game-info{background:#060606;border:1px solid #111;border-radius:12px;padding:14px 16px;margin-bottom:16px;text-align:left;}
+.gi-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.gi-row:last-child{margin-bottom:0;}
+.gi-key{font-size:11px;color:#444;min-width:80px;}
+.gi-val{font-size:14px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;}
+.variant-display{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;border:1px solid var(--gold);color:var(--gold);font-size:13px;font-weight:700;}
+.cadence-display{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;border:1px solid var(--purple);color:var(--purple);font-size:13px;font-weight:700;}
+
+/* Action buttons */
+.battle-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
+.ba-btn{padding:11px 22px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit;border:none;}
+.ba-attacker-win{background:var(--red);color:#fff;}
+.ba-attacker-win:hover{background:#a01212;}
+.ba-defender-win{background:var(--blue);color:#000;}
+.ba-defender-win:hover{background:#3b82f6;}
+.ba-skip{background:#111;border:1px solid #2a2a2a;color:#666;}
+.ba-skip:hover{border-color:#444;color:#aaa;}
+
+/* Result banner */
+.result-banner{padding:12px 20px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin-bottom:14px;display:none;}
+.result-banner.show{display:block;animation:bannerIn .3s ease;}
+@keyframes bannerIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* Log */
+.battle-log{background:#050505;border:1px solid #111;border-radius:10px;max-height:160px;overflow-y:auto;padding:10px 12px;font-size:11px;color:#444;font-family:'Courier New',monospace;}
+.log-entry{padding:2px 0;border-bottom:1px solid #0a0a0a;}
+.log-entry:last-child{border-bottom:none;}
+.log-win{color:var(--green);}
+.log-lose{color:var(--red);}
+.log-info{color:var(--gold);}
+
+/* ══════ END SCREEN ══════ */
+.end-screen{text-align:center;padding:40px 20px;}
+.end-trophy{font-size:80px;margin-bottom:16px;animation:trophyBounce 1s ease;}
+@keyframes trophyBounce{0%{transform:scale(0)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+.end-winner-team{font-size:28px;font-weight:800;margin-bottom:8px;}
+.end-subtitle{font-size:14px;color:#555;margin-bottom:32px;}
+
+.scoreboard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;max-width:500px;margin:0 auto 24px;}
+.score-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #111;}
+.score-row:last-child{border-bottom:none;}
+.score-rank{width:28px;height:28px;border-radius:50%;background:#111;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#555;}
+.score-rank.gold{background:#fbbf2422;color:var(--gold);}
+.score-name{flex:1;font-size:14px;color:#ccc;}
+.score-wins{font-size:20px;font-weight:800;color:var(--green);}
+.score-team-badge{font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid currentColor;}
+
+/* ══════ HISTORY SCREEN ══════ */
+.history-wrap{max-width:860px;margin:0 auto;}
+.hist-empty{color:#333;font-size:13px;text-align:center;padding:40px;}
+.hist-tournament{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;}
+.hist-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #111;cursor:pointer;transition:.15s;}
+.hist-header:hover{background:#0f0f0f;}
+.hist-header-winner{font-size:13px;font-weight:800;}
+.hist-header-date{font-size:11px;color:#444;margin-left:auto;}
+.hist-header-toggle{font-size:11px;color:#333;margin-left:8px;}
+.hist-body{display:none;padding:16px;}
+.hist-body.open{display:block;}
+.hist-teams{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.hist-team-title{font-size:11px;font-weight:700;margin-bottom:6px;}
+.hist-player-row{display:flex;align-items:center;gap:6px;font-size:12px;color:#888;padding:3px 0;}
+.hist-duels-title{font-size:11px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.hist-duel{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#060606;border-radius:7px;margin-bottom:4px;font-size:11px;}
+.hist-duel-num{color:#333;width:20px;text-align:right;flex-shrink:0;}
+.hist-duel-atk{color:#f87171;font-weight:600;flex:1;}
+.hist-duel-vs{color:#333;}
+.hist-duel-def{color:#60a5fa;font-weight:600;flex:1;text-align:right;}
+.hist-duel-result{font-size:10px;margin:0 4px;}
+.hist-duel-variant{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;border:1px solid #fbbf2433;color:#fbbf24;font-size:10px;}
+.hist-duel-cadence{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;border:1px solid #a78bfa33;color:#a78bfa;font-size:10px;}
+.hist-stats-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #111;}
+.hist-stat{background:#060606;border:1px solid #111;border-radius:7px;padding:6px 10px;font-size:11px;color:#555;}
+.hist-stat-val{font-size:14px;font-weight:800;color:#ccc;display:block;}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .3s ease;}
+
+/* ══════ ROULETTE RUSSE MODE ══════ */
+.roulette-overlay{
+  background:#050505;border:2px solid #ef444444;border-radius:16px;
+  padding:20px;margin-top:14px;position:relative;overflow:hidden;
+}
+.roulette-overlay::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center, #ef444408 0%, transparent 70%);
+  pointer-events:none;
+}
+.roulette-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 14px;
+  border-radius:20px;background:#ef444422;border:1px solid #ef4444;
+  font-size:13px;font-weight:800;color:#ef4444;
+  animation:roulettePulse 1.5s ease-in-out infinite;
+}
+@keyframes roulettePulse{0%,100%{box-shadow:0 0 0 0 #ef444400}50%{box-shadow:0 0 16px 2px #ef444433}}
+.rr-timer-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;position:relative;}
+.rr-timer-svg{width:130px;height:130px;}
+.rr-timer-track{fill:none;stroke:#111;stroke-width:10;}
+.rr-timer-prog{fill:none;stroke:#ef4444;stroke-width:10;stroke-linecap:round;
+  stroke-dasharray:345;stroke-dashoffset:0;
+  transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke .3s,stroke-dashoffset .1s linear;}
+.rr-timer-num{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:40px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;transition:color .3s;
+}
+.rr-timer-num.warn{color:#f97316;}
+.rr-timer-num.danger{color:#ef4444;animation:timerShake .15s ease infinite alternate;}
+@keyframes timerShake{from{transform:translate(-50%,-50%)}to{transform:translate(-49%,-51%)}}
+.rr-current{background:#0a0a0a;border:1px solid #ef444433;border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:center;}
+.rr-current-label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;}
+.rr-current-name{font-size:18px;font-weight:800;color:#fff;}
+.rr-current-role{font-size:11px;margin-top:2px;}
+.rr-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+.rr-btn{padding:11px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;font-family:inherit;}
+.rr-blunder{background:#ef444422;border:2px solid #ef4444;color:#ef4444;}
+.rr-blunder:hover{background:#ef444433;}
+.rr-ok{background:#4ade8022;border:2px solid #4ade80;color:#4ade80;}
+.rr-ok:hover{background:#4ade8033;}
+.rr-timeout{background:#f9731622;border:2px solid #f97316;color:#f97316;}
+.rr-timeout:hover{background:#f9731633;}
+.rr-turns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+.rr-turn-chip{display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;
+  background:#0a0a0a;border:1px solid #111;font-size:12px;color:#444;transition:.2s;}
+.rr-turn-chip.active{border-color:#ef4444;color:#fff;background:#ef444411;font-weight:700;}
+.rr-config-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+  padding:8px 12px;background:#0a0a0a;border-radius:8px;border:1px solid #111;}
+.rr-thresh-btn,.rr-tbtn{background:#111;border:1px solid #1a1a1a;border-radius:6px;padding:3px 9px;
+  font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;}
+.rr-thresh-btn:hover,.rr-tbtn:hover{border-color:#333;color:#aaa;}
+.rr-thresh-btn.active{border-color:#ef444444;color:#ef4444;background:#ef444411;}
+.rr-tbtn.active{border-color:#ef444444;color:#ef4444;background:#ef444411;}
+
+/* Mobile */
+@media(max-width:700px){
+  .setup-grid,.battle-layout,.options-grid,.hist-teams{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="tc-wrap">
+
+  <!-- Header -->
+  <div class="tc-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
+    <div>
+      <div class="tc-title">🏰 Tournoi des Châteaux</div>
+      <div class="tc-subtitle">Attaquants vs Défenseurs · Variantes aléatoires · 3 vies par joueur</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center" id="header-actions">
+      <button class="v-tag" style="padding:7px 14px;color:#555" onclick="showScreen('history')">📜 Historique</button>
+    </div>
+  </div>
+
+  <!-- ══════ RESUME BANNER ══════ -->
+  <div id="resume-banner" style="display:none" class="resume-banner">
+    <span style="font-size:28px">⚔️</span>
+    <div class="resume-banner-text">
+      <div style="font-weight:700;color:#fbbf24">Partie en cours sauvegardée</div>
+      <div class="resume-banner-meta" id="resume-meta"></div>
+    </div>
+    <button class="random-btn" style="font-size:12px;padding:8px 16px" onclick="resumeGame()">▶ Reprendre</button>
+    <button class="v-tag" style="padding:8px 14px;color:#555" onclick="clearSavedGame()">✕ Abandonner</button>
+  </div>
+
+  <!-- ══════ SCREEN: SETUP ══════ -->
+  <div class="screen active" id="screen-setup">
+
+    <!-- Random Ghost picker -->
+    <div class="ghost-picker">
+      <div class="ghost-picker-title">🎲 Composition aléatoire des équipes</div>
+      <div style="font-size:11px;color:#444;margin-bottom:10px">Sélectionne les Ghosts participants, puis tire les équipes au sort.</div>
+      <div class="ghost-picker-grid" id="ghost-picker-grid"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="random-btn" id="random-btn" onclick="randomizeTeams()" disabled>🎲 Tirer les équipes au sort</button>
+        <button class="v-tag" style="padding:7px 12px" onclick="selectAllGhosts()">Tous</button>
+        <button class="v-tag" style="padding:7px 12px" onclick="selectNoGhosts()">Aucun</button>
+        <span style="font-size:11px;color:#333" id="picker-count">0 Ghost sélectionné</span>
+      </div>
+    </div>
+
+    <!-- Teams -->
+    <div class="setup-grid">
+
+      <!-- ATTACKERS -->
+      <div class="setup-panel">
+        <div class="team-label" style="color:var(--red)">⚔️ Attaquants</div>
+        <div style="font-size:11px;color:#444;margin-bottom:10px">Ils avancent pièce par pièce dans le château adverse.</div>
+        <div class="player-list" id="attackers-list"></div>
+        <div class="add-player-row" style="margin-top:10px">
+          <select class="fi" id="atk-select" style="flex:1">
+            <option value="">— Choisir un Ghost —</option>
+          </select>
+          <button class="v-tag" style="padding:7px 12px;color:#f87171;border-color:#f8717144" onclick="addAttacker()">+ Ajouter</button>
+        </div>
+        <div style="font-size:11px;color:#444;margin-top:8px">ou</div>
+        <div class="add-player-row" style="margin-top:4px">
+          <input type="text" class="fi" id="atk-manual" placeholder="Nom libre…" style="flex:1">
+          <button class="v-tag" style="padding:7px 12px" onclick="addAttackerManual()">+</button>
+        </div>
+      </div>
+
+      <!-- DEFENDERS -->
+      <div class="setup-panel">
+        <div class="team-label" style="color:var(--blue)">🛡️ Défenseurs</div>
+        <div style="font-size:11px;color:#444;margin-bottom:10px">Ils tiennent leurs pièces dans l'ordre. Chaque case = un duel.</div>
+        <div class="player-list" id="defenders-list"></div>
+        <div class="add-player-row" style="margin-top:10px">
+          <select class="fi" id="def-select" style="flex:1">
+            <option value="">— Choisir un Ghost —</option>
+          </select>
+          <button class="v-tag" style="padding:7px 12px;color:var(--blue);border-color:#60a5fa44" onclick="addDefender()">+ Ajouter</button>
+        </div>
+        <div style="font-size:11px;color:#444;margin-top:8px">ou</div>
+        <div class="add-player-row" style="margin-top:4px">
+          <input type="text" class="fi" id="def-manual" placeholder="Nom libre…" style="flex:1">
+          <button class="v-tag" style="padding:7px 12px" onclick="addDefenderManual()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="setup-panel" style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px">⚙️ Configuration</div>
+      <div class="options-grid">
+        <div class="opt-card">
+          <div class="opt-label">❤️ Vies par joueur</div>
+          <div class="opt-stepper">
+            <button class="step-btn" onclick="adjustLives(-1)">−</button>
+            <div class="opt-val" id="lives-display">3</div>
+            <button class="step-btn" onclick="adjustLives(1)">+</button>
+          </div>
+        </div>
+        <div class="opt-card">
+          <div class="opt-label">🏰 Nombre de pièces (défenseurs)</div>
+          <div style="font-size:11px;color:#555;margin-top:4px">Automatique selon les défenseurs ajoutés</div>
+          <div class="opt-val" id="slots-display" style="font-size:14px;margin-top:6px;color:#555">— pièces</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:#444;margin-bottom:8px">♟ Variantes autorisées <span style="color:#2a2a2a">(tirées au hasard à chaque duel)</span></div>
+      <div class="variant-grid" id="variant-tags"></div>
+
+      <div style="font-size:11px;color:#444;margin-bottom:8px;margin-top:14px">⏱ Cadences autorisées <span style="color:#2a2a2a">(tirées au hasard à chaque duel)</span></div>
+      <div class="variant-grid" id="cadence-tags"></div>
+    </div>
+
+    <button class="start-btn" id="start-btn" onclick="startTournament()" disabled>
+      🏰 Lancer le Tournoi des Châteaux
+    </button>
+  </div>
+
+  <!-- ══════ SCREEN: BATTLE ══════ -->
+  <div class="screen" id="screen-battle">
+    <div class="battle-layout">
+
+      <!-- Attackers sidebar -->
+      <div class="team-sidebar">
+        <div class="ts-title" style="color:var(--red)">⚔️ Attaquants</div>
+        <div class="ts-queue" id="atk-queue"></div>
+      </div>
+
+      <!-- Arena -->
+      <div class="arena">
+        <div class="arena-title">Champ de Bataille</div>
+
+        <!-- Castle -->
+        <div class="castle-viz" id="castle-viz"></div>
+
+        <!-- Result banner -->
+        <div class="result-banner" id="result-banner"></div>
+
+        <!-- VS display -->
+        <div class="vs-display" id="vs-display"></div>
+
+        <!-- Game info -->
+        <div class="game-info" id="game-info"></div>
+
+        <!-- Actions normales -->
+        <div class="battle-actions" id="normal-actions">
+          <button class="ba-btn ba-attacker-win" onclick="resolveMatch('attacker')">⚔️ Victoire Attaquant</button>
+          <button class="ba-btn ba-defender-win" onclick="resolveMatch('defender')">🛡️ Victoire Défenseur</button>
+          <button class="ba-btn ba-skip" onclick="rollNewGame()">🎲 Nouvelle variante</button>
+        </div>
+
+        <!-- Roulette Russe overlay (visible seulement si variante = roulette) -->
+        <div class="roulette-overlay" id="roulette-overlay" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+            <span class="roulette-badge">🔫 Roulette Russe</span>
+            <span style="font-size:11px;color:#444">Échiquier d'analyse — premier blunder perd une vie</span>
+          </div>
+
+          <!-- Config rapide timer + seuil -->
+          <div class="rr-config-row">
+            <span class="rr-config-label" style="font-size:11px;color:#444">⏱ Timer :</span>
+            <button class="rr-tbtn" onclick="setRRTimer(5,this)">5s</button>
+            <button class="rr-tbtn active" id="rr-tbtn-10" onclick="setRRTimer(10,this)">10s</button>
+            <button class="rr-tbtn" onclick="setRRTimer(15,this)">15s</button>
+            <button class="rr-tbtn" onclick="setRRTimer(20,this)">20s</button>
+            <button class="rr-tbtn" onclick="setRRTimer(30,this)">30s</button>
+            <span style="font-size:11px;color:#333;margin-left:6px">💀 Seuil :</span>
+            <button class="rr-thresh-btn" onclick="setRRThresh(100,this)">−1.0</button>
+            <button class="rr-thresh-btn active" id="rr-thresh-150" onclick="setRRThresh(150,this)">−1.5</button>
+            <button class="rr-thresh-btn" onclick="setRRThresh(200,this)">−2.0</button>
+            <button class="rr-thresh-btn" onclick="setRRThresh(300,this)">−3.0</button>
+          </div>
+
+          <!-- Tour des joueurs -->
+          <div class="rr-turns" id="rr-turns"></div>
+
+          <!-- Joueur actuel -->
+          <div class="rr-current">
+            <div class="rr-current-label">C'est au tour de</div>
+            <div class="rr-current-name" id="rr-current-name">—</div>
+            <div class="rr-current-role" id="rr-current-role"></div>
+          </div>
+
+          <!-- Timer ring -->
+          <div class="rr-timer-wrap">
+            <svg class="rr-timer-svg" viewBox="0 0 110 110">
+              <circle class="rr-timer-track" cx="55" cy="55" r="45"/>
+              <circle class="rr-timer-prog" id="rr-ring" cx="55" cy="55" r="45"/>
+            </svg>
+            <div class="rr-timer-num" id="rr-timer-num">10</div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px">
+            <button class="ba-btn" id="rr-timer-toggle" onclick="rrTimerToggle()"
+              style="background:var(--red);color:#fff;font-size:13px;padding:8px 20px">▶ Démarrer</button>
+            <button class="ba-btn ba-skip" onclick="rrTimerReset()" style="font-size:13px;padding:8px 16px">↺ Reset</button>
+          </div>
+
+          <!-- Boutons résultat -->
+          <div class="rr-actions">
+            <button class="rr-btn rr-blunder" onclick="rrResolve('blunder')">💀 Blunder<br><span style="font-size:10px;font-weight:400;opacity:.7">perd une vie</span></button>
+            <button class="rr-btn rr-ok" onclick="rrResolve('ok')">✅ Bon coup<br><span style="font-size:10px;font-weight:400;opacity:.7">joueur suivant</span></button>
+
+          </div>
+        </div>
+
+        <!-- Log -->
+        <div style="font-size:10px;color:#333;margin:12px 0 4px;text-align:left">Journal du tournoi</div>
+        <div class="battle-log" id="battle-log"></div>
+      </div>
+
+      <!-- Defenders sidebar -->
+      <div class="team-sidebar">
+        <div class="ts-title" style="color:var(--blue)">🛡️ Défenseurs</div>
+        <div class="ts-queue" id="def-queue"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ SCREEN: END ══════ -->
+  <div class="screen" id="screen-end">
+    <div class="end-screen fade-in">
+      <div class="end-trophy" id="end-trophy"></div>
+      <div class="end-winner-team" id="end-winner"></div>
+      <div class="end-subtitle" id="end-subtitle"></div>
+      <div class="scoreboard" id="scoreboard"></div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="start-btn" style="max-width:300px;margin:0" onclick="resetTournament()">🔄 Nouveau tournoi</button>
+        <button class="start-btn" style="max-width:220px;margin:0;background:#111;border:1px solid #333;color:#aaa;font-size:14px" onclick="showScreen('history')">📜 Voir l'historique</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ SCREEN: HISTORY ══════ -->
+  <div class="screen" id="screen-history">
+    <div class="history-wrap">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button class="v-tag" style="padding:7px 14px;color:#555" onclick="showScreen('setup')">← Retour</button>
+        <span style="font-size:20px;font-weight:800;color:#fff">📜 Historique des tournois</span>
+        <button class="v-tag" style="padding:7px 12px;color:#ef444455;margin-left:auto" onclick="clearHistory()">🗑 Effacer tout</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const STUDENTS = {{ students|tojson }};
+
+// ── Config ─────────────────────────────────────────────────────────
+const VARIANTS = [
+  {key:'standard',label:'Standard',emoji:'♟'},
+  {key:'chess960',label:'Chess 960',emoji:'🎲'},
+  {key:'crazyhouse',label:'Crazyhouse',emoji:'🃏'},
+  {key:'koth',label:'King of the Hill',emoji:'👑'},
+  {key:'antichess',label:'Antichess',emoji:'🔄'},
+  {key:'atomic',label:'Atomic',emoji:'💥'},
+  {key:'horde',label:'Horde',emoji:'⚔️'},
+  {key:'racingkings',label:'Racing Kings',emoji:'🏁'},
+  {key:'threecheck',label:'Three-Check',emoji:'3️⃣'},
+  {key:'roulette',label:'Roulette Russe',emoji:'🔫',special:true},
+];
+
+const CADENCES = [
+  {key:'15s+0',label:'15s',emoji:'⚡',type:'bullet'},
+  {key:'30s+0',label:'30s',emoji:'⚡',type:'bullet'},
+  {key:'1+0',label:'1 min',emoji:'⚡',type:'bullet'},
+  {key:'1+1',label:'1+1',emoji:'⚡',type:'bullet'},
+  {key:'2+1',label:'2+1',emoji:'🔥',type:'blitz'},
+  {key:'3+0',label:'3 min',emoji:'🔥',type:'blitz'},
+  {key:'3+2',label:'3+2',emoji:'🔥',type:'blitz'},
+  {key:'5+0',label:'5 min',emoji:'🔥',type:'blitz'},
+  {key:'5+3',label:'5+3',emoji:'🔥',type:'blitz'},
+  {key:'8+0',label:'8 min',emoji:'🌪️',type:'rapid'},
+];
+
+const STORAGE_KEY = 'ghost_chateau_v2';
+const HISTORY_KEY = 'ghost_chateau_history_v2';
+
+// ── State ──────────────────────────────────────────────────────────
+let attackers = [];
+let defenders = [];
+let livesPerPlayer = 3;
+let selectedVariants = new Set(['standard','chess960','koth','crazyhouse','atomic']);
+let selectedCadences = new Set(['1+0','1+1','2+1','3+0','3+2','5+0','5+3']);
+let selectedGhostPicker = new Set();
+
+// Battle state
+let state = {
+  atkQueue: [],
+  defQueue: [],
+  currentSlot: 0,
+  atkCurrent: 0,
+  currentVariant: null,
+  currentCadence: null,
+  log: [],
+  matchNum: 0,
+  duels: [],           // full duel history for this tournament
+  startedAt: null,
+};
+
+// ── Storage helpers ─────────────────────────────────────────────────
+function saveGameState(){
+  try {
+    const snap = {
+      attackers, defenders, livesPerPlayer,
+      selectedVariants:[...selectedVariants],
+      selectedCadences:[...selectedCadences],
+      state,
+      savedAt: Date.now()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
+  } catch(e){}
+}
+
+function loadGameState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  } catch(e){ return null; }
+}
+
+function clearSavedGame(){
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('resume-banner').style.display='none';
+}
+
+function getHistory(){
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+
+function saveToHistory(entry){
+  const hist = getHistory();
+  hist.unshift(entry);
+  // Keep last 50 tournaments
+  if(hist.length > 50) hist.pop();
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch(e){}
+}
+
+function clearHistory(){
+  if(!confirm('Effacer tout l\'historique ?')) return;
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  populateSelects();
+  renderVariantTags();
+  renderCadenceTags();
+  renderSetupLists();
+  renderGhostPicker();
+
+  // Check for saved game
+  const saved = loadGameState();
+  if(saved && saved.state && saved.state.atkQueue && saved.state.atkQueue.length){
+    const banner = document.getElementById('resume-banner');
+    banner.style.display='flex';
+    const atkNames = saved.state.atkQueue.map(p=>p.name).join(', ');
+    const defNames = saved.state.defQueue.map(p=>p.name).join(', ');
+    const ago = Math.round((Date.now()-saved.savedAt)/60000);
+    document.getElementById('resume-meta').textContent =
+      `⚔️ ${atkNames} vs 🛡️ ${defNames} · Sauvegardé il y a ${ago < 2 ? 'moins d\'une minute' : ago+' min'}`;
+  }
+});
+
+// ── Ghost Picker ───────────────────────────────────────────────────
+function renderGhostPicker(){
+  const grid = document.getElementById('ghost-picker-grid');
+  if(!STUDENTS.length){
+    grid.innerHTML='<span style="color:#333;font-size:12px">Aucun Ghost dans la base.</span>';
+    return;
+  }
+  grid.innerHTML = STUDENTS.map((s,i)=>{
+    const name = s.name||'?';
+    const emoji = s._rank?.emoji||'👻';
+    return `<button class="gp-chip" data-idx="${i}" onclick="toggleGhostPicker(this,${i})">
+      <span>${emoji}</span><span>${name}</span>
+    </button>`;
+  }).join('');
+  updatePickerCount();
+}
+
+function toggleGhostPicker(el, idx){
+  if(selectedGhostPicker.has(idx)){
+    selectedGhostPicker.delete(idx);
+    el.classList.remove('selected');
+  } else {
+    selectedGhostPicker.add(idx);
+    el.classList.add('selected');
+  }
+  updatePickerCount();
+}
+
+function selectAllGhosts(){
+  selectedGhostPicker.clear();
+  document.querySelectorAll('.gp-chip').forEach((el,i)=>{
+    selectedGhostPicker.add(parseInt(el.dataset.idx));
+    el.classList.add('selected');
+  });
+  updatePickerCount();
+}
+
+function selectNoGhosts(){
+  selectedGhostPicker.clear();
+  document.querySelectorAll('.gp-chip').forEach(el=>el.classList.remove('selected'));
+  updatePickerCount();
+}
+
+function updatePickerCount(){
+  const n = selectedGhostPicker.size;
+  document.getElementById('picker-count').textContent = n+' Ghost'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'');
+  document.getElementById('random-btn').disabled = n < 2;
+}
+
+function randomizeTeams(){
+  const indices = [...selectedGhostPicker];
+  if(indices.length < 2){ alert('Sélectionne au moins 2 Ghosts.'); return; }
+  // Shuffle
+  for(let i=indices.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [indices[i],indices[j]]=[indices[j],indices[i]];
+  }
+  const half = Math.ceil(indices.length/2);
+  const atkIdx = indices.slice(0,half);
+  const defIdx = indices.slice(half);
+
+  attackers = atkIdx.map(i=>({ name:STUDENTS[i].name||'?', emoji:STUDENTS[i]._rank?.emoji||'👻' }));
+  defenders = defIdx.map(i=>({ name:STUDENTS[i].name||'?', emoji:STUDENTS[i]._rank?.emoji||'👻' }));
+  renderSetupLists();
+
+  // Scroll to teams
+  document.getElementById('attackers-list').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ── Selects ─────────────────────────────────────────────────────────
+function populateSelects(){
+  ['atk-select','def-select'].forEach(id=>{
+    const sel = document.getElementById(id);
+    STUDENTS.forEach(s=>{
+      const opt = document.createElement('option');
+      opt.value = s.name||'?';
+      opt.textContent = (s._rank?.emoji||'👻')+' '+(s.name||'?');
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function renderVariantTags(){
+  const c = document.getElementById('variant-tags');
+  c.innerHTML = VARIANTS.map(v=>`
+    <button class="v-tag ${selectedVariants.has(v.key)?'sel':''}"
+      onclick="toggleVariant('${v.key}',this)">${v.emoji} ${v.label}</button>
+  `).join('');
+}
+
+function renderCadenceTags(){
+  const c = document.getElementById('cadence-tags');
+  c.innerHTML = CADENCES.map(c=>`
+    <button class="v-tag ${selectedCadences.has(c.key)?'sel':''}"
+      onclick="toggleCadence('${c.key}',this)">${c.emoji} ${c.label}</button>
+  `).join('');
+}
+
+function toggleVariant(key,btn){
+  if(selectedVariants.has(key)){ if(selectedVariants.size>1){ selectedVariants.delete(key); btn.classList.remove('sel'); }}
+  else { selectedVariants.add(key); btn.classList.add('sel'); }
+}
+
+function toggleCadence(key,btn){
+  if(selectedCadences.has(key)){ if(selectedCadences.size>1){ selectedCadences.delete(key); btn.classList.remove('sel'); }}
+  else { selectedCadences.add(key); btn.classList.add('sel'); }
+}
+
+function adjustLives(delta){
+  livesPerPlayer = Math.max(1, Math.min(9, livesPerPlayer+delta));
+  document.getElementById('lives-display').textContent = livesPerPlayer;
+}
+
+// ── Player management ──────────────────────────────────────────────
+function addAttacker(){
+  const sel = document.getElementById('atk-select');
+  const name = sel.value.trim(); if(!name) return;
+  const s = STUDENTS.find(x=>(x.name||'?')===name);
+  attackers.push({name, emoji: s?._rank?.emoji||'👻'});
+  sel.value=''; renderSetupLists();
+}
+function addAttackerManual(){
+  const inp = document.getElementById('atk-manual');
+  const name = inp.value.trim(); if(!name) return;
+  attackers.push({name, emoji:'👤'});
+  inp.value=''; renderSetupLists();
+}
+function addDefender(){
+  const sel = document.getElementById('def-select');
+  const name = sel.value.trim(); if(!name) return;
+  const s = STUDENTS.find(x=>(x.name||'?')===name);
+  defenders.push({name, emoji: s?._rank?.emoji||'👻'});
+  sel.value=''; renderSetupLists();
+}
+function addDefenderManual(){
+  const inp = document.getElementById('def-manual');
+  const name = inp.value.trim(); if(!name) return;
+  defenders.push({name, emoji:'👤'});
+  inp.value=''; renderSetupLists();
+}
+function removePlayer(team, idx){
+  if(team==='atk') attackers.splice(idx,1);
+  else defenders.splice(idx,1);
+  renderSetupLists();
+}
+
+function renderSetupLists(){
+  const atkList = document.getElementById('attackers-list');
+  const defList = document.getElementById('defenders-list');
+
+  atkList.innerHTML = attackers.length ? attackers.map((p,i)=>`
+    <div class="player-card fade-in">
+      <span style="font-size:18px">${p.emoji}</span>
+      <span style="flex:1;font-size:13px;color:#ccc">${p.name}</span>
+      <span class="player-role-badge" style="color:var(--red);border-color:#cc1a1a33">⚔️ Attaquant</span>
+      <button class="player-del" onclick="removePlayer('atk',${i})">✕</button>
+    </div>
+  `).join('') : '<div style="color:#2a2a2a;font-size:12px;padding:8px">Aucun attaquant ajouté.</div>';
+
+  defList.innerHTML = defenders.length ? defenders.map((p,i)=>`
+    <div class="player-card fade-in">
+      <span style="font-size:18px">${p.emoji}</span>
+      <span style="flex:1;font-size:13px;color:#ccc">${p.name}</span>
+      <span class="player-role-badge" style="color:var(--blue);border-color:#60a5fa33">🛡️ Pièce ${i+1}</span>
+      <button class="player-del" onclick="removePlayer('def',${i})">✕</button>
+    </div>
+  `).join('') : '<div style="color:#2a2a2a;font-size:12px;padding:8px">Aucun défenseur ajouté.</div>';
+
+  document.getElementById('slots-display').textContent = defenders.length ? defenders.length+' pièce'+(defenders.length>1?'s':'') : '— pièces';
+  const canStart = attackers.length > 0 && defenders.length > 0;
+  document.getElementById('start-btn').disabled = !canStart;
+}
+
+// ── Start / Resume Tournament ──────────────────────────────────────
+function startTournament(){
+  if(!attackers.length || !defenders.length) return;
+
+  state.atkQueue = attackers.map(p=>({...p, lives:livesPerPlayer, wins:0}));
+  state.defQueue = defenders.map((p,i)=>({...p, lives:livesPerPlayer, wins:0, slotIndex:i, status:'waiting'}));
+  state.currentSlot = 0;
+  state.atkCurrent = 0;
+  state.log = [];
+  state.duels = [];
+  state.matchNum = 0;
+  state.defQueue[0].status = 'current';
+  state.startedAt = new Date().toISOString();
+
+  clearSavedGame();
+  showScreen('battle');
+  rollNewGame();
+  renderBattle();
+  saveGameState();
+}
+
+function resumeGame(){
+  const saved = loadGameState();
+  if(!saved) return;
+  attackers = saved.attackers;
+  defenders = saved.defenders;
+  livesPerPlayer = saved.livesPerPlayer;
+  selectedVariants = new Set(saved.selectedVariants);
+  selectedCadences = new Set(saved.selectedCadences);
+  state = saved.state;
+  document.getElementById('resume-banner').style.display='none';
+  showScreen('battle');
+  renderBattle();
+  addLog('▶ Partie reprise', 'info');
+}
+
+// ── Roll new game (variant + cadence change) ───────────────────────
+function rollNewGame(){
+  const variants = [...selectedVariants];
+  const cadences = [...selectedCadences];
+  let newVariant;
+  if(variants.length > 1 && state.currentVariant){
+    const others = variants.filter(v=>v!==state.currentVariant.key);
+    newVariant = VARIANTS.find(v=>v.key===others[Math.floor(Math.random()*others.length)]);
+  } else {
+    newVariant = VARIANTS.find(v=>v.key===variants[Math.floor(Math.random()*variants.length)]);
+  }
+  let newCadence;
+  if(cadences.length > 1 && state.currentCadence){
+    const others = cadences.filter(c=>c!==state.currentCadence.key);
+    newCadence = CADENCES.find(c=>c.key===others[Math.floor(Math.random()*others.length)]);
+  } else {
+    newCadence = CADENCES.find(c=>c.key===cadences[Math.floor(Math.random()*cadences.length)]);
+  }
+  state.currentVariant = newVariant;
+  state.currentCadence = newCadence;
+  state.matchNum++;
+  hideBanner();
+
+  // Check if roulette mode
+  if(newVariant && newVariant.key === 'roulette'){
+    initRouletteMode();
+  } else {
+    exitRouletteMode();
+  }
+
+  renderBattle();
+  saveGameState();
+}
+
+// ── ROULETTE RUSSE sub-mode ────────────────────────────────────────
+let rr = {
+  timerSeconds: 10,
+  timerVal: 10,
+  timerRunning: false,
+  timerInterval: null,
+  thresholdCentipawns: 150,
+  // 0 = attacker's turn, 1 = defender's turn, alternates
+  turnIdx: 0,
+};
+
+function initRouletteMode(){
+  rr.turnIdx = 0;
+  rrTimerReset();
+  document.getElementById('roulette-overlay').style.display='block';
+  document.getElementById('normal-actions').style.display='none';
+  renderRRTurns();
+  renderRRCurrent();
+  addLog('🔫 ROULETTE RUSSE ! Sur l\'échiquier d\'analyse.', 'info');
+  setTimeout(() => rrTimerStart(), 600);
+}
+
+function exitRouletteMode(){
+  rrTimerStop();
+  document.getElementById('roulette-overlay').style.display='none';
+  document.getElementById('normal-actions').style.display='flex';
+}
+
+function renderRRTurns(){
+  const atk = state.atkQueue[state.atkCurrent];
+  const def = state.defQueue[state.currentSlot];
+  if(!atk||!def) return;
+  const players = [
+    {name:atk.name, emoji:atk.emoji, role:'atk'},
+    {name:def.name, emoji:def.emoji, role:'def'},
+  ];
+  document.getElementById('rr-turns').innerHTML = players.map((p,i)=>`
+    <div class="rr-turn-chip ${i===rr.turnIdx%2?'active':''}">
+      <span>${p.emoji}</span>
+      <span>${p.name}</span>
+      <span style="font-size:10px;color:${p.role==='atk'?'var(--red)':'var(--blue)'}">${p.role==='atk'?'⚔️':'🛡️'}</span>
+    </div>`).join('');
+}
+
+function renderRRCurrent(){
+  const atk = state.atkQueue[state.atkCurrent];
+  const def = state.defQueue[state.currentSlot];
+  if(!atk||!def) return;
+  const isAtk = rr.turnIdx % 2 === 0;
+  const current = isAtk ? atk : def;
+  document.getElementById('rr-current-name').textContent = current.emoji+' '+current.name;
+  document.getElementById('rr-current-role').textContent = isAtk ? '⚔️ Attaquant — joue un coup' : '🛡️ Défenseur — joue un coup';
+  document.getElementById('rr-current-role').style.color = isAtk ? 'var(--red)' : 'var(--blue)';
+}
+
+function setRRTimer(val, btn){
+  rr.timerSeconds = val;
+  rrTimerReset();
+  document.querySelectorAll('.rr-tbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setRRThresh(val, btn){
+  rr.thresholdCentipawns = val;
+  document.querySelectorAll('.rr-thresh-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function rrTimerToggle(){
+  if(rr.timerRunning) rrTimerStop();
+  else rrTimerStart();
+}
+
+function rrTimerStart(){
+  rr.timerRunning = true;
+  document.getElementById('rr-timer-toggle').textContent = '⏸ Pause';
+  rr.timerInterval = setInterval(()=>{
+    rr.timerVal--;
+    rrRenderTimer();
+    if(rr.timerVal <= 0){ rrTimerStop(); setTimeout(() => rrResolve('blunder'), 300); }
+  }, 1000);
+}
+
+function rrTimerStop(){
+  clearInterval(rr.timerInterval);
+  rr.timerRunning = false;
+  document.getElementById('rr-timer-toggle').textContent = '▶ Démarrer';
+}
+
+function rrTimerReset(){
+  rrTimerStop();
+  rr.timerVal = rr.timerSeconds;
+  rrRenderTimer();
+  document.getElementById('rr-timer-toggle').textContent = '▶ Démarrer';
+}
+
+function rrRenderTimer(){
+  const el = document.getElementById('rr-timer-num');
+  const ring = document.getElementById('rr-ring');
+  if(!el||!ring) return;
+  const pct = rr.timerVal / rr.timerSeconds;
+  const circ = 283; // 2π×45
+  ring.style.strokeDasharray = circ;
+  ring.style.strokeDashoffset = circ * (1 - pct);
+  el.textContent = Math.max(0, rr.timerVal);
+  el.className = 'rr-timer-num';
+  if(rr.timerVal <= 3){ el.classList.add('danger'); ring.style.stroke='#ef4444'; }
+  else if(rr.timerVal <= Math.ceil(rr.timerSeconds*0.4)){ el.classList.add('warn'); ring.style.stroke='#f97316'; }
+  else { ring.style.stroke='#ef4444'; }
+}
+
+function rrResolve(type){
+  const atk = state.atkQueue[state.atkCurrent];
+  const def = state.defQueue[state.currentSlot];
+  const isAtk = rr.turnIdx % 2 === 0;
+  const loser = type === 'ok' ? null : (isAtk ? 'attacker' : 'defender');
+
+  rrTimerStop();
+
+  if(type === 'ok'){
+    // Good move — next player's turn
+    addLog(`✅ ${isAtk?atk.name:def.name} — bon coup. Tour suivant.`, '');
+    rr.turnIdx++;
+    rrTimerReset();
+    renderRRTurns();
+    renderRRCurrent();
+    setTimeout(() => rrTimerStart(), 400);
+    return;
+  }
+
+  // Blunder or timeout — the current player loses a life in the château
+  const loserName = isAtk ? atk.name : def.name;
+  addLog(`💀 ${loserName} — ${type==='blunder'?'BLUNDER':'TIMEOUT'} ! Perd une vie au château.`, 'lose');
+
+  exitRouletteMode();
+
+  // Resolve as if they lost the duel
+  if(loser === 'attacker'){
+    resolveMatch('defender');
+  } else {
+    resolveMatch('attacker');
+  }
+}
+
+// ── Battle Resolution ──────────────────────────────────────────────
+function resolveMatch(winner){
+  const atk = state.atkQueue[state.atkCurrent];
+  const def = state.defQueue[state.currentSlot];
+
+  // Record duel
+  state.duels.push({
+    num: state.matchNum,
+    atk: atk.name,
+    def: def.name,
+    winner,
+    variant: state.currentVariant ? {...state.currentVariant} : null,
+    cadence: state.currentCadence ? {...state.currentCadence} : null,
+    slot: state.currentSlot + 1,
+  });
+
+  if(winner === 'attacker'){
+    def.lives--;
+    atk.wins++;
+    addLog(`⚔️ ${atk.name} bat ${def.name} ! (${def.lives}❤️ restante${def.lives>1?'s':''})`, 'win');
+    showBanner(`⚔️ ${atk.name} remporte ce duel !`, '#cc1a1a', '🔥');
+
+    if(def.lives <= 0){
+      def.status = 'conquered';
+      addLog(`🏴 Pièce ${state.currentSlot+1} conquise ! ${atk.name} avance.`, 'info');
+      state.currentSlot++;
+
+      if(state.currentSlot >= state.defQueue.length){
+        endTournament('attacker'); return;
+      }
+      state.defQueue[state.currentSlot].status = 'current';
+    }
+  } else {
+    atk.lives--;
+    def.wins++;
+    addLog(`🛡️ ${def.name} défend ! ${atk.name} perd une vie. (${atk.lives}❤️)`, 'lose');
+    showBanner(`🛡️ ${def.name} tient sa pièce !`, '#1a3acc', '⚓');
+
+    if(atk.lives <= 0){
+      atk.status = 'eliminated';
+      addLog(`💀 ${atk.name} éliminé ! Prochain attaquant…`, 'info');
+      state.atkCurrent++;
+
+      if(state.atkCurrent >= state.atkQueue.length){
+        endTournament('defender'); return;
+      }
+    }
+  }
+
+  // After every life lost → new variant + cadence
+  setTimeout(()=>{ hideBanner(); rollNewGame(); }, 1200);
+  saveGameState();
+}
+
+// ── Render Battle ──────────────────────────────────────────────────
+function renderBattle(){
+  renderCastleViz();
+  renderQueues();
+  renderVSDisplay();
+  renderGameInfo();
+  // Restore roulette UI if current variant is roulette
+  if(state.currentVariant && state.currentVariant.key === 'roulette'){
+    document.getElementById('roulette-overlay').style.display='block';
+    document.getElementById('normal-actions').style.display='none';
+    renderRRTurns();
+    renderRRCurrent();
+    rrRenderTimer();
+  } else {
+    document.getElementById('roulette-overlay').style.display='none';
+    document.getElementById('normal-actions').style.display='flex';
+  }
+}
+
+function renderCastleViz(){
+  const viz = document.getElementById('castle-viz');
+  viz.innerHTML = state.defQueue.map((d,i)=>{
+    let cls = '';
+    if(d.status==='conquered') cls='conquered';
+    else if(d.status==='current') cls='current-battle';
+    else if(d.status==='defended') cls='defended';
+    return `<div class="cv-slot">
+      <div class="cv-slot-num">${i+1}</div>
+      <div class="cv-slot-piece ${cls}" title="${d.name}">
+        ${d.status==='conquered'?'🏴':d.emoji}
+        ${d.status==='current'?'<div style="position:absolute;bottom:-6px;font-size:8px;color:var(--gold)">⚔️</div>':''}
+      </div>
+      <div class="cv-slot-name">${d.name.length>7?d.name.slice(0,6)+'…':d.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderQueues(){
+  const atkQ = document.getElementById('atk-queue');
+  atkQ.innerHTML = state.atkQueue.map((p,i)=>{
+    const isCurrent = i===state.atkCurrent && !p.status;
+    const isElim = p.status==='eliminated';
+    return `<div class="ts-player ${isCurrent?'current attacker-current':''} ${isElim?'eliminated':''}">
+      <span style="font-size:14px">${p.emoji}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+      <div class="ts-hearts">${heartsHtml(p.lives,livesPerPlayer)}</div>
+    </div>`;
+  }).join('');
+
+  const defQ = document.getElementById('def-queue');
+  defQ.innerHTML = state.defQueue.map((d,i)=>{
+    const isCurrent = i===state.currentSlot && d.status==='current';
+    const isConq = d.status==='conquered';
+    return `<div class="ts-player ${isCurrent?'current defender-current':''} ${isConq?'eliminated':''}">
+      <span style="font-size:11px;color:#333">${i+1}</span>
+      <span style="font-size:14px">${isConq?'🏴':d.emoji}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${d.name}</span>
+      <div class="ts-hearts">${heartsHtml(d.lives,livesPerPlayer)}</div>
+    </div>`;
+  }).join('');
+}
+
+function heartsHtml(lives, max){
+  let html='';
+  for(let i=0;i<max;i++) html+=`<span class="ts-heart ${i>=lives?'lost':''}">❤️</span>`;
+  return html;
+}
+
+function renderVSDisplay(){
+  const atk = state.atkQueue[state.atkCurrent];
+  const def = state.defQueue[state.currentSlot];
+  if(!atk||!def) return;
+  document.getElementById('vs-display').innerHTML = `
+    <div class="vs-fighter attacker">
+      <div class="vs-fighter-emoji">${atk.emoji}</div>
+      <div class="vs-fighter-name">${atk.name}</div>
+      <div class="vs-fighter-role" style="color:var(--red)">⚔️ Attaquant</div>
+      <div class="vs-fighter-hearts">${heartsHtml(atk.lives,livesPerPlayer)}</div>
+    </div>
+    <div class="vs-center">⚔️</div>
+    <div class="vs-fighter defender">
+      <div class="vs-fighter-emoji">${def.emoji}</div>
+      <div class="vs-fighter-name">${def.name}</div>
+      <div class="vs-fighter-role" style="color:var(--blue)">🛡️ Pièce ${state.currentSlot+1}</div>
+      <div class="vs-fighter-hearts">${heartsHtml(def.lives,livesPerPlayer)}</div>
+    </div>
+  `;
+}
+
+function renderGameInfo(){
+  const v = state.currentVariant;
+  const c = state.currentCadence;
+  if(!v||!c) return;
+  const isRoulette = v.key === 'roulette';
+  document.getElementById('game-info').innerHTML = `
+    <div class="gi-row">
+      <span class="gi-key">🎲 Variante</span>
+      <span class="gi-val"><span class="variant-display" ${isRoulette?'style="border-color:#ef4444;color:#ef4444;background:#ef444411"':''}>${v.emoji} ${v.label}</span></span>
+    </div>
+    ${isRoulette
+      ? `<div class="gi-row"><span class="gi-key">💀 Seuil</span><span class="gi-val" style="color:#ef4444">−${(rr.thresholdCentipawns/100).toFixed(1)} pts</span></div>`
+      : `<div class="gi-row"><span class="gi-key">⏱ Cadence</span><span class="gi-val"><span class="cadence-display">${c.emoji} ${c.label} (${c.type})</span></span></div>`
+    }
+    <div class="gi-row">
+      <span class="gi-key">🏰 Pièce</span>
+      <span class="gi-val" style="color:var(--gold)">${state.currentSlot+1} / ${state.defQueue.length}</span>
+    </div>
+    <div class="gi-row">
+      <span class="gi-key">⚡ Duel</span>
+      <span class="gi-val" style="color:#444">#${state.matchNum}</span>
+    </div>
+  `;
+}
+
+// ── Log ────────────────────────────────────────────────────────────
+function addLog(msg, type=''){
+  state.log.unshift({msg,type,t:new Date().toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit',second:'2-digit'})});
+  const log = document.getElementById('battle-log');
+  log.innerHTML = state.log.slice(0,50).map(e=>
+    `<div class="log-entry ${e.type?'log-'+e.type:''}">
+      <span style="color:#222;font-size:10px">${e.t}</span> ${e.msg}
+    </div>`
+  ).join('');
+}
+
+// ── Banner ─────────────────────────────────────────────────────────
+function showBanner(msg, color, emoji){
+  const b = document.getElementById('result-banner');
+  b.textContent = emoji+' '+msg;
+  b.style.background = color+'22';
+  b.style.border = '1px solid '+color+'44';
+  b.style.color = '#fff';
+  b.classList.add('show');
+}
+function hideBanner(){
+  document.getElementById('result-banner').classList.remove('show');
+}
+
+// ── End Tournament ─────────────────────────────────────────────────
+function endTournament(winner){
+  // Save to history
+  const histEntry = {
+    id: Date.now(),
+    date: new Date().toLocaleString('fr',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    winner,
+    attackers: state.atkQueue.map(p=>({name:p.name,emoji:p.emoji,wins:p.wins,lives:p.lives})),
+    defenders: state.defQueue.map(p=>({name:p.name,emoji:p.emoji,wins:p.wins,status:p.status})),
+    duels: state.duels,
+    totalDuels: state.matchNum,
+  };
+  saveToHistory(histEntry);
+  clearSavedGame();
+
+  showScreen('end');
+  const trophy = document.getElementById('end-trophy');
+  const winnerEl = document.getElementById('end-winner');
+  const subtitle = document.getElementById('end-subtitle');
+  const scoreboard = document.getElementById('scoreboard');
+
+  if(winner==='attacker'){
+    trophy.textContent='⚔️';
+    winnerEl.textContent='Les Attaquants ont conquis le château !';
+    winnerEl.style.color='var(--red)';
+    subtitle.textContent='Le château des défenseurs est tombé. Victoire totale !';
+  } else {
+    trophy.textContent='🛡️';
+    winnerEl.textContent='Les Défenseurs ont repoussé l\'invasion !';
+    winnerEl.style.color='var(--blue)';
+    subtitle.textContent='Tous les attaquants ont été éliminés. Le château tient !';
+  }
+
+  const allPlayers = [
+    ...state.atkQueue.map(p=>({...p, team:'atk'})),
+    ...state.defQueue.map(p=>({...p, team:'def'}))
+  ].sort((a,b)=>b.wins-a.wins);
+
+  scoreboard.innerHTML = '<div style="font-size:11px;color:#444;margin-bottom:10px;text-align:left;font-weight:700">📊 Statistiques individuelles</div>' +
+    allPlayers.map((p,i)=>{
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+      return `<div class="score-row">
+        <div class="score-rank ${i<3?'gold':''}">${medal||i+1}</div>
+        <span style="font-size:18px">${p.emoji}</span>
+        <span class="score-name">${p.name}</span>
+        <span class="score-team-badge" style="color:${p.team==='atk'?'var(--red)':'var(--blue)'};border-color:${p.team==='atk'?'#cc1a1a33':'#60a5fa33'}">${p.team==='atk'?'⚔️':'🛡️'}</span>
+        <span class="score-wins">${p.wins}W</span>
+      </div>`;
+    }).join('');
+}
+
+// ── History render ─────────────────────────────────────────────────
+function renderHistory(){
+  const list = document.getElementById('history-list');
+  const hist = getHistory();
+
+  if(!hist.length){
+    list.innerHTML='<div class="hist-empty">📭 Aucun tournoi enregistré pour l\'instant.</div>';
+    return;
+  }
+
+  list.innerHTML = hist.map((t,ti)=>{
+    const winnerLabel = t.winner==='attacker'
+      ? '<span style="color:var(--red)">⚔️ Attaquants</span>'
+      : '<span style="color:var(--blue)">🛡️ Défenseurs</span>';
+
+    const atkNames = (t.attackers||[]).map(p=>p.name).join(', ');
+    const defNames = (t.defenders||[]).map(p=>p.name).join(', ');
+
+    const atkTeamHtml = (t.attackers||[]).map(p=>`
+      <div class="hist-player-row">
+        <span>${p.emoji}</span>
+        <span style="flex:1">${p.name}</span>
+        <span style="color:var(--green)">${p.wins}W</span>
+      </div>`).join('');
+
+    const defTeamHtml = (t.defenders||[]).map(p=>`
+      <div class="hist-player-row">
+        <span>${p.emoji}</span>
+        <span style="flex:1">${p.name}</span>
+        <span style="color:${p.status==='conquered'?'var(--red)':'var(--green)'}">${p.status==='conquered'?'💀':'🛡️'} ${p.wins}W</span>
+      </div>`).join('');
+
+    const duelsHtml = (t.duels||[]).map(d=>{
+      const atkWon = d.winner==='attacker';
+      return `<div class="hist-duel">
+        <span class="hist-duel-num">${d.num}</span>
+        <span class="hist-duel-atk">${d.atk}</span>
+        <span class="hist-duel-result">${atkWon?'<span style="color:var(--red)">⚔️</span>':'<span style="color:var(--blue)">🛡️</span>'}</span>
+        <span class="hist-duel-def">${d.def}</span>
+        ${d.variant?`<span class="hist-duel-variant">${d.variant.emoji} ${d.variant.label}</span>`:''}
+        ${d.cadence?`<span class="hist-duel-cadence">${d.cadence.emoji} ${d.cadence.label}</span>`:''}
+        <span style="font-size:10px;color:#333">P${d.slot||'?'}</span>
+      </div>`;
+    }).join('');
+
+    const totalDuels = t.totalDuels || (t.duels||[]).length;
+    const atkWins = (t.duels||[]).filter(d=>d.winner==='attacker').length;
+    const defWins = (t.duels||[]).filter(d=>d.winner==='defender').length;
+
+    return `<div class="hist-tournament">
+      <div class="hist-header" onclick="toggleHistBody(${ti})">
+        <span style="font-size:18px">${t.winner==='attacker'?'⚔️':'🛡️'}</span>
+        <div>
+          <div class="hist-header-winner">Victoire des ${t.winner==='attacker'?'Attaquants':'Défenseurs'}</div>
+          <div style="font-size:11px;color:#444;margin-top:2px">⚔️ ${atkNames} vs 🛡️ ${defNames}</div>
+        </div>
+        <div class="hist-header-date">${t.date}</div>
+        <div class="hist-header-toggle" id="hist-toggle-${ti}">▾</div>
+      </div>
+      <div class="hist-body" id="hist-body-${ti}">
+        <div class="hist-teams">
+          <div>
+            <div class="hist-team-title" style="color:var(--red)">⚔️ Attaquants</div>
+            ${atkTeamHtml}
+          </div>
+          <div>
+            <div class="hist-team-title" style="color:var(--blue)">🛡️ Défenseurs</div>
+            ${defTeamHtml}
+          </div>
+        </div>
+        <div class="hist-duels-title">Journal des duels (${totalDuels})</div>
+        ${duelsHtml || '<div style="color:#333;font-size:12px">Aucun duel enregistré.</div>'}
+        <div class="hist-stats-row">
+          <div class="hist-stat"><span class="hist-stat-val">${totalDuels}</span>Duels joués</div>
+          <div class="hist-stat"><span class="hist-stat-val" style="color:var(--red)">${atkWins}</span>Victoires ⚔️</div>
+          <div class="hist-stat"><span class="hist-stat-val" style="color:var(--blue)">${defWins}</span>Victoires 🛡️</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHistBody(idx){
+  const body = document.getElementById('hist-body-'+idx);
+  const toggle = document.getElementById('hist-toggle-'+idx);
+  const open = body.classList.toggle('open');
+  toggle.textContent = open ? '▴' : '▾';
+}
+
+// ── Reset ──────────────────────────────────────────────────────────
+function resetTournament(){
+  attackers=[]; defenders=[];
+  livesPerPlayer=3;
+  renderSetupLists();
+  showScreen('setup');
+  document.getElementById('lives-display').textContent='3';
+}
+
+// ── Screen switch ──────────────────────────────────────────────────
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+
+  const ha = document.getElementById('header-actions');
+  if(name==='battle'){
+    ha.innerHTML=`<button class="v-tag" style="color:#ef4444;border-color:#ef444433;padding:7px 14px" onclick="if(confirm('Abandonner et sauvegarder l\\'état ?'))saveThenReset()">🏳 Abandonner</button>`;
+  } else if(name==='history'){
+    renderHistory();
+    ha.innerHTML=`<button class="v-tag" style="padding:7px 14px;color:#555" onclick="showScreen('setup')">← Retour</button>`;
+  } else {
+    ha.innerHTML=`<button class="v-tag" style="padding:7px 14px;color:#555" onclick="showScreen('history')">📜 Historique</button>`;
+  }
+}
+
+function saveThenReset(){
+  clearSavedGame();
+  resetTournament();
+}
+</script>
+</body>
+</html>

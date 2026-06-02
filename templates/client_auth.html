@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Portail Ghost — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{min-height:100%;overflow:auto!important;background:#03030a;color:#f5f3ff;font-family:var(--font-body,system-ui)}
+.portal-bg{position:fixed;inset:0;z-index:0;background:radial-gradient(circle at 18% 8%,#6d28d933,transparent 28%),radial-gradient(circle at 82% 12%,#cc1a1a22,transparent 32%),linear-gradient(140deg,#020208,#080817 55%,#120611)}
+.portal-bg:after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:60px 60px;mask-image:linear-gradient(to bottom,#000,transparent 85%)}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:44px 22px 80px;display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:start}
+.hero,.card{background:rgba(5,5,18,.76);border:1px solid rgba(167,139,250,.2);border-radius:26px;box-shadow:0 28px 90px #0007;backdrop-filter:blur(18px)}
+.hero{padding:34px}.brand{font-family:var(--font-display);font-size:54px;letter-spacing:10px;color:#ff3434;text-shadow:0 0 28px #cc1a1a88}.sub{font-family:var(--font-mono);letter-spacing:.22em;text-transform:uppercase;color:#8b5cf6;font-size:12px}.hero h1{font-size:34px;margin:44px 0 10px}.hero p{color:#aaa3c7;font-size:16px;line-height:1.8;max-width:650px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:24px}.step{border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:15px;background:rgba(255,255,255,.035)}.step b{color:#fff}.step span{display:block;color:#777190;font-size:12px;margin-top:5px;line-height:1.5}
+.card{padding:24px}.tabs{display:flex;gap:8px;margin-bottom:18px}.tab{flex:1;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#8b87aa;font-weight:800;cursor:pointer}.tab.active{background:linear-gradient(90deg,#cc1a1a66,#7c3aed33);color:#fff;border-color:#ef444466}.form{display:none}.form.active{display:block}.fi{width:100%;box-sizing:border-box;margin:7px 0 12px;background:#060612;border:1px solid #24243b;border-radius:12px;color:#eee;padding:13px 14px;font-family:inherit}.lbl{font-size:11px;color:#6d6a91;text-transform:uppercase;letter-spacing:.08em}.btnx{width:100%;border:0;border-radius:14px;background:#cc1a1a;color:#fff;font-weight:900;padding:14px;cursor:pointer;font-size:14px}.btnx:hover{background:#ef2424}.msg{min-height:20px;margin-top:12px;color:#fca5a5;font-size:13px}.ok{color:#4ade80}.back{display:inline-block;color:#6d6a91;text-decoration:none;margin-top:18px;font-size:13px}@media(max-width:850px){.wrap{grid-template-columns:1fr}.steps{grid-template-columns:1fr}.brand{font-size:42px}}
+</style>
+</head>
+<body>
+<div class="portal-bg"></div>
+<main class="wrap">
+  <section class="hero">
+    <div class="brand">GHOST</div><div class="sub">Portail Ghost</div>
+    <h1>Ton espace de progression.</h1>
+    <p>Dépose tes parties, ajoute tes objectifs, demande une séance et garde ton coach au courant. Les notifications arrivent directement dans l’interface principale.</p>
+    <div class="steps"><div class="step"><b>1. Inscription</b><span>Paye l’accès unique à l’app : 5 000 FCFA.</span></div><div class="step"><b>2. Validation</b><span>Le coach valide le paiement et génère ton code.</span></div><div class="step"><b>3. Compte</b><span>Tu crées ton compte, puis tu choisis tes packs selon tes besoins.</span></div></div>
+    <a class="back" href="/">← Retour interface principale</a>
+  </section>
+  <section class="card">
+    <div class="tabs"><button class="tab active" onclick="showTab('login',this)">Connexion</button><button class="tab" onclick="showTab('access',this)">Obtenir un code</button><button class="tab" onclick="showTab('register',this)">Créer compte</button></div>
+    <form class="form active" id="login" onsubmit="login(event)">
+      <label class="lbl">Email</label><input class="fi" id="li-email" type="email" required>
+      <label class="lbl">Mot de passe</label><input class="fi" id="li-pass" type="password" required>
+      <button class="btnx">Entrer</button><div class="msg" id="li-msg"></div>
+    </form>
+    <form class="form" id="access" onsubmit="requestAccess(event)">
+      <div style="border:1px solid rgba(251,191,36,.35);background:#fbbf2410;border-radius:16px;padding:14px;margin-bottom:14px">
+        <b style="color:#fbbf24">Inscription Ghost — 5 000 FCFA</b>
+        <div style="color:#aaa3c7;font-size:13px;margin-top:6px;line-height:1.6">Ce montant unique donne accès à l’application : communication avec le coach, Grand Line, devoirs, feedbacks et suivi. Les packages de progression sont optionnels ensuite.</div>
+        <div style="margin-top:10px;background:#050512;border:1px solid #24243b;border-radius:12px;padding:11px;color:#fff">Paiement à effectuer à :<br><b>Arthur Simo</b><br><b>(+237) 694054282</b></div>
+      </div>
+      <label class="lbl">Nom / pseudo</label><input class="fi" id="ac-name" required>
+      <label class="lbl">Email</label><input class="fi" id="ac-email" type="email" required>
+      <label class="lbl">Téléphone / WhatsApp</label><input class="fi" id="ac-phone" placeholder="Optionnel">
+      <label class="lbl">Référence / note de paiement</label><input class="fi" id="ac-ref" placeholder="Optionnel : numéro transaction, heure, nom expéditeur…">
+      <textarea class="fi" id="ac-note" rows="2" placeholder="Message optionnel pour le coach"></textarea>
+      <button class="btnx">J’ai effectué le paiement</button><div class="msg" id="ac-msg"></div>
+    </form>
+    <form class="form" id="register" onsubmit="register(event)">
+      <label class="lbl">Nom / pseudo</label><input class="fi" id="re-name" required>
+      <label class="lbl">Email</label><input class="fi" id="re-email" type="email" required>
+      <label class="lbl">Mot de passe</label><input class="fi" id="re-pass" type="password" minlength="4" required>
+      <label class="lbl">Code d’inscription</label><input class="fi" id="re-code" placeholder="GHOST-XXXX-XXXX" required>
+      <button class="btnx">Créer mon compte</button><div class="msg" id="re-msg"></div>
+    </form>
+  </section>
+</main>
+<script>
+function showTab(id,btn){document.querySelectorAll('.form').forEach(f=>f.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active')}
+async function post(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({ok:false,error:'Erreur serveur'}));if(!r.ok&&!d.error)d.error='Erreur serveur';return d}
+async function login(e){e.preventDefault();const msg=document.getElementById('li-msg');msg.textContent='Connexion…';const d=await post('/api/client/login',{email:li_email.value,password:li_pass.value});if(d.ok){msg.className='msg ok';msg.textContent='Connecté.';location.href='/client'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
+async function register(e){e.preventDefault();const msg=document.getElementById('re-msg');msg.textContent='Création…';const d=await post('/api/client/register',{name:re_name.value,email:re_email.value,password:re_pass.value,code:re_code.value});if(d.ok){msg.className='msg ok';msg.textContent='Compte créé.';location.href='/client'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
+async function requestAccess(e){e.preventDefault();const msg=document.getElementById('ac-msg');msg.textContent='Envoi au coach…';const d=await post('/api/client/registration/request',{name:document.getElementById('ac-name').value,email:document.getElementById('ac-email').value,phone:document.getElementById('ac-phone').value,reference:document.getElementById('ac-ref').value,note:document.getElementById('ac-note').value});if(d.ok){msg.className='msg ok';msg.textContent=d.message||'Demande envoyée.'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
+const li_email=document.getElementById('li-email'),li_pass=document.getElementById('li-pass'),re_name=document.getElementById('re-name'),re_email=document.getElementById('re-email'),re_pass=document.getElementById('re-pass'),re_code=document.getElementById('re-code');
+
+async function resetRequest(){const email=document.getElementById('li-email')?.value||prompt('Ton email de compte Ghost'); if(!email)return; const d=await post('/api/client/password/reset_request',{email}); alert(d.message||'Demande envoyée au coach.');}
+</script>
+</body></html>

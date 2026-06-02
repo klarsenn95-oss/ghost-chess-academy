@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>⚡ Séance — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{overflow:auto!important;height:auto!important;display:block!important;background:#050505;}
+.live-wrap{max-width:860px;margin:0 auto;padding:28px 20px 80px;}
+.live-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.live-badge{background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.timer-block{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:16px;padding:24px;text-align:center;margin-bottom:16px;}
+.timer-display{font-size:60px;font-weight:700;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:3px;margin-bottom:14px;}
+.timer-controls{display:flex;gap:8px;justify-content:center;}
+.live-section{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:14px;padding:18px 20px;margin-bottom:14px;}
+.live-section-title{font-size:12px;font-weight:600;color:var(--red);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;}
+.student-check{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #0f0f0f;cursor:pointer;}
+.student-check:last-child{border-bottom:none;}
+.check-box{width:20px;height:20px;border:2px solid #333;border-radius:5px;display:flex;align-items:center;justify-content:center;transition:.15s;flex-shrink:0;margin-top:2px;}
+.student-check.checked .check-box{background:var(--red);border-color:var(--red);}
+.check-mark{color:#fff;font-size:12px;display:none;}
+.student-check.checked .check-mark{display:block;}
+.check-info{flex:1;}
+.check-name{font-size:14px;color:#ccc;display:flex;align-items:center;gap:8px;}
+.check-rank-pill{font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;border:1px solid currentColor;opacity:.8;}
+.check-meta{font-size:11px;color:#444;margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.check-branch{font-size:10px;font-weight:600;}
+.check-haki{font-size:10px;opacity:.7;}
+.student-note{width:100%;background:#050505;border:1px solid #1a1a1a;border-radius:6px;color:#aaa;font-size:12px;padding:6px 8px;font-family:inherit;resize:vertical;margin-top:6px;display:none;}
+.student-check.checked ~ .student-note{display:block;}
+.theme-quick{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.tq-btn{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:4px 10px;font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.15s;}
+.tq-btn:hover{border-color:#444;color:#aaa;}
+.end-btn{background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:.15s;font-family:inherit;margin-top:20px;}
+.end-btn:hover{background:#a01212;}
+.end-btn:disabled{opacity:.5;cursor:not-allowed;}
+/* Stats live */
+.live-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.live-stat{background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:10px;text-align:center;}
+.live-stat-val{font-size:20px;font-weight:700;color:var(--red);}
+.live-stat-label{font-size:10px;color:#444;margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="live-wrap">
+  <div class="live-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Retour</a>
+    <span style="font-size:22px;font-weight:700;color:#fff">⚡ Séance en cours</span>
+    <span class="live-badge">LIVE</span>
+    <span id="session-date" style="font-size:12px;color:#444;margin-left:auto"></span>
+  </div>
+
+  <!-- Stats live -->
+  <div class="live-stats">
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-present">0</div>
+      <div class="live-stat-label">Présents</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-marines" style="color:#60a5fa">0</div>
+      <div class="live-stat-label">🎖️ Marines</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-pirates" style="color:#f472b6">0</div>
+      <div class="live-stat-label">🏴‍☠️ Pirates</div>
+    </div>
+  </div>
+
+  <div class="timer-block">
+    <div class="timer-display" id="timer">00:00</div>
+    <div class="timer-controls">
+      <button class="btn btn-red" id="timer-btn" onclick="timerToggle()">▶ Démarrer</button>
+      <button class="btn btn-ghost" onclick="timerReset()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">📖 Thème de la séance</div>
+    <input type="text" class="input-field" id="session-theme" placeholder="Tactique, Finales, Ouvertures…" style="width:100%;margin-bottom:8px">
+    <div class="theme-quick">
+      {% for t in ['Tactique','Finales','Ouvertures','Milieu de jeu','Calcul','Stratégie','Attaque du roi','Structure de pions'] %}
+      <button class="tq-btn" onclick="document.getElementById('session-theme').value='{{ t }}'">{{ t }}</button>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px">
+      <textarea class="input-field" id="session-notes" rows="3" placeholder="Notes générales de la séance…" style="width:100%;resize:vertical"></textarea>
+    </div>
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">👥 Ghosts présents</div>
+    {% for s in students %}
+    {% set branch = s.get('branch', 'pirates') %}
+    {% set branch_color = '#60a5fa' if branch == 'marine' else '#f472b6' %}
+    {% set branch_label = '🎖️ Marine' if branch == 'marine' else '🏴‍☠️ Pirates' %}
+    <div>
+      <div class="student-check" id="check-{{ loop.index }}" onclick="togglePresent(this,'{{ s.name or '?' }}','{{ branch }}')">
+        <div class="check-box"><span class="check-mark">✓</span></div>
+        <div class="check-info">
+          <div class="check-name">
+            {{ s.name or '?' }}
+            {# Rang affiché inline — calculé côté serveur via tojson passé #}
+          </div>
+          <div class="check-meta">
+            <span class="check-branch" style="color:{{ branch_color }}">{{ branch_label }}</span>
+            {% if s.lichess %}<span style="color:#333">@ {{ s.lichess }}</span>{% endif %}
+            {% if s.elo_li_blitz or s.elo_cc_blitz %}
+              <span style="color:#555">⚡ {{ [s.elo_li_blitz, s.elo_cc_blitz]|select|first or '—' }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <textarea class="student-note" id="note-{{ s.name or '?' }}" placeholder="Note pour {{ s.name or '?' }} cette séance…" rows="2"></textarea>
+    </div>
+    {% else %}
+    <div style="color:#444;text-align:center;padding:20px">Aucun ghost enregistré.</div>
+    {% endfor %}
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">🤝 Binômes de la séance</div>
+    <div id="pairs-session-wrap">
+      <div style="font-size:11px;color:#444;margin-bottom:10px">Les binômes s'activent automatiquement si les deux membres sont présents.</div>
+      <div id="pairs-live-list"></div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #111">
+      <div style="font-size:11px;color:#444;margin-bottom:6px">Créer un binôme spontané pour cette séance :</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <select id="spont-a" style="background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#aaa;font-size:12px;padding:5px 8px;font-family:inherit;flex:1">
+          <option value="">Ghost A…</option>
+        </select>
+        <span style="color:#444">🤝</span>
+        <select id="spont-b" style="background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#aaa;font-size:12px;padding:5px 8px;font-family:inherit;flex:1">
+          <option value="">Ghost B…</option>
+        </select>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="addSpontaneousPair()">➕</button>
+      </div>
+      <div id="spontaneous-pairs" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <button class="end-btn" onclick="endSession()" id="end-btn">🏁 Terminer et sauvegarder</button>
+</div>
+
+<script>
+const STUDENTS = {{ students|tojson }};
+let timerSec=0,timerRunning=false,timerInterval=null;
+let presentStudents=new Set();
+let presentBranches={marine:0,pirates:0};
+let spontaneousPairs=[];
+
+// Load saved pairs
+let SAVED_PAIRS=[];
+fetch('/api/pairs/get').then(r=>r.json()).then(d=>{
+  SAVED_PAIRS=d.pairs||[];
+  populateSpontSelects();
+  updatePairsDisplay();
+});
+
+function populateSpontSelects(){
+  ['spont-a','spont-b'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— Ghost —</option>';
+    STUDENTS.forEach(s=>{
+      const opt=document.createElement('option');
+      opt.value=s.name||'?';
+      opt.textContent=(s.name||'?');
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function updatePairsDisplay(){
+  const list=document.getElementById('pairs-live-list');
+  const activePairs=SAVED_PAIRS.filter(p=>presentStudents.has(p.a)&&presentStudents.has(p.b));
+  if(!activePairs.length&&!spontaneousPairs.length){
+    list.innerHTML='<div style="font-size:12px;color:#333;padding:6px 0">Aucun binôme actif pour les présents.</div>';
+    return;
+  }
+  let html='';
+  activePairs.forEach(p=>{
+    const icon=p.type==='mentor'?'🎓':p.type==='rival'?'⚔️':p.type==='project'?'📚':'🤝';
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #111">
+      <span style="font-size:14px;color:#4ade80;font-weight:600">${p.a}</span>
+      <span style="font-size:16px;color:#333">${icon}</span>
+      <span style="font-size:14px;color:#4ade80;font-weight:600">${p.b}</span>
+      ${p.note?`<span style="font-size:11px;color:#444;margin-left:4px">${p.note}</span>`:''}
+    </div>`;
+  });
+  list.innerHTML=html;
+}
+
+function addSpontaneousPair(){
+  const a=document.getElementById('spont-a').value;
+  const b=document.getElementById('spont-b').value;
+  if(!a||!b||a===b) return;
+  spontaneousPairs.push({a,b});
+  renderSpontaneousPairs();
+}
+
+function renderSpontaneousPairs(){
+  const wrap=document.getElementById('spontaneous-pairs');
+  wrap.innerHTML=spontaneousPairs.map((p,i)=>
+    `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;font-size:12px;color:#aaa">
+      <span>🤝 ${p.a} ↔ ${p.b}</span>
+      <button onclick="removeSpontPair(${i})" style="background:none;border:none;color:#555;cursor:pointer;font-size:11px">✕</button>
+    </div>`
+  ).join('');
+}
+
+function removeSpontPair(i){spontaneousPairs.splice(i,1);renderSpontaneousPairs();}
+
+document.getElementById('session-date').textContent=new Date().toLocaleDateString('fr',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function updateLiveStats(){
+  document.getElementById('stat-present').textContent=presentStudents.size;
+  document.getElementById('stat-marines').textContent=presentBranches.marine;
+  document.getElementById('stat-pirates').textContent=presentBranches.pirates;
+}
+
+function timerToggle(){
+  if(timerRunning){
+    clearInterval(timerInterval);timerRunning=false;
+    document.getElementById('timer-btn').textContent='▶ Reprendre';
+    document.getElementById('timer-btn').className='btn btn-ghost';
+  } else {
+    timerRunning=true;
+    document.getElementById('timer-btn').textContent='⏸ Pause';
+    document.getElementById('timer-btn').className='btn btn-red';
+    timerInterval=setInterval(()=>{
+      timerSec++;
+      const m=String(Math.floor(timerSec/60)).padStart(2,'0');
+      const s=String(timerSec%60).padStart(2,'0');
+      document.getElementById('timer').textContent=`${m}:${s}`;
+    },1000);
+  }
+}
+function timerReset(){
+  clearInterval(timerInterval);timerRunning=false;timerSec=0;
+  document.getElementById('timer').textContent='00:00';
+  document.getElementById('timer-btn').textContent='▶ Démarrer';
+  document.getElementById('timer-btn').className='btn btn-red';
+}
+
+function togglePresent(el,name,branch){
+  el.classList.toggle('checked');
+  const noteEl=el.nextElementSibling;
+  if(el.classList.contains('checked')){
+    presentStudents.add(name);
+    if(branch==='marine') presentBranches.marine++;
+    else presentBranches.pirates++;
+    if(noteEl) noteEl.style.display='block';
+  } else {
+    presentStudents.delete(name);
+    if(branch==='marine') presentBranches.marine=Math.max(0,presentBranches.marine-1);
+    else presentBranches.pirates=Math.max(0,presentBranches.pirates-1);
+    if(noteEl) noteEl.style.display='none';
+  }
+  updateLiveStats();
+  updatePairsDisplay();
+}
+
+async function endSession(){
+  const theme=document.getElementById('session-theme').value.trim();
+  const notes=document.getElementById('session-notes').value.trim();
+  const present=[...presentStudents];
+  const student_notes={};
+  STUDENTS.forEach(s=>{
+    const name=s.name||'?';
+    const el=document.getElementById('note-'+name);
+    if(el&&el.value.trim()) student_notes[name]=el.value.trim();
+  });
+  const btn=document.getElementById('end-btn');
+  btn.disabled=true; btn.textContent='⏳ Sauvegarde…';
+  const r=await fetch('/api/session/end',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({theme,notes,duration:Math.round(timerSec/60),present,student_notes})
+  });
+  const d=await r.json();
+  if(d.ok){btn.textContent='✅ Séance sauvegardée !';setTimeout(()=>window.location='/',1500);}
+  else{btn.disabled=false;btn.textContent='❌ Erreur, réessaie';}
+}
+</script>
+</body>
+</html>

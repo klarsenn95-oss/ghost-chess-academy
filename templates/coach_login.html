@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Coach Login — GHOST</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+html,body{height:100%;background:#04040c;color:#f5f5ff;font-family:var(--font-body,system-ui);overflow:auto!important;display:block!important}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 20% 0,#7c3aed22,transparent 35%),radial-gradient(circle at 80% 100%,#cc1a1a22,transparent 40%),#04040c}
+.login-card{width:min(420px,100%);background:#070711d9;border:1px solid #2a2a44;border-radius:22px;padding:30px;box-shadow:0 30px 80px #0008;backdrop-filter:blur(16px)}
+.logo{font-size:42px;font-weight:900;letter-spacing:8px;color:#ff3333;text-align:center;margin-bottom:6px;font-family:var(--font-display,Impact)}
+.sub{text-align:center;color:#7777aa;letter-spacing:4px;font-size:12px;margin-bottom:26px;text-transform:uppercase}
+label{display:block;font-size:12px;color:#7777aa;margin:12px 0 6px}
+input{width:100%;background:#05050d;border:1px solid #252542;border-radius:12px;color:#fff;padding:13px 14px;font-size:15px;outline:none}
+input:focus{border-color:#cc1a1a;box-shadow:0 0 0 4px #cc1a1a22}
+button{width:100%;margin-top:18px;border:0;border-radius:14px;background:#cc1a1a;color:#fff;padding:14px 18px;font-weight:800;font-size:15px;cursor:pointer}
+.error{background:#2a1010;border:1px solid #ef444466;color:#fca5a5;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.hint{font-size:11px;color:#44446a;margin-top:16px;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <form class="login-card" method="post">
+    <div class="logo">GHOST</div>
+    <div class="sub">Accès coach</div>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <label>Identifiant coach</label>
+    <input name="username" value="{{ username }}" autocomplete="username">
+    <label>Mot de passe</label>
+    <input type="password" name="password" autocomplete="current-password" autofocus>
+    <button>Entrer dans le centre coach</button>
+    <div class="hint">Accès réservé au coach.</div>
+  </form>
+</div>
+</body>
+</html>

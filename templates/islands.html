@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>🗺️ Grand Line — GHOST</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  background: #1a1a2e;
+}
+
+/* ── Ocean ── */
+#ocean {
+  position: fixed; inset: 0;
+  background: linear-gradient(160deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  overflow: hidden;
+}
+.wave {
+  position: absolute; width: 200%; height: 200%;
+  border-radius: 45%; opacity: 0.06;
+  animation: waverot linear infinite;
+  background: #4ab3e8;
+}
+.wave:nth-child(1){ top:-50%;left:-50%; animation-duration:30s; }
+.wave:nth-child(2){ top:-52%;left:-48%; animation-duration:40s; animation-direction:reverse; opacity:.04; }
+@keyframes waverot{ from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+.foam {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  animation: foambob ease-in-out infinite;
+}
+@keyframes foambob{ 0%,100%{transform:translateY(0);opacity:.15} 50%{transform:translateY(-10px);opacity:.35} }
+
+/* ── HUD ── */
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(to bottom, rgba(0,0,0,.7) 0%, transparent 100%);
+  z-index: 100;
+  pointer-events: none;
+}
+#hud > * { pointer-events: auto; }
+
+.hud-title {
+  font-family: 'Cinzel Decorative', cursive;
+  font-size: 17px; font-weight: 900;
+  color: #fde68a;
+  text-shadow: 0 0 20px #fbbf24;
+}
+.hud-sub { font-size: 11px; color: rgba(253,230,138,.5); margin-top: 2px; }
+
+.hud-btn {
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  color: rgba(255,255,255,.6);
+  font-size: 12px; font-family: 'Nunito', sans-serif;
+  padding: 5px 12px; cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: .2s; text-decoration: none; display: inline-block;
+}
+.hud-btn:hover { border-color: rgba(251,191,36,.5); color: #fde68a; }
+
+.hud-search {
+  margin-left: auto;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  color: #fff; font-size: 13px;
+  padding: 6px 14px;
+  font-family: 'Nunito', sans-serif;
+  width: 200px; backdrop-filter: blur(6px);
+  transition: border-color .2s, width .3s;
+}
+.hud-search:focus { outline: none; border-color: rgba(251,191,36,.5); width: 250px; }
+
+/* ── Map ── */
+#map-wrap {
+  position: fixed; inset: 0;
+  overflow: hidden; touch-action: none;
+}
+#map {
+  position: absolute;
+  transform-origin: 0 0;
+  cursor: grab;
+  user-select: none;
+}
+#map.dragging { cursor: grabbing; }
+
+#routes-svg {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 1; overflow: visible;
+}
+
+/* ── Island ── */
+.isl {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer; z-index: 2;
+}
+.isl:hover { z-index: 10; }
+.isl:hover .isl-blob { transform: scale(1.13) translateY(-6px); animation-play-state: paused; }
+.isl:hover .isl-label { opacity: 1; }
+
+.isl-blob {
+  position: relative;
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  animation: islfloat var(--fdur,4s) ease-in-out infinite;
+  animation-delay: var(--fdel,0s);
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)) drop-shadow(0 0 24px var(--ic));
+}
+@keyframes islfloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+
+.isl-ring {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 2.5px solid var(--ic);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ic) 40%, #fff), color-mix(in srgb, var(--ic) 70%, #000));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--ic) 15%, transparent), 0 4px 20px rgba(0,0,0,.4);
+}
+
+.isl-count {
+  position: absolute; top: -6px; left: -6px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--ic); border: 2px solid #000;
+  font-size: 11px; font-weight: 900; color: #000;
+  display: flex; align-items: center; justify-content: center; z-index: 3;
+}
+.isl-count.empty { background: #222; color: #444; border-color: #333; }
+
+/* ── One Piece special island ── */
+.isl-onepiece .isl-ring {
+  width: 90px; height: 90px; font-size: 44px;
+  border-width: 3px;
+  box-shadow: 0 0 0 8px rgba(255,215,0,.2), 0 0 50px rgba(255,215,0,.6), 0 4px 30px rgba(0,0,0,.6);
+  background: radial-gradient(circle at 35% 30%, #fff8dc, #d4af37 60%, #8b6914);
+}
+.isl-onepiece .isl-label {
+  font-size: 15px; font-weight: 900;
+  animation: op-glow 2s ease-in-out infinite alternate;
+}
+@keyframes op-glow {
+  from { text-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24; color: #fde68a; }
+  to   { text-shadow: 0 0 20px #fff, 0 0 40px #fbbf24, 0 0 60px #f59e0b; color: #fff; }
+}
+.isl-onepiece .isl-blob {
+  animation: op-float 3s ease-in-out infinite;
+}
+@keyframes op-float {
+  0%,100%{ transform: translateY(0) rotate(-2deg); }
+  50%    { transform: translateY(-14px) rotate(2deg); }
+}
+
+.isl-badge {
+  position: absolute; top: -6px; right: -10px;
+  background: rgba(0,0,0,.85); border: 1px solid var(--ic);
+  border-radius: 8px; font-size: 9px; font-weight: 800;
+  color: var(--ic); padding: 1px 5px; white-space: nowrap; z-index: 3;
+}
+
+.isl-label {
+  margin-top: 8px;
+  background: rgba(0,0,0,.75); border: 1.5px solid var(--ic);
+  border-radius: 20px; padding: 3px 11px;
+  font-family: 'Fredoka One', cursive; font-size: 13px; color: var(--ic);
+  white-space: nowrap; pointer-events: none;
+  text-shadow: 0 0 10px var(--ic); opacity: .85; transition: opacity .2s;
+}
+
+.route-seg {
+  stroke: rgba(255,255,255,.15); stroke-width: 1.5;
+  stroke-dasharray: 7 5; fill: none;
+  animation: dashmove 4s linear infinite;
+}
+@keyframes dashmove { to { stroke-dashoffset: -24; } }
+
+/* ── Strip chips ── */
+#strip {
+  position: fixed; bottom: 120px; left: 0; right: 0;
+  display: flex; gap: 6px; padding: 0 14px;
+  overflow-x: auto; z-index: 100;
+  scrollbar-width: none; pointer-events: none;
+}
+#strip::-webkit-scrollbar { display: none; }
+#strip > * { pointer-events: auto; }
+
+.chip {
+  flex-shrink: 0; background: rgba(0,0,0,.65);
+  border: 1.5px solid rgba(255,255,255,.1);
+  border-radius: 20px; padding: 4px 11px;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: rgba(255,255,255,.55);
+  cursor: pointer; backdrop-filter: blur(6px);
+  transition: .2s; white-space: nowrap;
+}
+.chip:hover, .chip.active { border-color: var(--cc); color: var(--cc); }
+.chip-n {
+  background: var(--cc); color: #000;
+  font-weight: 800; font-size: 10px;
+  border-radius: 10px; padding: 1px 6px;
+}
+
+/* ── Minimap ── */
+#minimap {
+  position: fixed; bottom: 16px; right: 16px;
+  width: 160px; height: 100px;
+  background: rgba(0,0,0,.65); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px; overflow: hidden; z-index: 100; backdrop-filter: blur(6px);
+}
+#mm-canvas { width: 100%; height: 100%; display: block; }
+#mm-vp {
+  position: absolute; border: 1.5px solid #fbbf24; border-radius: 3px;
+  background: rgba(251,191,36,.08); pointer-events: none;
+}
+
+/* ── Panel ── */
+#panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(6,8,20,.94);
+  border-top: 2px solid var(--pc, #333); border-radius: 20px 20px 0 0;
+  padding: 18px 22px 30px; z-index: 200;
+  transform: translateY(100%);
+  transition: transform .38s cubic-bezier(.34,1.15,.64,1), border-color .3s;
+  backdrop-filter: blur(18px); max-height: 52vh; overflow-y: auto;
+}
+#panel.open { transform: translateY(0); }
+.ph { width: 36px; height: 4px; background: rgba(255,255,255,.1); border-radius:2px; margin: 0 auto 14px; }
+#ph-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+#ph-em { font-size: 36px; }
+#ph-name { font-family:'Fredoka One',cursive; font-size:22px; color:var(--pc,#fff); text-shadow:0 0 16px var(--pc,transparent); }
+#ph-meta { font-size:11px; color:rgba(255,255,255,.35); margin-top:2px; }
+#ph-close {
+  margin-left:auto; background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1); border-radius:50%;
+  width:30px; height:30px; font-size:14px; color:rgba(255,255,255,.4);
+  cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.15s;
+}
+#ph-close:hover { background:rgba(255,255,255,.14); color:#fff; }
+#ph-ghosts { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.gpill {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:5px 12px; border-radius:20px;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+  font-size:13px; color:#bbb; text-decoration:none; transition:.15s;
+}
+.gpill:hover { background:rgba(255,255,255,.11); border-color:var(--pc); color:#fff; }
+.gp-elo { font-size:10px; color:rgba(255,255,255,.3); margin-left:2px; }
+.ph-empty { font-size:12px; color:rgba(255,255,255,.18); font-style:italic; padding:4px 0; }
+#ph-stats { display:flex; gap:14px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.06); flex-wrap:wrap; }
+.ps { font-size:11px; color:rgba(255,255,255,.3); }
+.ps span { color:rgba(255,255,255,.6); font-weight:700; }
+</style>
+</head>
+<body>
+
+<div id="ocean"><div class="wave"></div><div class="wave"></div></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div>
+    <div class="hud-title">🗺️ Grand Line</div>
+    <div class="hud-sub">Route du Roi · <span id="gtotal">0</span> Ghost{{ 's' if all_students|length > 1 }}</div>
+  </div>
+  <a href="/" class="hud-btn">← Dashboard</a>
+  <button class="hud-btn" onclick="resetView()">⊙ Centrer</button>
+  <input class="hud-search" id="gsearch" type="text" placeholder="🔍 Ghost…" oninput="doSearch()">
+</div>
+
+<div id="strip"></div>
+
+<div id="map-wrap">
+  <div id="map">
+    <svg id="routes-svg"></svg>
+    <div id="isl-layer"></div>
+  </div>
+</div>
+
+<div id="minimap">
+  <canvas id="mm-canvas" width="320" height="200"></canvas>
+  <div id="mm-vp"></div>
+</div>
+
+<div id="panel">
+  <div class="ph"></div>
+  <div id="ph-row">
+    <div id="ph-em"></div>
+    <div><div id="ph-name"></div><div id="ph-meta"></div></div>
+    <button id="ph-close" onclick="closePanel()">✕</button>
+  </div>
+  <div id="ph-ghosts"></div>
+  <div id="ph-stats"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   DATA — injected by Jinja.
+   `islands` is the list built in app.py's /islands route,
+   each item has: name, emoji, desc, color, threshold, students[]
+   We reverse() so index 0 = weakest island (threshold=0 "Fuschia").
+══════════════════════════════════════════════════ */
+const ISLANDS = {{ islands | tojson }};
+// islands from Jinja come highest→lowest; reverse for weakest-first path
+ISLANDS.reverse();
+
+// Add the legendary One Piece island at the end (highest threshold)
+ISLANDS.push({
+  name: "One Piece",
+  emoji: "☀️",
+  desc: "Le trésor légendaire au bout du Grand Line",
+  color: "#ffd700",
+  threshold: 3000,
+  students: [],
+  _onepiece: true
+});
+
+/* ── Foam ── */
+(function(){
+  const o=document.getElementById('ocean');
+  for(let i=0;i<35;i++){
+    const d=document.createElement('div'); d.className='foam';
+    const s=Math.random()*14+4;
+    d.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${3+Math.random()*5}s;animation-delay:${Math.random()*5}s`;
+    o.appendChild(d);
+  }
+})();
+
+/* ══════════════════════════════════════════════════
+   POSITIONS
+   Weakest island (idx=0) → bottom-left
+   Strongest (idx=N-1)    → top-right
+   Gentle sine-wave snake along the diagonal
+══════════════════════════════════════════════════ */
+const N = ISLANDS.length;
+const MAP_W = 2000, MAP_H = 1100;
+
+const positions = ISLANDS.map((_, i) => {
+  const t = i / (N - 1);
+  const x = 100 + t * (MAP_W - 200);
+  const y = (MAP_H - 120) - t * (MAP_H - 220) + Math.sin(i * 1.2) * 85;
+  return { x: Math.round(x), y: Math.round(y) };
+});
+
+/* ── DOM Setup ── */
+const layer = document.getElementById('isl-layer');
+const svg   = document.getElementById('routes-svg');
+svg.setAttribute('width',  MAP_W);
+svg.setAttribute('height', MAP_H);
+document.getElementById('map').style.cssText = `width:${MAP_W}px;height:${MAP_H}px`;
+
+const strip = document.getElementById('strip');
+const islEls = [];
+let totalGhosts = 0;
+
+ISLANDS.forEach((isl, i) => {
+  const pos = positions[i];
+  const cnt = (isl.students || []).length;
+  totalGhosts += cnt;
+
+  /* route line to next */
+  if (i < N - 1) {
+    const np = positions[i + 1];
+    const cx = (pos.x + np.x) / 2;
+    const cy = (pos.y + np.y) / 2 - 50;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('class', 'route-seg');
+    p.setAttribute('d', `M${pos.x+34},${pos.y+34} Q${cx},${cy} ${np.x+34},${np.y+34}`);
+    p.style.animationDelay = (i * 0.22) + 's';
+    svg.appendChild(p);
+  }
+
+  /* island el */
+  const el = document.createElement('div');
+  el.className = 'isl' + (isl._onepiece ? ' isl-onepiece' : '');
+  el.style.cssText = `left:${pos.x}px;top:${pos.y}px;--ic:${isl.color};--fdur:${3.6+i*0.27}s;--fdel:${i*0.16}s`;
+  el.dataset.idx = i;
+  el.innerHTML = `
+    <div class="isl-blob">
+      <div class="isl-count ${cnt===0?'empty':''}">${cnt}</div>
+      ${isl.threshold > 0 ? `<div class="isl-badge">≥${isl.threshold}</div>` : ''}
+      <div class="isl-ring">${isl.emoji}</div>
+    </div>
+    <div class="isl-label">${isl.name}</div>
+  `;
+  el.addEventListener('click', () => { flyTo(i); openPanel(i); });
+  layer.appendChild(el);
+  islEls.push(el);
+
+  /* chip */
+  const chip = document.createElement('div');
+  chip.className = 'chip'; chip.dataset.idx = i;
+  chip.style.setProperty('--cc', isl.color);
+  chip.innerHTML = `${isl.emoji} ${isl.name}<span class="chip-n" style="background:${isl.color}">${cnt}</span>`;
+  chip.addEventListener('click', () => { flyTo(i); openPanel(i); });
+  strip.appendChild(chip);
+});
+
+document.getElementById('gtotal').textContent = totalGhosts;
+
+/* ══════════════════════════════════════════════════
+   PAN & ZOOM
+══════════════════════════════════════════════════ */
+const mapEl = document.getElementById('map');
+const wrap  = document.getElementById('map-wrap');
+let tx = 0, ty = 0, scale = 0.55;
+const MIN_S = 0.2, MAX_S = 1.8;
+let dragging = false, lx = 0, ly = 0;
+
+function applyT(anim) {
+  mapEl.style.transition = anim ? 'transform .5s cubic-bezier(.4,0,.2,1)' : '';
+  mapEl.style.transform  = `translate(${tx}px,${ty}px) scale(${scale})`;
+  if (anim) setTimeout(() => mapEl.style.transition = '', 600);
+  updateMM();
+}
+
+wrap.addEventListener('mousedown', e => {
+  if (e.target.closest('.isl')) return;
+  dragging = true; lx = e.clientX; ly = e.clientY; mapEl.classList.add('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  tx += e.clientX - lx; ty += e.clientY - ly; lx = e.clientX; ly = e.clientY; applyT(false);
+});
+window.addEventListener('mouseup', () => { dragging = false; mapEl.classList.remove('dragging'); });
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const d  = e.deltaY < 0 ? 1.1 : 0.9;
+  const ns = Math.min(MAX_S, Math.max(MIN_S, scale * d));
+  const r  = wrap.getBoundingClientRect();
+  tx = e.clientX - r.left - (e.clientX - r.left - tx) * (ns / scale);
+  ty = e.clientY - r.top  - (e.clientY - r.top  - ty) * (ns / scale);
+  scale = ns; applyT(false);
+}, { passive: false });
+
+let ltd = null;
+wrap.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { dragging = true; lx = e.touches[0].clientX; ly = e.touches[0].clientY; }
+}, { passive: true });
+wrap.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (ltd) { scale = Math.min(MAX_S, Math.max(MIN_S, scale * d / ltd)); applyT(false); }
+    ltd = d;
+  } else if (e.touches.length === 1 && dragging) {
+    tx += e.touches[0].clientX - lx; ty += e.touches[0].clientY - ly;
+    lx = e.touches[0].clientX; ly = e.touches[0].clientY; applyT(false);
+  }
+}, { passive: true });
+wrap.addEventListener('touchend', () => { dragging = false; ltd = null; });
+
+function resetView() {
+  const r = wrap.getBoundingClientRect();
+  scale = Math.min(r.width / MAP_W, (r.height - 80) / MAP_H) * 0.9;
+  tx = (r.width  - MAP_W * scale) / 2;
+  ty = (r.height - MAP_H * scale) / 2 + 10;
+  applyT(true);
+}
+
+function flyTo(idx) {
+  const p = positions[idx];
+  const r = wrap.getBoundingClientRect();
+  tx = r.width  / 2 - (p.x + 34) * scale;
+  ty = r.height / 2 - (p.y + 34) * scale - 40;
+  applyT(true);
+}
+
+/* ══════════════════════════════════════════════════
+   MINIMAP  (must be declared before resetView calls applyT→updateMM)
+══════════════════════════════════════════════════ */
+const mmC   = document.getElementById('mm-canvas');
+const mmCtx = mmC.getContext('2d');
+const mmW = 320, mmH = 200;
+const msx = mmW / MAP_W, msy = mmH / MAP_H;
+
+function updateMM() {
+  mmCtx.clearRect(0, 0, mmW, mmH);
+  mmCtx.strokeStyle = 'rgba(255,255,255,0.12)'; mmCtx.setLineDash([3,3]);
+  mmCtx.beginPath();
+  positions.forEach((p, i) => { i===0 ? mmCtx.moveTo(p.x*msx, p.y*msy) : mmCtx.lineTo(p.x*msx, p.y*msy); });
+  mmCtx.stroke(); mmCtx.setLineDash([]);
+
+  ISLANDS.forEach((isl, i) => {
+    const p = positions[i];
+    mmCtx.beginPath();
+    mmCtx.arc(p.x*msx, p.y*msy, (isl.students||[]).length > 0 ? 4 : 2.5, 0, Math.PI*2);
+    mmCtx.fillStyle = isl.color; mmCtx.fill();
+  });
+
+  const r = wrap.getBoundingClientRect();
+  const vx = (-tx/scale)*msx, vy = (-ty/scale)*msy;
+  const vw = (r.width/scale)*msx, vh = (r.height/scale)*msy;
+  const mr = mmC.parentElement.getBoundingClientRect();
+  const px = mr.width/mmW, py = mr.height/mmH;
+  const vp = document.getElementById('mm-vp');
+  vp.style.left=vx*px+'px'; vp.style.top=vy*py+'px';
+  vp.style.width=vw*px+'px'; vp.style.height=vh*py+'px';
+}
+
+mmC.addEventListener('click', e => {
+  const r = mmC.getBoundingClientRect();
+  const wx = (e.clientX - r.left) / r.width  * MAP_W;
+  const wy = (e.clientY - r.top)  / r.height * MAP_H;
+  const wr = wrap.getBoundingClientRect();
+  tx = wr.width/2 - wx*scale; ty = wr.height/2 - wy*scale;
+  applyT(true);
+});
+
+resetView();
+
+/* ══════════════════════════════════════════════════
+   PANEL
+══════════════════════════════════════════════════ */
+function openPanel(idx) {
+  const isl = ISLANDS[idx];
+  document.getElementById('panel').style.setProperty('--pc', isl.color);
+  document.getElementById('ph-em').textContent   = isl.emoji;
+  document.getElementById('ph-name').textContent = isl.name;
+
+  if (isl._onepiece) {
+    document.getElementById('ph-meta').textContent = '≥ 3000 Elo · Le légendaire trésor du monde';
+    const ghosts = document.getElementById('ph-ghosts');
+    ghosts.innerHTML = `
+      <div style="width:100%;text-align:center;padding:18px 0 8px;">
+        <div style="font-size:52px;animation:op-float 3s ease-in-out infinite">☀️</div>
+        <div style="font-family:'Cinzel Decorative',cursive;font-size:16px;color:#fde68a;margin-top:10px;text-shadow:0 0 20px #fbbf24">
+          Le One Piece existe vraiment…
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:6px">
+          Atteins 3000 Elo pour rejoindre Raftel
+        </div>
+      </div>
+    `;
+    document.getElementById('ph-stats').innerHTML = `
+      <div class="ps">🏴‍☠️ <span>Seuil</span> 3000 Elo</div>
+      <div class="ps">👑 <span>Île finale</span> du Grand Line</div>
+    `;
+    document.getElementById('panel').classList.add('open');
+    document.querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('active', i === idx));
+    return;
+  }
+
+  document.getElementById('ph-meta').textContent =
+    isl.desc + (isl.threshold > 0 ? ` · ≥ ${isl.threshold} Elo` : ' · Départ');
+
+  const ghosts = document.getElementById('ph-ghosts');
+  ghosts.innerHTML = '';
+  const students = isl.students || [];
+  if (!students.length) {
+    ghosts.innerHTML = '<div class="ph-empty">Aucun Ghost sur cette île</div>';
+  } else {
+    [...students].sort((a, b) => (b._avg_elo || 0) - (a._avg_elo || 0)).forEach(s => {
+      const a = document.createElement('a');
+      a.className = 'gpill'; a.href = `/student/${s._index}`;
+      a.innerHTML = `
+        <span>${s._rank?.emoji || '👤'}</span>
+        <span>${s.name || '?'}</span>
+        ${s._avg_elo ? `<span class="gp-elo">${s._avg_elo}</span>` : ''}
+        ${s._island?.manual ? '<span style="font-size:9px;color:#fbbf24" title="Override">✋</span>' : ''}
+      `;
+      ghosts.appendChild(a);
+    });
+  }
+
+  const elos = students.map(s => s._avg_elo).filter(Boolean);
+  document.getElementById('ph-stats').innerHTML = `
+    <div class="ps">👥 <span>${students.length}</span> Ghost${students.length !== 1 ? 's' : ''}</div>
+    ${elos.length ? `<div class="ps">⚡ Moy. <span>${Math.round(elos.reduce((a,b)=>a+b)/elos.length)}</span></div>` : ''}
+    ${elos.length ? `<div class="ps">🏆 Max <span>${Math.max(...elos)}</span></div>` : ''}
+  `;
+
+  document.getElementById('panel').classList.add('open');
+  document.querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+}
+
+/* ══════════════════════════════════════════════════
+   SEARCH
+══════════════════════════════════════════════════ */
+function doSearch() {
+  const q = document.getElementById('gsearch').value.toLowerCase().trim();
+  islEls.forEach((el, i) => {
+    const isl = ISLANDS[i];
+    const nm = (isl.name || '').toLowerCase().includes(q);
+    const gm = (isl.students || []).some(s => (s.name || '').toLowerCase().includes(q));
+    const hide = q && !nm && !gm;
+    el.style.opacity = hide ? '0.18' : '1';
+    el.style.pointerEvents = hide ? 'none' : 'auto';
+  });
+}
+
+updateMM();
+</script>
+
+<style id="grandline-v4-animations">
+/* V4 Grand Line: ocean vivant, navires, auras, fantômes par île */
+#ocean::after{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 20% 25%,rgba(255,255,255,.12),transparent 10%),radial-gradient(circle at 80% 65%,rgba(96,165,250,.12),transparent 16%),linear-gradient(115deg,transparent 0 45%,rgba(255,255,255,.045) 50%,transparent 56%);mix-blend-mode:screen;animation:oceanLightSweep 10s ease-in-out infinite;z-index:1;}
+@keyframes oceanLightSweep{0%,100%{opacity:.32;transform:translateX(-4%)}50%{opacity:.82;transform:translateX(4%)}}
+.isl::after{content:'';position:absolute;left:50%;top:50%;width:112px;height:112px;border-radius:50%;transform:translate(-50%,-50%);border:1px solid var(--ic);opacity:.18;filter:blur(.2px);animation:islandRadar 3.2s ease-out infinite;z-index:-1;}
+@keyframes islandRadar{0%{transform:translate(-50%,-50%) scale(.55);opacity:.32}100%{transform:translate(-50%,-50%) scale(1.55);opacity:0}}
+.route-seg{stroke-width:2.2!important;stroke:rgba(251,191,36,.24)!important;filter:drop-shadow(0 0 8px rgba(251,191,36,.35));}
+.grand-ship{position:absolute;z-index:4;font-size:28px;filter:drop-shadow(0 0 16px rgba(251,191,36,.7));animation:shipBob 2s ease-in-out infinite;pointer-events:none;transition:left 5.5s cubic-bezier(.45,0,.25,1),top 5.5s cubic-bezier(.45,0,.25,1),transform .5s;}
+@keyframes shipBob{50%{translate:0 -8px}}
+.isl-topghosts{position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);display:flex;gap:2px;background:rgba(0,0,0,.55);border:1px solid color-mix(in srgb,var(--ic) 35%,transparent);border-radius:20px;padding:2px 6px;opacity:0;transition:.25s;backdrop-filter:blur(8px)}
+.isl:hover .isl-topghosts{opacity:1;bottom:-34px}.isl-topghosts span{font-size:12px}.isl-count:not(.empty){animation:countGlow 2.4s ease-in-out infinite}@keyframes countGlow{50%{box-shadow:0 0 18px var(--ic)}}
+.weather-fog{position:fixed;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);filter:blur(10px);opacity:.55;animation:fogMove 18s linear infinite}@keyframes fogMove{from{transform:translateX(-40%)}to{transform:translateX(40%)}}
+.map-compass{position:fixed;right:190px;bottom:22px;z-index:101;width:86px;height:86px;border-radius:50%;border:1px solid rgba(251,191,36,.22);background:rgba(0,0,0,.42);display:grid;place-items:center;color:#fbbf24;font-size:32px;box-shadow:0 0 40px rgba(251,191,36,.08);animation:compassSpin 18s linear infinite;pointer-events:none}@keyframes compassSpin{to{transform:rotate(360deg)}}
+</style>
+<script id="grandline-v4-script">
+(function(){
+  function enhanceGrandLine(){
+    if(!document.querySelector('.weather-fog')){ const f=document.createElement('div'); f.className='weather-fog'; document.body.appendChild(f); }
+    if(!document.querySelector('.map-compass')){ const c=document.createElement('div'); c.className='map-compass'; c.textContent='🧭'; document.body.appendChild(c); }
+    document.querySelectorAll('.isl').forEach((isl)=>{
+      if(isl.querySelector('.isl-topghosts')) return;
+      const count=(isl.querySelector('.isl-count')||{}).textContent || '0';
+      const n=parseInt(count)||0;
+      const box=document.createElement('div'); box.className='isl-topghosts';
+      box.innerHTML=Array.from({length:Math.min(n,5)},()=>'<span>👻</span>').join('')+(n>5?'<span style="color:#fbbf24">+'+(n-5)+'</span>':'');
+      isl.appendChild(box);
+    });
+    const map=document.getElementById('map'); if(!map || document.querySelector('.grand-ship')) return;
+    const islands=[...document.querySelectorAll('.isl')].map(el=>({x:parseFloat(el.style.left)||0,y:parseFloat(el.style.top)||0})).filter(p=>p.x||p.y);
+    if(islands.length<2) return;
+    for(let i=0;i<3;i++){
+      const ship=document.createElement('div'); ship.className='grand-ship'; ship.textContent=i===0?'⛵':i===1?'🏴‍☠️':'🚢'; map.appendChild(ship);
+      let pos=i%islands.length; const travel=()=>{ const p=islands[pos%islands.length]; ship.style.left=(p.x+22)+'px'; ship.style.top=(p.y+12)+'px'; ship.style.transform='rotate('+(pos%2?8:-8)+'deg)'; pos++; setTimeout(travel,5600+i*700);}; travel();
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',enhanceGrandLine); else enhanceGrandLine();
+})();
+</script>
+
+
+<style id="grandline-v8-ocean-fix">
+/* V8 — carte Grand Line nocturne : évite le rendu vert plat dans certains navigateurs */
+html,body{background:#020617!important;}
+#ocean{background:
+  radial-gradient(circle at 18% 18%, rgba(96,165,250,.22) 0, transparent 24%),
+  radial-gradient(circle at 78% 66%, rgba(124,58,237,.18) 0, transparent 30%),
+  radial-gradient(circle at 50% 105%, rgba(251,191,36,.10) 0, transparent 24%),
+  linear-gradient(145deg,#020617 0%,#07152f 48%,#0b1024 100%)!important;}
+#ocean::before{content:'';position:fixed;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,.22) 1px,transparent 1.6px);background-size:48px 48px;opacity:.18;animation:starsDrift 28s linear infinite;z-index:1;}
+@keyframes starsDrift{to{background-position:120px 80px}}
+.wave{background:#60a5fa!important;opacity:.035!important}.route-seg{stroke:rgba(251,191,36,.30)!important;stroke-width:2!important;filter:drop-shadow(0 0 8px rgba(251,191,36,.25));}
+.isl-ring{background:radial-gradient(circle at 35% 25%,#fff8,var(--ic) 52%,#050510 100%)!important;}
+#panel{box-shadow:0 -20px 70px rgba(0,0,0,.65);}
+</style>
+</body>
+</html>

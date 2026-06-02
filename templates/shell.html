@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GHOST Academy — App</title>
+<link rel="stylesheet" href="/static/style.css?v=24">
+<link rel="stylesheet" href="/static/shell.css?v=24">
+</head>
+<body class="shell-body">
+  <div class="ocean-bg"><span></span><span></span><span></span><span></span></div>
+  <section class="tactical-arena" id="tacticalArena" aria-hidden="true">
+    <canvas id="tacticalCanvas"></canvas>
+    <div class="mist-layer"></div>
+    <div class="tactical-hud">
+      <div class="tactical-label">Tactique active</div>
+      <div class="tactical-line" id="tacticalLine">Bxf3+ · Kxf3 · Qh4+</div>
+    </div>
+  </section>
+  <aside class="shell-sidebar">
+    <div class="shell-brand">
+      <div class="brand-knight">♞</div>
+      <div class="brand-title">GHOST</div>
+      <div class="brand-sub">Chess Academy</div>
+    </div>
+    <nav class="shell-nav">
+      <button class="shell-link active" data-url="/?embed=1" data-title="Dashboard">🏠 Dashboard</button>
+      <button class="shell-link" data-url="/admin/clients" data-title="Espace Ghosts">🎓 Espace Ghosts</button>
+      <button class="shell-link" data-page="students" data-title="Ghosts">👥 Ghosts</button>
+      <button class="shell-link" data-page="sessions" data-title="Sessions">📅 Sessions</button>
+      <button class="shell-link" data-page="binomes" data-title="Binômes">🤝 Binômes</button>
+      <button class="shell-link" data-page="pricegrid" data-title="Tarifs">💰 Tarifs</button>
+      <button class="shell-link" data-page="stats" data-title="Stats groupe">📊 Stats groupe</button>
+      <button class="shell-link" data-page="ranks" data-title="Rangs & Hakis">🏴‍☠️ Rangs & Hakis</button>
+      <button class="shell-link" data-page="hierarchy" data-title="Hiérarchie">⚓ Hiérarchie</button>
+      <button class="shell-link" data-url="/islands" data-title="Grand Line">🗺️ Grand Line</button>
+      <button class="shell-link" data-url="/session/live" data-title="Séance">⚡ Séance</button>
+      <button class="shell-link" data-url="/workplan" data-title="Plans de travail">📋 Plans</button>
+      <button class="shell-link" data-url="/exam" data-title="Examens">🎖️ Examens</button>
+      <button class="shell-link" data-url="/bank" data-title="Banque">🗂️ Banque</button>
+      <button class="shell-link" data-url="/reports" data-title="Rapports">📄 Rapports</button>
+      <button class="shell-link" data-url="/client" data-title="Portail client">🔐 Portail client</button>
+      <button class="shell-link" data-url="/chateau" data-title="Châteaux">🏰 Châteaux</button>
+      <button class="shell-link" data-url="/roulette" data-title="Roulette">🔫 Roulette</button>
+    </nav>
+    <div class="shell-hint">{{ students|length }} Ghosts · notifications connectées</div>
+  </aside>
+
+  <main class="shell-main">
+    <header class="shell-topbar">
+      <div>
+        <div class="shell-kicker">Centre de commandement</div>
+        <h1 id="shell-title">Dashboard</h1>
+      </div>
+      <div class="shell-actions">
+        <a class="shell-toplink" href="/client" target="_blank" title="Voir la connexion et l'espace Ghost">🎓 Espace Ghost</a>
+        <a class="shell-toplink danger" href="/coach/logout" title="Se déconnecter du compte coach">↩ Déconnexion</a>
+        <button class="notif-btn" id="notifBtn">🔔 <span id="notifCount">{{ notifications|length }}</span></button>
+      </div>
+    </header>
+    <section class="notif-panel" id="notifPanel">
+      <div class="notif-title">Notifications prof</div>
+      {% if notifications %}
+        <div id="adminNotifList">
+        {% for n in notifications %}
+          <div class="notif-row notif-link" id="shell-notif-{{ n.id }}">
+            <a href="{{ n.target_url or '/admin/clients#notifications' }}" target="appFrame" onclick="notifPanel.classList.remove('open')"><b>{{ n.title }}</b><br><span>{{ n.text }}</span></a>
+            <button class="notif-delete" onclick="deleteShellNotification(event,'{{ n.id }}')">Supprimer</button>
+          </div>
+        {% endfor %}
+        </div>
+      {% else %}<div class="notif-empty">Aucune notification pour l'instant.</div>{% endif %}
+    </section>
+    <div class="page-frame-wrap" id="frameWrap">
+      <iframe id="appFrame" name="appFrame" src="{{ request.args.get('frame') or '/?embed=1' }}" title="GHOST content" scrolling="yes"></iframe>
+    </div>
+  </main>
+
+  <section class="ghost-player" id="ghostPlayer">
+    <div class="player-orb">♞</div>
+    <div class="player-meta">
+      <div class="player-title">Grand Line Radio</div>
+      <div class="player-status" id="playerStatus">Playlist chargée · aléatoire</div>
+    </div>
+    <button id="shuffleBtn" class="player-btn" title="Morceau aléatoire">🔀</button>
+    <button id="muteBtn" class="player-btn" title="Mute / son">🔇</button>
+    <div class="yt-mini"><div id="yt-player"></div></div>
+  </section>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+
+
+const TACTICS = [
+  {
+    line:'Greek Gift: Bxh7+ · Kxh7 · Ng5+ · Kg8 · Qh5',
+    pieces:[['wK',7,6],['wQ',3,3],['wR',7,0],['wR',7,5],['wB',3,2],['wN',5,5],['wP',6,5],['wP',6,6],['bK',0,6],['bQ',1,3],['bR',0,7],['bB',2,6],['bP',1,7],['bP',1,6],['bN',2,5]],
+    moves:[['wB',3,2,1,7],['bK',0,6,1,7],['wN',5,5,3,6],['bK',1,7,0,6],['wQ',3,3,4,7]]
+  },
+  {
+    line:'Back rank: Rxe8+ · Rxe8 · Qxe8#',
+    pieces:[['wK',7,6],['wQ',4,4],['wR',6,4],['wB',5,2],['wP',6,6],['bK',0,6],['bQ',1,3],['bR',0,4],['bR',0,0],['bP',1,5],['bP',1,6],['bP',1,7]],
+    moves:[['wR',6,4,0,4],['bR',0,4,0,4],['wQ',4,4,0,4]]
+  },
+  {
+    line:'Knight fork: Nxf7 · Kxf7 · Qh5+ · g6 · Qxh7+',
+    pieces:[['wK',7,4],['wQ',3,3],['wN',3,4],['wB',4,2],['wR',7,0],['bK',0,4],['bQ',1,3],['bR',0,7],['bB',2,5],['bP',1,5],['bP',1,6],['bP',1,7]],
+    moves:[['wN',3,4,1,5],['bK',0,4,1,5],['wQ',3,3,4,7],['bP',1,6,2,6],['wQ',4,7,1,7]]
+  },
+  {
+    line:'Deflection: Rxd8+ · Rxd8 · Qxd8#',
+    pieces:[['wK',7,2],['wQ',4,7],['wR',7,3],['wB',5,6],['wN',5,4],['bK',0,6],['bQ',0,3],['bR',0,0],['bR',0,7],['bP',1,6],['bP',1,7]],
+    moves:[['wR',7,3,0,3],['bQ',0,3,0,3],['wQ',4,7,0,3]]
+  },
+  {
+    line:'Queen sacrifice: Qxf7+ · Rxf7 · Re8+ · Rf8 · Rxf8#',
+    pieces:[['wK',7,6],['wQ',3,5],['wR',7,4],['wB',2,3],['wN',5,5],['bK',0,6],['bQ',1,2],['bR',0,5],['bR',0,7],['bP',1,5],['bP',1,6],['bP',1,7]],
+    moves:[['wQ',3,5,1,5],['bR',0,5,1,5],['wR',7,4,0,4],['bR',1,5,0,5],['wR',0,4,0,5]]
+  }
+];
+const PIECE = {wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟'};
+
+const canvas = document.getElementById('tacticalCanvas');
+const ctx = canvas ? canvas.getContext('2d') : null;
+let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+let currentTactic = 0;
+let tacticStarted = performance.now();
+const tacticDuration = 10800;
+const moveDelay = 1200;
+const moveDuration = 820;
+
+function resizeTacticalCanvas(){
+  if(!canvas || !ctx) return;
+  dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resizeTacticalCanvas, {passive:true});
+
+function lerp(a,b,t){ return a + (b-a)*t; }
+function ease(t){ return t<0 ? 0 : t>1 ? 1 : t*t*(3-2*t); }
+function projectSquare(r,c, variant=0){
+  const W = window.innerWidth, H = window.innerHeight;
+  const boardW = Math.min(W*0.74, 980);
+  const boardH = boardW * 0.46;
+  const cx = W * (variant ? 0.78 : 0.64);
+  const cy = H * (variant ? 0.10 : 0.19);
+  const skew = boardW * (variant ? 0.18 : 0.12);
+  const x = cx - boardW/2 + (c+0.5) * boardW/8 + (r-3.5) * (skew/8);
+  const y = cy + (r+0.5) * boardH/8 + c * (variant ? -1.8 : -1.1);
+  return {x,y};
+}
+function drawBoard(variant=0, alpha=1){
+  const W = window.innerWidth, H = window.innerHeight;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = 'rgba(0,0,0,.75)';
+  ctx.shadowBlur = 38;
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      const p1 = projectSquare(r,c,variant), p2 = projectSquare(r,c+1,variant), p3 = projectSquare(r+1,c+1,variant), p4 = projectSquare(r+1,c,variant);
+      ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.lineTo(p4.x,p4.y); ctx.closePath();
+      const light = (r+c)%2===0;
+      ctx.fillStyle = light ? 'rgba(150,164,189,.16)' : 'rgba(2,5,12,.74)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.035)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+function drawPiece(id, x, y, size, alpha=1, glow=false){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font = `900 ${size}px Georgia, serif`;
+  ctx.shadowColor = glow ? 'rgba(255,45,45,.9)' : 'rgba(0,0,0,.95)';
+  ctx.shadowBlur = glow ? 26 : 18;
+  ctx.shadowOffsetY = size*0.22;
+  ctx.fillStyle = id[0] === 'w' ? 'rgba(245,245,255,.94)' : 'rgba(0,0,0,.96)';
+  ctx.strokeStyle = id[0] === 'w' ? 'rgba(0,0,0,.58)' : 'rgba(220,220,255,.13)';
+  ctx.lineWidth = Math.max(1, size*0.035);
+  ctx.strokeText(PIECE[id], x, y);
+  ctx.fillText(PIECE[id], x, y);
+  ctx.restore();
+}
+function drawMoveLight(x,y,progress){
+  ctx.save();
+  const a = Math.max(0, 1-progress);
+  const rad = 18 + 58*progress;
+  const g = ctx.createRadialGradient(x,y,0,x,y,rad);
+  g.addColorStop(0,`rgba(239,68,68,${0.5*a})`);
+  g.addColorStop(0.38,`rgba(239,68,68,${0.22*a})`);
+  g.addColorStop(1,'rgba(239,68,68,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawFog(){
+  const W=window.innerWidth,H=window.innerHeight;
+  const t=performance.now()/1000;
+  ctx.save();
+  const g=ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'rgba(12,22,36,.52)'); g.addColorStop(.34,'rgba(4,4,12,.10)'); g.addColorStop(1,'rgba(2,2,6,.72)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<5;i++){
+    const x=(Math.sin(t*.16+i)*.5+.5)*W;
+    const y=(i*.22+0.05)*H;
+    const rg=ctx.createRadialGradient(x,y,0,x,y,Math.max(W,H)*.32);
+    rg.addColorStop(0,'rgba(160,180,220,.045)'); rg.addColorStop(1,'rgba(160,180,220,0)');
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  }
+  ctx.restore();
+}
+function getPieceState(tactic, elapsed){
+  const state = {};
+  tactic.pieces.forEach(([id,r,c])=> state[id] = {r,c, moving:false, glow:false});
+  tactic.moves.forEach((m,i)=>{
+    const [id,fr,fc,tr,tc]=m;
+    const start = moveDelay + i*1350;
+    const end = start + moveDuration;
+    if(elapsed >= end) state[id] = {r:tr,c:tc,moving:false,glow:false};
+    else if(elapsed >= start) {
+      const p = ease((elapsed-start)/moveDuration);
+      state[id] = {r:lerp(fr,tr,p), c:lerp(fc,tc,p), moving:true, glow:true, target:[tr,tc], progress:p};
+    }
+  });
+  return state;
+}
+function drawTacticalScene(now){
+  if(!canvas || !ctx) return;
+  const W=window.innerWidth,H=window.innerHeight;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#02030a'; ctx.fillRect(0,0,W,H);
+  drawBoard(1,.18);
+  drawBoard(0,.9);
+  const tactic = TACTICS[currentTactic];
+  const elapsed = now - tacticStarted;
+  const fadeIn = Math.min(1, elapsed/900);
+  const fadeOut = Math.min(1, (tacticDuration-elapsed)/900);
+  const sceneAlpha = Math.max(0, Math.min(fadeIn, fadeOut));
+  const state = getPieceState(tactic, elapsed);
+  Object.entries(state).forEach(([id,p])=>{
+    const pt = projectSquare(p.r,p.c,0);
+    const size = Math.min(window.innerWidth, window.innerHeight) * (p.moving ? .073 : .062);
+    if(p.target){ const tt = projectSquare(p.target[0],p.target[1],0); drawMoveLight(tt.x,tt.y,p.progress); }
+    drawPiece(id, pt.x, pt.y - (p.moving?10:0), size, sceneAlpha*(p.moving?1:.82), p.glow);
+  });
+  ctx.save();
+  ctx.globalAlpha = .22*sceneAlpha;
+  ctx.strokeStyle='rgba(239,68,68,.85)'; ctx.lineWidth=2;
+  const activeMove = tactic.moves.find((m,i)=>{ const st=moveDelay+i*1350; return elapsed>=st && elapsed<=st+moveDuration+550; });
+  if(activeMove){
+    const [,fr,fc,tr,tc]=activeMove;
+    const a=projectSquare(fr,fc,0), b=projectSquare(tr,tc,0);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  }
+  ctx.restore();
+  drawFog();
+  if(elapsed > tacticDuration){
+    currentTactic = (currentTactic + 1) % TACTICS.length;
+    tacticStarted = now;
+    const line = document.getElementById('tacticalLine');
+    if(line) line.textContent = TACTICS[currentTactic].line;
+  }
+  requestAnimationFrame(drawTacticalScene);
+}
+function bootTacticalCanvas(){
+  resizeTacticalCanvas();
+  const line = document.getElementById('tacticalLine');
+  if(line) line.textContent = TACTICS[currentTactic].line;
+  requestAnimationFrame(drawTacticalScene);
+}
+// V5: fond tactique lourd désactivé par défaut pour garder l'interface rapide.
+// document.addEventListener('DOMContentLoaded', bootTacticalCanvas);
+
+const frame = document.getElementById('appFrame');
+const links = document.querySelectorAll('.shell-link');
+const title = document.getElementById('shell-title');
+const wrap = document.getElementById('frameWrap');
+let loadingTimer=null;
+function startFrameLoading(){
+  // V11: plus de voile flou. On redimensionne seulement.
+  wrap.classList.remove('loading');
+  clearTimeout(loadingTimer);
+  loadingTimer=setTimeout(()=>{ settleFrameSize(); }, 250);
+}
+function stopFrameLoading(){
+  clearTimeout(loadingTimer);
+  wrap.classList.remove('loading');
+  settleFrameSize();
+}
+links.forEach(btn=>btn.addEventListener('click',()=>{
+  links.forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  title.textContent = btn.dataset.title || btn.textContent.replace(/^[^A-Za-zÀ-ÿ]+/,'').trim();
+  const internalPage = btn.dataset.page;
+  if(internalPage){
+    startFrameLoading();
+    const target='/?embed=1#'+encodeURIComponent(internalPage);
+    const openInternal = () => {
+      try{
+        if(frame.contentWindow && typeof frame.contentWindow.showPage === 'function'){
+          frame.contentWindow.showPage(internalPage, null);
+          frame.contentWindow.scrollTo(0,0);
+          stopFrameLoading();
+          return true;
+        }
+      }catch(e){}
+      return false;
+    };
+    if(!openInternal()){
+      frame.onload = () => { openInternal(); stopFrameLoading(); frame.onload = null; };
+      frame.src = target;
+    }
+    return;
+  }
+  startFrameLoading();
+  frame.onload = () => { stopFrameLoading(); frame.onload = null; };
+  frame.src = btn.dataset.url;
+}));
+function enforceFrameScroll(){
+  try{
+    const d = frame.contentDocument || frame.contentWindow.document;
+    if(!d) return;
+    const st = d.createElement('style');
+    st.id = 'ghost-shell-scroll-fix';
+    st.textContent = `
+      html, body { height:auto !important; min-height:100% !important; overflow:visible !important; }
+      body { padding-bottom:180px !important; background:transparent !important; }
+      .main { height:auto !important; min-height:100vh !important; overflow:visible !important; }
+      .page.active { min-height:100vh !important; padding-bottom:190px !important; }
+      .page-frame-safe, .rp-wrap, .live-wrap, .ex-wrap, .wp-wrap, .bk-wrap, .tc-wrap, .rr-wrap, .s-main, .rp-wrap, .bk-wrap { padding-bottom:210px !important; }
+      .modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(2,2,10,.58)!important;filter:none!important;z-index:999999!important;overflow:auto!important;padding:64px 20px 160px!important;align-items:flex-start!important;}
+      .modal-overlay.open{display:flex!important;}
+      .modal-overlay:not(.open){display:none!important;}
+      .modal-box{filter:none!important;opacity:1!important;transform:none!important;z-index:1000000!important;position:relative!important;margin:auto!important;background:#080812!important;border:1px solid #3a315a!important;}
+      .modal-overlay *{filter:none!important;-webkit-filter:none!important;}
+      * { scrollbar-width: thin; }
+    `;
+    const old = d.getElementById('ghost-shell-scroll-fix');
+    if(old) old.remove();
+    d.head.appendChild(st);
+    d.documentElement.style.overflow = 'visible';
+    d.body.style.overflow = 'visible';
+  }catch(e){}
+}
+function resizeFrameToContent(){
+  try{
+    const d = frame.contentDocument || frame.contentWindow.document;
+    if(!d) return;
+    const candidates = [d.documentElement.scrollHeight, d.body.scrollHeight, d.body.offsetHeight, d.documentElement.offsetHeight];
+    const h = Math.max(720, ...candidates.filter(Boolean)) + 260;
+    frame.style.height = h + 'px';
+  }catch(e){ frame.style.height = '1200px'; }
+}
+function settleFrameSize(){
+  enforceFrameScroll();
+  resizeFrameToContent();
+  [100,350,900,1600,2600].forEach(ms=>setTimeout(()=>{ enforceFrameScroll(); resizeFrameToContent(); },ms));
+}
+frame.addEventListener('load',()=>{
+  stopFrameLoading();
+  try{ localStorage.setItem('ghost_shell_url', frame.contentWindow.location.pathname + frame.contentWindow.location.search + frame.contentWindow.location.hash); }catch(e){}
+  try{
+    const loc = frame.contentWindow.location;
+    if(loc.pathname==='/' && loc.search!=='?embed=1') frame.src='/?embed=1';
+    const h = (loc.hash || '').replace('#','');
+    if(h && frame.contentWindow.showPage) frame.contentWindow.showPage(h, null);
+    settleFrameSize();
+  }catch(e){ resizeFrameToContent(); }
+});
+window.addEventListener('resize', resizeFrameToContent, {passive:true});
+try{ const saved=localStorage.getItem('ghost_shell_url'); if(saved && saved !== '/login' && saved !== '/coach/login') frame.src=saved; }catch(e){}
+const notifBtn=document.getElementById('notifBtn'), notifPanel=document.getElementById('notifPanel');
+notifBtn.addEventListener('click',async()=>{
+  const opened = notifPanel.classList.toggle('open');
+  if(opened){
+    try{ await fetch('/api/admin/notifications/read',{method:'POST'}); const c=document.getElementById('notifCount'); if(c)c.textContent='0'; }catch(e){}
+  }
+});
+async function deleteShellNotification(ev,id){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    const r=await fetch('/api/admin/notifications/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notification_id:id})});
+    const d=await r.json();
+    if(d.ok){
+      const row=document.getElementById('shell-notif-'+id); if(row) row.remove();
+      const list=document.getElementById('adminNotifList'); if(list && !list.querySelector('.notif-row')) list.innerHTML='<div class="notif-empty">Aucune notification pour l\'instant.</div>';
+    }
+  }catch(e){ console.warn(e); }
+}
+
+let ytPlayer;
+const PLAYLIST='PLl-vhnGPY7cqwDaXdzRSJKdaW9iPEHVZD';
+const FALLBACK_VIDEO='W6UxNcTxH6w';
+let ytReady=false, ytFailed=false, ytErrorCount=0;
+let localCtx=null, localNodes=[], localPlaying=false;
+const statusEl = () => document.getElementById('playerStatus');
+function setPlayerStatus(txt){ const el=statusEl(); if(el) el.textContent=txt; }
+function onYouTubeIframeAPIReady(){
+  ytPlayer = new YT.Player('yt-player', {
+    height:'1', width:'1',
+    playerVars:{ autoplay:1, controls:0, loop:1, mute:1, playsinline:1, rel:0, enablejsapi:1, origin:window.location.origin, listType:'playlist', list:PLAYLIST },
+    events:{ onReady:onPlayerReady, onStateChange:onPlayerStateChange, onError:onPlayerError }
+  });
+}
+function onPlayerReady(e){
+  ytReady=true;
+  try{ e.target.setLoop(true); e.target.setShuffle(true); e.target.mute(); e.target.playVideo(); }catch(err){}
+  setPlayerStatus('Lecture aléatoire · son coupé');
+}
+function onPlayerStateChange(e){
+  if(e.data===YT.PlayerState.ENDED){ try{ytPlayer.nextVideo();}catch(err){} }
+  if(e.data===YT.PlayerState.PLAYING){ ytFailed=false; ytErrorCount=0; }
+}
+function onPlayerError(){
+  ytErrorCount++;
+  setPlayerStatus('YouTube bloque ce titre · recherche du suivant…');
+  if(ytPlayer && ytErrorCount < 5){
+    setTimeout(()=>{ try{ ytPlayer.nextVideo(); ytPlayer.playVideo(); }catch(e){} }, 650);
+    return;
+  }
+  if(ytPlayer && ytErrorCount === 5){
+    setTimeout(()=>{ try{ ytPlayer.loadVideoById(FALLBACK_VIDEO); ytPlayer.mute(); ytPlayer.playVideo(); }catch(e){} }, 650);
+    return;
+  }
+  ytFailed=true;
+  setPlayerStatus('YouTube indisponible · bouton son = ambiance locale');
+}
+function startLocalAmbience(){
+  try{
+    if(!localCtx) localCtx = new (window.AudioContext || window.webkitAudioContext)();
+    stopLocalAmbience(false);
+    const master=localCtx.createGain(); master.gain.value=0.028; master.connect(localCtx.destination);
+    [110,146.8,220].forEach((f,i)=>{
+      const o=localCtx.createOscillator(); const g=localCtx.createGain();
+      o.type=i===1?'triangle':'sine'; o.frequency.value=f; g.gain.value=i===1?.45:.32;
+      o.connect(g); g.connect(master); o.start(); localNodes.push(o,g);
+    });
+    localNodes.push(master); localPlaying=true;
+    setPlayerStatus('Ambiance locale · YouTube bloqué');
+  }catch(e){ setPlayerStatus('Audio bloqué par le navigateur'); }
+}
+function stopLocalAmbience(update=true){
+  localNodes.forEach(n=>{ try{ if(n.stop) n.stop(); if(n.disconnect) n.disconnect(); }catch(e){} });
+  localNodes=[]; localPlaying=false;
+  if(update) setPlayerStatus('Ambiance locale coupée');
+}
+document.getElementById('muteBtn').addEventListener('click',()=>{
+  if(ytFailed || !ytPlayer){
+    if(localPlaying){ stopLocalAmbience(); document.getElementById('muteBtn').textContent='🔇'; }
+    else { startLocalAmbience(); document.getElementById('muteBtn').textContent='🔊'; }
+    return;
+  }
+  if(ytPlayer.isMuted()){ ytPlayer.unMute(); document.getElementById('muteBtn').textContent='🔊'; setPlayerStatus('Lecture aléatoire · son actif'); }
+  else { ytPlayer.mute(); document.getElementById('muteBtn').textContent='🔇'; setPlayerStatus('Lecture aléatoire · son coupé'); }
+});
+document.getElementById('shuffleBtn').addEventListener('click',()=>{
+  ytFailed=false; ytErrorCount=0;
+  if(ytPlayer){ try{ ytPlayer.setShuffle(true); ytPlayer.nextVideo(); ytPlayer.playVideo(); setPlayerStatus('Recherche aléatoire…'); }catch(e){ onPlayerError(); } }
+});
+window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo();}catch(e){} } }, {once:true});
+</script>
+</body>
+</html>

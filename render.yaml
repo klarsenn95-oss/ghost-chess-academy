@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ghost-chess-academy
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: GHOST_DB_BACKEND
+        value: supabase
+      - key: GHOST_SUPABASE_STRICT
+        value: "1"
+      - key: GHOST_STORAGE_BUCKET
+        value: ghost-client-files
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GHOST_SECRET_KEY
+        generateValue: true
+      - key: GHOST_ADMIN_USERNAME
+        sync: false
+      - key: GHOST_ADMIN_PASSWORD
+        sync: false
