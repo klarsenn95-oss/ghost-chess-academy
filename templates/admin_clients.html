@@ -26,6 +26,17 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
   .mini-item{flex-direction:column!important;align-items:flex-start!important;}
 }
 
+
+
+/* V32 — centre de commandement plus compact */
+.card.full{scroll-margin-top:90px}
+@media(min-width:821px){
+  .grid{align-items:start}.card{overflow:hidden}.card.full{max-height:none}.mini-list{max-height:420px;overflow:auto;padding-right:4px}.conversation,.paybox,.appt,.homework{break-inside:avoid}
+}
+@media(max-width:820px){
+  .finance-cards{gap:8px!important}.finance-card b{font-size:22px!important}.row{display:block!important}.row>div{margin-bottom:8px}.target-list{max-height:280px;overflow:auto}.head .btn{width:auto!important;flex:1 1 140px}.card.full{scroll-margin-top:120px}
+}
+
 </style>
 </head>
 <body>

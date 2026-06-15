@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>GHOST Academy — App</title>
-<link rel="stylesheet" href="/static/style.css?v=24">
-<link rel="stylesheet" href="/static/shell.css?v=24">
+<link rel="stylesheet" href="/static/style.css?v=32">
+<link rel="stylesheet" href="/static/shell.css?v=32">
 </head>
 <body class="shell-body">
   <div class="ocean-bg"><span></span><span></span><span></span><span></span></div>
@@ -87,7 +87,42 @@
     <div class="yt-mini"><div id="yt-player"></div></div>
   </section>
 
-<script src="https://www.youtube.com/iframe_api"></script>
+<script src="https://www.youtube.com/iframe_api">
+
+// V32: responsive runtime stabilizer. Sur mobile, l'iframe est redimensionnée en continu
+// pour éviter les menus qui semblent ne pas répondre ou les pages impossibles à scroller.
+(function(){
+  const mobile = () => matchMedia('(max-width: 860px)').matches;
+  function resizeDeep(){
+    if(!frame) return;
+    try{
+      const d = frame.contentDocument || frame.contentWindow.document;
+      if(!d) return;
+      const body = d.body, html = d.documentElement;
+      const h = Math.max(
+        window.innerHeight || 800,
+        body ? body.scrollHeight : 0,
+        body ? body.offsetHeight : 0,
+        html ? html.scrollHeight : 0,
+        html ? html.offsetHeight : 0
+      ) + (mobile() ? 720 : 320);
+      frame.style.height = h + 'px';
+      const fw=document.getElementById('frameWrap');
+      if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
+      if(mobile()){
+        document.documentElement.style.overflowY='auto';
+        document.body.style.overflowY='auto';
+        const sm=document.querySelector('.shell-main'); if(sm){ sm.style.height='auto'; sm.style.overflow='visible'; }
+      }
+    }catch(e){}
+  }
+  setInterval(resizeDeep, 1300);
+  window.addEventListener('load', resizeDeep);
+  window.addEventListener('resize', resizeDeep, {passive:true});
+  window.addEventListener('orientationchange', ()=>setTimeout(resizeDeep,500), {passive:true});
+})();
+
+</script>
 <script>
 
 
@@ -500,6 +535,41 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
     },120), {passive:true});
   });
   bindMobileScrollFix();
+})();
+
+
+
+// V32: responsive runtime stabilizer. Sur mobile, l'iframe est redimensionnée en continu
+// pour éviter les menus qui semblent ne pas répondre ou les pages impossibles à scroller.
+(function(){
+  const mobile = () => matchMedia('(max-width: 860px)').matches;
+  function resizeDeep(){
+    if(!frame) return;
+    try{
+      const d = frame.contentDocument || frame.contentWindow.document;
+      if(!d) return;
+      const body = d.body, html = d.documentElement;
+      const h = Math.max(
+        window.innerHeight || 800,
+        body ? body.scrollHeight : 0,
+        body ? body.offsetHeight : 0,
+        html ? html.scrollHeight : 0,
+        html ? html.offsetHeight : 0
+      ) + (mobile() ? 720 : 320);
+      frame.style.height = h + 'px';
+      const fw=document.getElementById('frameWrap');
+      if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
+      if(mobile()){
+        document.documentElement.style.overflowY='auto';
+        document.body.style.overflowY='auto';
+        const sm=document.querySelector('.shell-main'); if(sm){ sm.style.height='auto'; sm.style.overflow='visible'; }
+      }
+    }catch(e){}
+  }
+  setInterval(resizeDeep, 1300);
+  window.addEventListener('load', resizeDeep);
+  window.addEventListener('resize', resizeDeep, {passive:true});
+  window.addEventListener('orientationchange', ()=>setTimeout(resizeDeep,500), {passive:true});
 })();
 
 </script>

@@ -1465,6 +1465,12 @@ def public_student_payload(student):
         "name": student.get("name", "Ghost"),
         "lichess": student.get("lichess", ""),
         "chesscom": student.get("chesscom", ""),
+        "email": student.get("email", ""),
+        "phone": student.get("phone", ""),
+        "city": student.get("city", ""),
+        "goal": student.get("goal", ""),
+        "style": student.get("style", ""),
+        "avatar": student.get("avatar", ""),
         "avg_elo": get_avg_elo(student),
         "rank": rank,
         "island": island,
@@ -2195,6 +2201,19 @@ def save_session():
         data["sessions"][idx]=session
     else:
         data["sessions"].append(session)
+    # V32 : une séance planifiée avec des Ghosts sélectionnés apparaît aussi dans leur profil.
+    selected = session.get("students") or session.get("selected") or session.get("present") or []
+    selected_names = set([str(x).strip() for x in selected if str(x).strip()])
+    for si, stu in enumerate(data.get("students", [])):
+        if (stu.get("name") or "").strip() in selected_names or si in selected:
+            stu.setdefault("agenda", []).append({
+                "date": session.get("date") or session.get("day") or now_fr(),
+                "time": session.get("time") or session.get("hour") or "",
+                "theme": session.get("theme") or session.get("title") or "Séance planifiée",
+                "status": "planifiée",
+                "source": "session"
+            })
+            add_student_feedback(data, si, "Séance planifiée", f"{session.get('theme') or session.get('title') or 'Séance'} — consulte ton calendrier.", "appointment", "session")
     save_data(data)
     return jsonify({"ok":True})
 
@@ -3756,6 +3775,68 @@ def api_client_message_send():
     save_data(data)
     return jsonify({"ok": True, "message": entry})
 
+
+@app.route("/api/client/profile/update", methods=["POST"])
+def api_client_profile_update():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    body = request.get_json(force=True, silent=True) or {}
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Profil introuvable."}), 404
+    # Champs simples et volontairement limités pour éviter le désordre et l'injection.
+    allowed = {
+        "name": 60, "email": 120, "phone": 40, "city": 60,
+        "lichess": 60, "chesscom": 60, "goal": 240, "style": 120
+    }
+    stu = data["students"][idx]
+    for key, max_len in allowed.items():
+        val = (body.get(key) or "").strip()
+        # On garde du texte pur : Jinja échappe déjà l'affichage, mais on nettoie les balises évidentes.
+        val = val.replace("<", "").replace(">", "")[:max_len]
+        if key in ("name", "email") and not val:
+            continue
+        stu[key] = val
+        if key in ("name", "email"):
+            user[key] = val
+    user.setdefault("profile_updated_at", now_fr())
+    user["profile_updated_at"] = now_fr()
+    data["students"][idx] = stu
+    save_data(data)
+    return jsonify({"ok": True, "student": public_student_payload(stu)})
+
+@app.route("/api/admin/exercise/create", methods=["POST"])
+def api_admin_exercise_create():
+    body = request.get_json(force=True, silent=True) or {}
+    data = load_data()
+    title = (body.get("title") or "Exercice tactique").strip()[:90]
+    text = (body.get("text") or "").strip()[:1200]
+    level = (body.get("level") or "Tous niveaux").strip()[:60]
+    solution = (body.get("solution") or "").strip()[:1200]
+    targets = body.get("targets") or []
+    attachments = body.get("attachments") or []
+    if not title or not text:
+        return jsonify({"ok": False, "error": "Titre et consigne obligatoires."}), 400
+    clean_targets=[]
+    if body.get("target_all"):
+        clean_targets = list(range(len(data.get("students", []))))
+    else:
+        for t in targets:
+            try: clean_targets.append(int(t))
+            except Exception: pass
+    clean_targets = [i for i in dict.fromkeys(clean_targets) if 0 <= i < len(data.get("students", []))]
+    if not clean_targets:
+        return jsonify({"ok": False, "error": "Choisis au moins un Ghost."}), 400
+    exercise = {"id": str(uuid.uuid4()), "date": now_fr(), "title": title, "text": text, "level": level, "solution": solution, "attachments": attachments, "targets": clean_targets, "status": "envoyé"}
+    data.setdefault("exercises", []).insert(0, exercise)
+    data["exercises"] = data.get("exercises", [])[:200]
+    for idx in clean_targets:
+        devoir = {"title": "🎯 " + title, "text": text, "status": "📋 À faire", "date": now_fr(), "level": level, "attachments": attachments, "exercise_id": exercise["id"], "solution": solution, "submissions": []}
+        data["students"][idx].setdefault("devoirs", []).append(devoir)
+        add_student_feedback(data, idx, "Nouvel exercice tactique", f"{title} — réponds dans l’onglet Devoirs avec les coups par écrit.", "homework", "exercise", exercise["id"])
+    save_data(data)
+    return jsonify({"ok": True, "exercise": exercise})
+
 @app.route("/api/admin/backup/export")
 def api_admin_backup_export():
     data = load_data()
@@ -3786,6 +3867,6 @@ def api_admin_plans_save():
 if __name__ == "__main__":
     import webbrowser, time
     scheduler.start()
-    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5025")),daemon=True).start()
-    print("\n♟ GHOST Chess Manager v26 Smart Cleanup → http://127.0.0.1:5025\n")
-    app.run(debug=False, port=5025)
+    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5030")),daemon=True).start()
+    print("\n♟ GHOST Chess Manager v32 UX Focus → http://127.0.0.1:5030\n")
+    app.run(debug=False, port=5030)
