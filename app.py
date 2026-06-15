@@ -1421,7 +1421,8 @@ def notification_target_url(kind="info", student_index=None, item_id=None):
     if kind == "appointment": return base + "#appointments"
     if kind == "homework": return base + "#homework"
     if kind == "payment": return base + "#payments"
-    if kind in ("note", "elo", "account"): return base + "#activity"
+    if kind == "account": return base + "#accounts"
+    if kind in ("note", "elo"): return base + "#notifications"
     return base + "#notifications"
 
 def add_client_notification(data, title, text, kind="info", user_id=None, student_index=None, target_url=None, item_id=None):
@@ -1485,6 +1486,10 @@ def public_student_payload(student):
         "age": calculate_age_from_birthdate(student.get("birthdate")) or student.get("age", ""),
         "goal": student.get("goal", ""),
         "style": student.get("style", ""),
+        "interests": student.get("interests", ""),
+        "strengths": student.get("strengths", ""),
+        "weaknesses": student.get("weaknesses", ""),
+        "special_difficulties": student.get("special_difficulties", ""),
         "avatar": student.get("avatar", ""),
         "avg_elo": get_avg_elo(student),
         "rank": rank,
@@ -1928,6 +1933,10 @@ def save_student():
                          "branch_locked","rank_locked","manual_rank_index","manual_hakis"] + ELO_FIELDS:
             if preserve in existing and (preserve not in clean or not clean.get(preserve)):
                 clean[preserve] = existing[preserve]
+        if clean.get("birthdate"):
+            age = calculate_age_from_birthdate(clean.get("birthdate"))
+            if age != "":
+                clean["age"] = age
         data["students"][idx] = clean
     else:
         data["students"].append(clean)
@@ -3674,7 +3683,8 @@ def api_admin_password_reset():
     user = next((u for u in data.get("users", []) if u.get("id") == user_id), None)
     if not user:
         return jsonify({"ok": False, "error": "Compte introuvable."}), 404
-    user["password"] = new_password
+    user["password_hash"] = generate_password_hash(new_password)
+    user.pop("password", None)
     idx = user.get("student_index")
     if isinstance(idx, int):
         add_student_feedback(data, idx, "Mot de passe mis à jour", "Ton mot de passe a été réinitialisé par le coach. Connecte-toi avec le nouveau mot de passe reçu.", "system", "account")
@@ -3802,7 +3812,8 @@ def api_client_profile_update():
     # Champs simples et volontairement limités pour éviter le désordre et l'injection.
     allowed = {
         "name": 60, "email": 120, "phone": 40, "city": 60, "birthdate": 10,
-        "lichess": 60, "chesscom": 60, "goal": 240, "style": 120
+        "lichess": 60, "chesscom": 60, "goal": 240, "style": 120,
+        "interests": 300, "strengths": 300, "weaknesses": 300, "special_difficulties": 400
     }
     stu = data["students"][idx]
     for key, max_len in allowed.items():

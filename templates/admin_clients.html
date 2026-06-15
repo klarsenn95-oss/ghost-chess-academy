@@ -218,6 +218,7 @@ section.grid{
 .target-list label{font-size:12px!important;line-height:1.25!important}
 .paybox,.conversation,.homework,.appt,.msgbox{border-radius:13px!important;padding:10px!important;margin-bottom:8px!important}
 .plan-table{grid-template-columns:1fr 1.2fr .8fr .8fr 74px 1.6fr!important;gap:6px!important}
+.cc-flash{outline:2px solid #fbbf24!important;box-shadow:0 0 0 4px #fbbf2426,0 0 30px #fbbf2440!important}
 @media(max-width:1180px){
   .cc-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
   section.grid{grid-template-columns:1fr!important}
@@ -511,8 +512,22 @@ document.addEventListener('DOMContentLoaded', function(){
     ttl.addEventListener('click', toggle);
     ttl.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }});
   });
-  const hash = window.location.hash;
-  if(hash){ const target = document.querySelector(hash); if(target){ target.classList.remove('is-collapsed'); setTimeout(()=>target.scrollIntoView({behavior:'smooth', block:'start'}), 80); }}
+  function revealAdminHash(hash){
+    const id = (hash || '').replace('#', '');
+    if(!id) return;
+    const target = document.getElementById(id);
+    if(!target) return;
+    const panel = target.closest('.cc-panel') || target.closest('.card') || target;
+    panel.classList.remove('is-collapsed');
+    setTimeout(function(){
+      const scrollTarget = target.closest('.cc-panel') || target;
+      scrollTarget.scrollIntoView({behavior:'smooth', block:'start'});
+      target.classList.add('cc-flash');
+      setTimeout(function(){ target.classList.remove('cc-flash'); }, 1400);
+    }, 80);
+  }
+  revealAdminHash(window.location.hash);
+  window.addEventListener('hashchange', function(){ revealAdminHash(window.location.hash); });
 });
 </script>
 

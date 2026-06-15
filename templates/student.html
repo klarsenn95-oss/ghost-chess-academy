@@ -220,7 +220,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   <div class="s-section">
     <div class="s-section-title" style="color:#cc1a1a">🪪 Identité</div>
     <div class="field-row"><label class="field-label">Prénom / Pseudo</label><input class="fi" id="f-name" value="{{ s.name or '' }}"></div>
-    <div class="field-row"><label class="field-label">Âge</label><input class="fi" id="f-age" value="{{ s.age or '' }}" placeholder="17"></div>
+    <div class="field-row"><label class="field-label">Date de naissance</label><input class="fi" type="date" id="f-birthdate" value="{{ s.birthdate or '' }}"></div>
+    <div class="field-row"><label class="field-label">Âge calculé</label><div class="fi" style="background:#090909;color:#888">{{ s.age or '—' }}</div></div>
     <div class="field-row"><label class="field-label">Ville</label><input class="fi" id="f-city" value="{{ s.city or '' }}"></div>
     <div class="field-row"><label class="field-label">Téléphone</label><input class="fi" id="f-phone" value="{{ s.phone or '' }}"></div>
     <div class="field-row"><label class="field-label">Études / Métier</label><input class="fi" id="f-job" value="{{ s.job or '' }}"></div>
@@ -325,6 +326,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div class="field-row"><label class="field-label">Ouvertures Noirs</label><input class="fi" id="f-opening-black" value="{{ s.opening_black or '' }}"></div>
     <div class="field-row"><label class="field-label">Points forts</label><input class="fi" id="f-strengths" value="{{ s.strengths or '' }}"></div>
     <div class="field-row"><label class="field-label">Points faibles</label><input class="fi" id="f-weaknesses" value="{{ s.weaknesses or '' }}"></div>
+    <div class="field-row"><label class="field-label">Centres d'intérêt</label><input class="fi" id="f-interests" value="{{ s.interests or '' }}"></div>
+    <div><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Difficultés particulières</label><textarea class="fta" id="f-special-difficulties" rows="2">{{ s.special_difficulties or '' }}</textarea></div>
   </div>
   <div class="s-section">
     <div class="s-section-title" style="color:#f472b6">📖 Histoire & personnalité</div>
@@ -1252,10 +1255,11 @@ function toast(msg){
 
 function saveFiche(){
   var s={_index:STUDENT_IDX,
-    name:v('f-name'),age:v('f-age'),city:v('f-city'),phone:v('f-phone'),job:v('f-job'),
+    name:v('f-name'),birthdate:v('f-birthdate'),city:v('f-city'),phone:v('f-phone'),job:v('f-job'),
     lichess:v('f-lichess'),chesscom:v('f-chesscom'),
     style:v('f-style'),opening_white:v('f-opening-white'),opening_black:v('f-opening-black'),
     strengths:v('f-strengths'),weaknesses:v('f-weaknesses'),chess_start:v('f-chess-start'),
+    interests:v('f-interests'),special_difficulties:document.getElementById('f-special-difficulties').value.trim(),
     behavior:document.getElementById('f-behavior').value,
     personality:document.getElementById('f-personality').value.trim(),
     misc:document.getElementById('f-misc').value.trim()};

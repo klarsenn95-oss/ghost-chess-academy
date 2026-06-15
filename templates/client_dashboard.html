@@ -64,7 +64,7 @@
 
 
 /* V35 — profil Ghost + lisibilité */
-.profile-field-label{display:block;color:#8a82a6;font-size:12px;font-weight:900}.profile-field-label .fi{margin-top:6px}.profile-age-card{background:#08081b;border:1px solid #24243b;border-radius:17px;padding:13px}.profile-age-card span{display:block;color:#8a82a6;font-size:12px}.profile-age-card b{display:block;margin-top:6px;font-size:22px;color:#fff}
+.profile-field-label{display:block;color:#8a82a6;font-size:12px;font-weight:900}.profile-field-label .fi{margin-top:6px}
 </style>
 </head>
 <body>
@@ -148,12 +148,17 @@
         <input class="fi" id="profile-phone" placeholder="Téléphone" value="{{ student.phone if student else '' }}">
         <input class="fi" id="profile-city" placeholder="Ville / pays" value="{{ student.city if student else '' }}">
         <label class="profile-field-label">Date de naissance <input class="fi" type="date" id="profile-birthdate" value="{{ student.birthdate if student else '' }}"></label>
-        <div class="profile-age-card"><span>Âge calculé côté coach</span><b>{{ student.age if student and student.age else '—' }}</b></div>
         <input class="fi" id="profile-lichess" placeholder="Pseudo Lichess" value="{{ student.lichess if student else '' }}">
         <input class="fi" id="profile-chesscom" placeholder="Pseudo Chess.com" value="{{ student.chesscom if student else '' }}">
       </div>
       <input class="fi" id="profile-style" placeholder="Style de jeu : attaquant, positionnel, tactique…" value="{{ student.style if student else '' }}">
       <textarea class="ta" id="profile-goal" placeholder="Objectif personnel : préparer un tournoi, progresser en tactique, mieux gérer le temps…">{{ student.goal if student else '' }}</textarea>
+      <div class="mini-grid">
+        <textarea class="ta" id="profile-interests" placeholder="Centres d'intérêts : ouvertures, joueurs, formats, thèmes…">{{ student.interests if student else '' }}</textarea>
+        <textarea class="ta" id="profile-strengths" placeholder="Points forts : calcul, attaque, finales, concentration…">{{ student.strengths if student else '' }}</textarea>
+        <textarea class="ta" id="profile-weaknesses" placeholder="Faiblesses : zeitnot, tactique, plans, confiance…">{{ student.weaknesses if student else '' }}</textarea>
+        <textarea class="ta" id="profile-special-difficulties" placeholder="Difficultés particulières : stress, disponibilité, matériel, blocages…">{{ student.special_difficulties if student else '' }}</textarea>
+      </div>
       <button class="btn" onclick="saveProfile()">Sauvegarder mon profil</button><span class="msg" id="profile-msg"></span>
       <div class="muted" style="margin-top:12px">Ces informations aident le coach à mieux adapter les séances, devoirs et feedbacks.</div>
     </div>
@@ -233,6 +238,7 @@
 
 <script>
 function showTab(name,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));const panel=document.getElementById('tab-'+name);if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name)}
+const $ = (id)=>document.getElementById(id);
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
 function handleRestricted(d,msgEl){if(d.error==='access_restricted'){msgEl.textContent=d.message||'Accès restreint.';return true}return false}
 function showFileCount(input,id){const el=document.getElementById(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
@@ -274,7 +280,21 @@ window.addEventListener('DOMContentLoaded',()=>{const h=(location.hash||'').repl
 
 
 async function saveProfile(){
-  const payload={name:$('profile-name')?.value,email:$('profile-email')?.value,phone:$('profile-phone')?.value,city:$('profile-city')?.value,birthdate:$('profile-birthdate')?.value,lichess:$('profile-lichess')?.value,chesscom:$('profile-chesscom')?.value,style:$('profile-style')?.value,goal:$('profile-goal')?.value};
+  const payload={
+    name:$('profile-name')?.value,
+    email:$('profile-email')?.value,
+    phone:$('profile-phone')?.value,
+    city:$('profile-city')?.value,
+    birthdate:$('profile-birthdate')?.value,
+    lichess:$('profile-lichess')?.value,
+    chesscom:$('profile-chesscom')?.value,
+    style:$('profile-style')?.value,
+    goal:$('profile-goal')?.value,
+    interests:$('profile-interests')?.value,
+    strengths:$('profile-strengths')?.value,
+    weaknesses:$('profile-weaknesses')?.value,
+    special_difficulties:$('profile-special-difficulties')?.value
+  };
   const d=await postJSON('/api/client/profile/update',payload);
   $('profile-msg').textContent=d.ok?'Profil mis à jour.':(d.error||'Erreur');
   if(d.ok) setTimeout(()=>location.reload(),600);
