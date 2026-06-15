@@ -3867,6 +3867,6 @@ def api_admin_plans_save():
 if __name__ == "__main__":
     import webbrowser, time
     scheduler.start()
-    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5030")),daemon=True).start()
-    print("\n♟ GHOST Chess Manager v32 UX Focus → http://127.0.0.1:5030\n")
-    app.run(debug=False, port=5030)
+    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5031")),daemon=True).start()
+    print("\n♟ GHOST Chess Manager v34 Stabilisation → http://127.0.0.1:5031\n")
+    app.run(debug=False, port=5031)

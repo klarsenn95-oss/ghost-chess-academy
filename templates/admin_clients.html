@@ -37,6 +37,20 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
   .finance-cards{gap:8px!important}.finance-card b{font-size:22px!important}.row{display:block!important}.row>div{margin-bottom:8px}.target-list{max-height:280px;overflow:auto}.head .btn{width:auto!important;flex:1 1 140px}.card.full{scroll-margin-top:120px}
 }
 
+
+/* V33 — visites toujours lisibles */
+.visit-cards{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:10px;width:100%;}
+.visits-card{overflow:visible!important;min-width:0;}
+.visits-card .finance-card{min-width:0!important;white-space:normal!important;}
+@media(max-width:820px){.visit-cards{grid-template-columns:1fr!important}.visits-card{margin:10px 0!important}.tabs{position:sticky;bottom:0;top:auto;overflow-x:auto;flex-wrap:nowrap}.tab{white-space:nowrap}}
+
+
+/* V34 — centre de commandement stabilisé */
+.command-grid{display:grid;grid-template-columns:1fr 1.65fr;gap:14px;margin-bottom:14px;align-items:stretch}
+.command-grid .card{margin:0}.command-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric-card{min-width:0;background:linear-gradient(135deg,#09091a,#060612);border:1px solid #2a2a44;border-radius:18px;padding:14px;overflow:hidden}.metric-card span{display:block;color:#8a82a6;font-size:12px;margin-bottom:8px}.metric-card b{display:block;font-size:24px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card small{display:block;color:#777190;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card.good b{color:#4ade80}.metric-card.warn b{color:#fbbf24}.metric-card.danger b{color:#ef4444}.center-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.center-nav a{text-decoration:none;color:#c4b5fd;background:#ffffff08;border:1px solid #ffffff14;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.finance-ledger{margin-top:14px;border:1px solid #ffffff10;border-radius:16px;overflow:hidden;background:#050512}.ledger-row{display:grid;grid-template-columns:1.15fr 1fr 120px 110px auto;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid #ffffff0b;font-size:12px}.ledger-row:first-child{border-top:0}.ledger-head{color:#8a82a6;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#ffffff05}.ledger-student b{display:block}.ledger-student small{display:block;color:#777190;margin-top:2px}.compact-section{margin-top:10px}.compact-section summary{cursor:pointer;list-style:none;padding:10px 0;color:#c4b5fd;font-weight:950}.compact-section summary::-webkit-details-marker{display:none}.compact-section summary:before{content:'▸';display:inline-block;margin-right:8px;color:#fbbf24}.compact-section[open] summary:before{content:'▾'}
+@media(max-width:1100px){.command-grid{grid-template-columns:1fr}.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ledger-row{grid-template-columns:1fr 1fr}.ledger-head{display:none}.ledger-row>*{min-width:0}.ledger-row .btn{width:auto!important}}
+@media(max-width:760px){body{padding:10px 8px 120px!important}.command-metrics{grid-template-columns:1fr}.metric-card b{font-size:22px}.center-nav{position:sticky;top:72px;z-index:65;background:rgba(5,5,18,.92);padding:8px;border:1px solid #ffffff10;border-radius:16px;backdrop-filter:blur(12px);overflow-x:auto;flex-wrap:nowrap}.center-nav a{white-space:nowrap}.ledger-row{display:block}.ledger-row>div,.ledger-row>span{display:block;margin:6px 0}.finance-ledger{border-radius:14px}.head{position:sticky;top:0}.ttl{font-size:11px}.sub{font-size:12px}}
+
 </style>
 </head>
 <body>
@@ -49,26 +63,48 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
   </div>
 </div>
 
-<div class="card" style="margin-bottom:14px">
-  <div class="ttl">👁️ Visites plateforme</div>
-  <div class="finance-cards">
-    <div class="finance-card"><span class="muted">Aujourd’hui</span><br><b>{{ visit_stats.today_count or 0 }}</b></div>
-    <div class="finance-card"><span class="muted">Total</span><br><b>{{ visit_stats.total or 0 }}</b></div>
-    <div class="finance-card"><span class="muted">Dernier accès</span><br><b style="font-size:15px">{{ visit_stats.last_at or '—' }}</b></div>
+<div class="center-nav" aria-label="Navigation rapide centre de commandement">
+  <a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
+</div>
+
+<div class="command-grid">
+  <div class="card visits-card">
+    <div class="ttl">👁️ Visites plateforme</div>
+    <div class="command-metrics">
+      <div class="metric-card"><span>Aujourd’hui</span><b>{{ visit_stats.today_count or 0 }}</b><small>{{ visit_stats.today or '—' }}</small></div>
+      <div class="metric-card"><span>Total</span><b>{{ visit_stats.total or 0 }}</b><small>depuis activation</small></div>
+      <div class="metric-card"><span>Dernier accès</span><b style="font-size:15px">{{ visit_stats.last_at or '—' }}</b><small>{{ visit_stats.last_path or '/' }}</small></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ttl">💰 Finances académie — FCFA</div>
+    <div class="command-metrics">
+      <div class="metric-card good"><span>Encaissé validé</span><b>{{ finance.paid_fmt }}</b><small>paiements confirmés</small></div>
+      <div class="metric-card warn"><span>En attente validation</span><b>{{ finance.pending_fmt }}</b><small>à confirmer</small></div>
+      <div class="metric-card danger"><span>Volume suivi</span><b>{{ finance.total_fmt }}</b><small>validé + attente</small></div>
+    </div>
   </div>
 </div>
 
 <section class="grid">
   <div class="card full">
-    <div class="ttl">💰 Finances académie — FCFA</div>
-    <div class="finance-cards">
-      <div class="finance-card good"><span class="muted">Encaissé validé</span><br><b>{{ finance.paid_fmt }}</b></div>
-      <div class="finance-card warn"><span class="muted">En attente validation</span><br><b>{{ finance.pending_fmt }}</b></div>
-      <div class="finance-card danger"><span class="muted">Volume suivi</span><br><b>{{ finance.total_fmt }}</b></div>
+    <div class="ttl">💰 Journal financier détaillé</div>
+    <div class="muted">Les paiements validés apparaissent avec le Ghost concerné. Tu peux supprimer une ligne de test sans toucher au compte Ghost.</div>
+    {% if payment_logs %}
+    <div class="finance-ledger">
+      <div class="ledger-row ledger-head"><div>Ghost</div><div>Objet</div><div>Montant</div><div>Statut</div><div>Action</div></div>
+      {% for p in payment_logs[:40] %}
+      <div class="ledger-row">
+        <div class="ledger-student"><b>{{ p.student_name or p.name or 'Ghost non lié' }}</b><small>{{ p.date or '—' }}</small></div>
+        <div>{{ p.plan or p.plan_key or 'Paiement' }}</div>
+        <div><b>{{ p.amount_label or (p.amount ~ ' FCFA') }}</b></div>
+        <div><span class="badge {{ 'ok' if p.status in ['paid','validated','confirmed'] else 'warn' }}">{{ p.status or 'paid' }}</span></div>
+        <div><button class="btn danger tiny" onclick="deletePaymentLog('{{ p.id }}')">Supprimer</button></div>
+      </div>
+      {% endfor %}
     </div>
-    {% if finance.by_plan %}<div class="mini-list">{% for name, amount in finance.by_plan.items() %}<div class="mini-item"><span>{{ name }}</span><b>{{ amount }} FCFA</b></div>{% endfor %}</div>{% endif %}
-    <div class="muted" style="margin-top:10px">Chaque validation de paiement ajoute une ligne d’encaissement et met à jour ce tableau.</div>
-    {% if payment_logs %}<div class="ttl" style="margin-top:18px">Historique encaissé / tests</div><div class="mini-list">{% for p in payment_logs[:30] %}<div class="mini-item"><span>{{ p.date }} · {{ p.student_name or '—' }} · {{ p.plan or p.plan_key }}</span><span><b>{{ p.amount_label or (p.amount ~ ' FCFA') }}</b> <button class="btn danger tiny" onclick="deletePaymentLog('{{ p.id }}')">Supprimer</button></span></div>{% endfor %}</div>{% endif %}
+    {% else %}<div class="muted" style="margin-top:10px">Aucune ligne d’encaissement enregistrée.</div>{% endif %}
+    {% if finance.by_plan %}<details class="compact-section"><summary>Répartition par formule</summary><div class="mini-list">{% for name, amount in finance.by_plan.items() %}<div class="mini-item"><span>{{ name }}</span><b>{{ amount }} FCFA</b></div>{% endfor %}</div></details>{% endif %}
   </div>
   <div class="card full" id="registration-requests">
     <div class="ttl">🎟️ Inscriptions Ghost — {{ registration_fee }}</div>
@@ -88,7 +124,7 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
     {% else %}<div class="muted">Aucune demande d’inscription pour le moment.</div>{% endif %}
   </div>
 
-  <div class="card">
+  <div class="card" id="manual-code">
     <div class="ttl">Générer un code manuel</div>
     <select class="fi" id="student-index"><option value="">Créer un nouveau profil au moment de l'inscription</option>{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }} · {{ s._rank.title }}</option>{% endfor %}</select>
     <input class="fi" id="email" placeholder="Email prévu optionnel">

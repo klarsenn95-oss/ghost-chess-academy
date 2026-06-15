@@ -91,7 +91,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <div class="stat-card"><div class="stat-icon">📚</div><div class="stat-val" style="color:var(--orange)">{{ pending_devoirs }}</div><div class="stat-label">Devoirs en cours</div></div>
     <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-val" style="color:#a78bfa">{{ sessions|length }}</div><div class="stat-label">Sessions</div></div>
     <div class="stat-card"><div class="stat-icon">⏰</div><div class="stat-val" style="color:var(--white)">{{ pending_rappels }}</div><div class="stat-label">Rappels actifs</div></div>
-    <div class="stat-card"><div class="stat-icon">👁️</div><div class="stat-val" style="color:#60a5fa">{{ visit_stats.today_count or 0 }}</div><div class="stat-label">Visites aujourd’hui</div></div>
+    <div class="stat-card"><div class="stat-icon">👁️</div><div class="stat-val" style="color:#60a5fa">{{ visit_stats.today_count or 0 }}</div><div class="stat-label">Visites aujourd’hui · Total {{ visit_stats.total or 0 }}</div></div>
   </div>
 
   <!-- Corps stats -->
