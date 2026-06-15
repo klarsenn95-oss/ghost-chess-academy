@@ -62,6 +62,9 @@
   .calendar{grid-template-columns:repeat(2,1fr)!important;}
 }
 
+
+/* V35 — profil Ghost + lisibilité */
+.profile-field-label{display:block;color:#8a82a6;font-size:12px;font-weight:900}.profile-field-label .fi{margin-top:6px}.profile-age-card{background:#08081b;border:1px solid #24243b;border-radius:17px;padding:13px}.profile-age-card span{display:block;color:#8a82a6;font-size:12px}.profile-age-card b{display:block;margin-top:6px;font-size:22px;color:#fff}
 </style>
 </head>
 <body>
@@ -144,6 +147,8 @@
         <input class="fi" id="profile-email" placeholder="Email" value="{{ (student.email if student else user.email) or user.email }}">
         <input class="fi" id="profile-phone" placeholder="Téléphone" value="{{ student.phone if student else '' }}">
         <input class="fi" id="profile-city" placeholder="Ville / pays" value="{{ student.city if student else '' }}">
+        <label class="profile-field-label">Date de naissance <input class="fi" type="date" id="profile-birthdate" value="{{ student.birthdate if student else '' }}"></label>
+        <div class="profile-age-card"><span>Âge calculé côté coach</span><b>{{ student.age if student and student.age else '—' }}</b></div>
         <input class="fi" id="profile-lichess" placeholder="Pseudo Lichess" value="{{ student.lichess if student else '' }}">
         <input class="fi" id="profile-chesscom" placeholder="Pseudo Chess.com" value="{{ student.chesscom if student else '' }}">
       </div>
@@ -269,7 +274,7 @@ window.addEventListener('DOMContentLoaded',()=>{const h=(location.hash||'').repl
 
 
 async function saveProfile(){
-  const payload={name:$('profile-name')?.value,email:$('profile-email')?.value,phone:$('profile-phone')?.value,city:$('profile-city')?.value,lichess:$('profile-lichess')?.value,chesscom:$('profile-chesscom')?.value,style:$('profile-style')?.value,goal:$('profile-goal')?.value};
+  const payload={name:$('profile-name')?.value,email:$('profile-email')?.value,phone:$('profile-phone')?.value,city:$('profile-city')?.value,birthdate:$('profile-birthdate')?.value,lichess:$('profile-lichess')?.value,chesscom:$('profile-chesscom')?.value,style:$('profile-style')?.value,goal:$('profile-goal')?.value};
   const d=await postJSON('/api/client/profile/update',payload);
   $('profile-msg').textContent=d.ok?'Profil mis à jour.':(d.error||'Erreur');
   if(d.ok) setTimeout(()=>location.reload(),600);

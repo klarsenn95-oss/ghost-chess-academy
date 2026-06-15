@@ -1439,6 +1439,19 @@ def add_client_notification(data, title, text, kind="info", user_id=None, studen
     })
     data["client_notifications"] = data.get("client_notifications", [])[:120]
 
+
+def calculate_age_from_birthdate(birthdate):
+    """Calcule l'âge depuis une date YYYY-MM-DD sans casser si la date est vide/invalide."""
+    if not birthdate:
+        return ""
+    try:
+        d = datetime.strptime(str(birthdate)[:10], "%Y-%m-%d").date()
+        today = datetime.now().date()
+        age = today.year - d.year - ((today.month, today.day) < (d.month, d.day))
+        return age if 0 <= age <= 120 else ""
+    except Exception:
+        return ""
+
 def public_student_payload(student):
     if not student:
         return None
@@ -1468,6 +1481,8 @@ def public_student_payload(student):
         "email": student.get("email", ""),
         "phone": student.get("phone", ""),
         "city": student.get("city", ""),
+        "birthdate": student.get("birthdate", ""),
+        "age": calculate_age_from_birthdate(student.get("birthdate")) or student.get("age", ""),
         "goal": student.get("goal", ""),
         "style": student.get("style", ""),
         "avatar": student.get("avatar", ""),
@@ -3786,7 +3801,7 @@ def api_client_profile_update():
         return jsonify({"ok": False, "error": "Profil introuvable."}), 404
     # Champs simples et volontairement limités pour éviter le désordre et l'injection.
     allowed = {
-        "name": 60, "email": 120, "phone": 40, "city": 60,
+        "name": 60, "email": 120, "phone": 40, "city": 60, "birthdate": 10,
         "lichess": 60, "chesscom": 60, "goal": 240, "style": 120
     }
     stu = data["students"][idx]
@@ -3794,11 +3809,26 @@ def api_client_profile_update():
         val = (body.get(key) or "").strip()
         # On garde du texte pur : Jinja échappe déjà l'affichage, mais on nettoie les balises évidentes.
         val = val.replace("<", "").replace(">", "")[:max_len]
+        if key == "birthdate":
+            # format attendu côté navigateur : YYYY-MM-DD
+            if val:
+                try:
+                    datetime.strptime(val[:10], "%Y-%m-%d")
+                    val = val[:10]
+                except Exception:
+                    val = ""
         if key in ("name", "email") and not val:
             continue
         stu[key] = val
         if key in ("name", "email"):
             user[key] = val
+    # âge calculé automatiquement côté coach depuis la date de naissance
+    if stu.get("birthdate"):
+        age = calculate_age_from_birthdate(stu.get("birthdate"))
+        if age != "":
+            stu["age"] = age
+            user["age"] = age
+            user["birthdate"] = stu.get("birthdate")
     user.setdefault("profile_updated_at", now_fr())
     user["profile_updated_at"] = now_fr()
     data["students"][idx] = stu
