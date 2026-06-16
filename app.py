@@ -1363,7 +1363,7 @@ def get_user_payment_state(user):
         "active_plan_status": active_status,
     }
 
-def add_student_feedback(data, student_index, title, text, kind="feedback", linked_type="manual", linked_id=None, image_url="", position_fen="", pgn="", tags=None, priority="normal", action_required=False):
+def add_student_feedback(data, student_index, title, text, kind="feedback", linked_type="manual", linked_id=None, image_url="", position_fen="", pgn="", tags=None, priority="normal", action_required=False, attachments=None):
     if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
         return None
     student = data["students"][student_index]
@@ -1396,6 +1396,7 @@ def add_student_feedback(data, student_index, title, text, kind="feedback", link
         "position_fen": position_fen or "",
         "pgn": pgn or "",
         "tags": tags or [],
+        "attachments": attachments or ([] if not image_url else [image_url]),
         "priority": priority or "normal",
         "action_required": bool(action_required),
         "read_by_student": False,
@@ -1416,6 +1417,20 @@ def get_current_user(data=None):
     return next((u for u in data.get("users", []) if u.get("id") == uid), None)
 
 def notification_target_url(kind="info", student_index=None, item_id=None):
+    if isinstance(student_index, int):
+        student_base = f"/student/{student_index}"
+        if kind in ("game", "analysis"):
+            return student_base + "#parties"
+        if kind == "appointment":
+            return student_base + "#agenda"
+        if kind == "homework":
+            return student_base + "#devoirs"
+        if kind == "payment":
+            return student_base + "#finances"
+        if kind == "tournament":
+            return student_base + "#agenda"
+        if kind in ("feedback", "feedback_reply", "message", "note", "elo", "account", "info"):
+            return student_base + "#echanges"
     base = "/admin/clients"
     if kind == "game": return base + "#games"
     if kind == "appointment": return base + "#appointments"
@@ -1989,11 +2004,14 @@ def update_devoir():
             "due": body.get("due", ""),
             "status": "📋 À faire",
             "note": body.get("note", ""),
+            "attachments": body.get("attachments") or [],
             "created_at": now_fr(),
             "source": "coach",
         }
         s.setdefault("devoirs", []).append(entry)
         add_student_feedback(data, idx, "Nouveau devoir", f"{entry['title']} — à rendre pour le {entry.get('due') or 'prochainement'}. {entry.get('note','')}", "homework", "devoir", entry["id"], action_required=True)
+        if entry["attachments"] and s.get("client_feedback"):
+            s["client_feedback"][0]["attachments"] = entry["attachments"]
     elif action == "status":
         di = body["devoir_index"]
         s["devoirs"][di]["status"] = body["status"]
@@ -2860,7 +2878,7 @@ def api_client_game():
         return jsonify({"ok": False, "error": "Profil élève introuvable."}), 400
     entry = {"id": str(uuid.uuid4()), "date": now_fr(), "url": url, "note": note, "position_fen": position_fen, "pgn": pgn, "image_url": attachments[0] if attachments else "", "attachments": attachments, "status": "nouveau"}
     data["students"][idx].setdefault("client_games", []).insert(0, entry)
-    add_client_notification(data, "Nouvelle partie", f"{user.get('name')} a ajouté une partie ou une analyse.", "game", user.get("id"), idx, target_url="/admin/clients#games", item_id=entry["id"])
+    add_client_notification(data, "Nouvelle partie", f"{user.get('name')} a ajouté une partie ou une analyse.", "game", user.get("id"), idx, item_id=entry["id"])
     save_data(data)
     return jsonify({"ok": True, "entry": entry})
 
@@ -2956,7 +2974,7 @@ def api_client_plan_select():
     }
     idx = user.get("student_index")
     notif_title = "Renouvellement de formule" if same_plan else "Formule choisie"
-    add_client_notification(data, notif_title, f"{user.get('name')} a demandé : {plan.get('name')} — {plan.get('price')}. Paiement à valider.", "payment", user.get("id"), idx, target_url="/admin/clients#payments")
+    add_client_notification(data, notif_title, f"{user.get('name')} a demandé : {plan.get('name')} — {plan.get('price')}. Paiement à valider.", "payment", user.get("id"), idx)
     if isinstance(idx, int):
         msg = "renouvelé" if same_plan else "choisi"
         add_student_feedback(data, idx, "Formule enregistrée", f"Tu as {msg} : {plan.get('name')} ({plan.get('price')}). Le coach validera l’accès dès confirmation du paiement.", "payment", "plan")
@@ -3633,7 +3651,7 @@ def api_client_payment_claim():
     user["payment_status"] = "pending"
     user["access_restricted"] = False
     user["payment_claimed_at"] = now_fr()
-    add_client_notification(data, "Paiement à vérifier", f"{user.get('name')} indique avoir payé. {msg}", "payment", user.get("id"), idx, target_url="/admin/clients#payments")
+    add_client_notification(data, "Paiement à vérifier", f"{user.get('name')} indique avoir payé. {msg}", "payment", user.get("id"), idx)
     save_data(data)
     return jsonify({"ok": True})
 
@@ -3842,7 +3860,7 @@ def api_client_message_send():
     entry = {"id": str(uuid.uuid4()), "date": now_fr(), "from_user_id": user.get("id"), "from_student_index": user.get("student_index"), "from_name": user.get("name"), "targets": targets, "target_all": target_all, "target_label": target_label, "text": text, "url": (body.get("url") or "").strip(), "fen": (body.get("fen") or "").strip(), "pgn": (body.get("pgn") or "").strip(), "attachments": body.get("attachments") or []}
     data.setdefault("student_messages", []).insert(0, entry)
     data["student_messages"] = data.get("student_messages", [])[:300]
-    add_client_notification(data, "Message élève", f"{user.get('name')} a partagé un message/une partie avec son binôme.", "message", user.get("id"), user.get("student_index"), target_url="/admin/clients#messages")
+    add_client_notification(data, "Message élève", f"{user.get('name')} a partagé un message/une partie avec son binôme.", "message", user.get("id"), user.get("student_index"))
     save_data(data)
     return jsonify({"ok": True, "message": entry})
 

@@ -59,6 +59,19 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .dev-item{background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:9px 12px;margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .dev-title{font-size:13px;color:#ccc;flex:1;}
 .dev-due{font-size:11px;color:#444;}
+.dev-note,.exchange-text{width:100%;font-size:12px;color:#888;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;}
+.student-attachments,.exchange-files{width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;}
+.student-attachments a,.exchange-files a{font-size:11px;color:#c4b5fd;text-decoration:none;border:1px solid #262640;background:#080816;border-radius:999px;padding:4px 8px;}
+.exchange-card{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.exchange-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px;}
+.exchange-title{font-size:13px;color:#eee;font-weight:700;}
+.exchange-meta{font-size:11px;color:#444;}
+.exchange-pill{font-size:10px;color:#fbbf24;border:1px solid #fbbf2444;border-radius:999px;padding:2px 7px;white-space:nowrap;}
+.exchange-replies{margin-top:8px;border-top:1px solid #111;padding-top:6px;}
+.exchange-bubble{font-size:12px;color:#c4b5fd;padding:7px 0;border-bottom:1px solid #111;white-space:pre-wrap;}
+.exchange-bubble.student{color:#fbbf24;}
+.exchange-reply-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px;align-items:start;}
+.exchange-reply-row textarea{min-height:48px;}
 /* Journal */
 .je{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px 14px;margin-bottom:7px;}
 .je-meta{font-size:11px;color:#333;display:flex;align-items:center;gap:8px;margin-bottom:6px;}
@@ -203,6 +216,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <button class="s-tab active" onclick="showTab('fiche',this)">Fiche</button>
     <button class="s-tab" onclick="showTab('elo',this)">ELO &amp; Progression</button>
     <button class="s-tab" onclick="showTab('devoirs',this)">Devoirs</button>
+    <button class="s-tab" onclick="showTab('echanges',this)">Echanges</button>
     <button class="s-tab" onclick="showTab('remarques',this)">Remarques</button>
     <button class="s-tab" onclick="showTab('workplan',this)">Plan de travail</button>
     <button class="s-tab" onclick="showTab('parties',this)">Parties</button>
@@ -472,19 +486,72 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Pour le</label><input type="date" class="fi" id="dev-due"></div>
       <button class="btn btn-red btn-sm" onclick="addDevoir()">➕</button>
     </div>
-    <input class="fi" id="dev-note" placeholder="Note optionnelle…" style="width:100%">
+    <textarea class="fta" id="dev-note" rows="2" placeholder="Consigne, liens utiles, objectif de correction..." style="width:100%"></textarea>
+    <input class="fi" type="file" id="dev-files" accept="image/*,.pdf,.pgn,.txt" multiple>
   </div>
   <div id="devoirs-list">
     {% for d in s.get('devoirs',[]) %}
-    <div class="dev-item">
+    <div class="dev-item" id="devoir-{{ d.id }}">
       <span class="dev-title">{{ d.title }}</span>
       {% if d.due %}<span class="dev-due">📅 {{ d.due }}</span>{% endif %}
       <select class="fi" style="width:140px;padding:4px 8px" onchange="changeDevStatus({{ loop.index0 }},this.value)">
         {% for st in devoir_status %}<option {% if d.status==st %}selected{% endif %}>{{ st }}</option>{% endfor %}
       </select>
       <button class="btn btn-danger btn-xs" onclick="deleteDevoir({{ loop.index0 }})">🗑</button>
+      {% if d.note %}<div class="dev-note">{{ d.note }}</div>{% endif %}
+      {% if d.attachments %}<div class="student-attachments">{% for a in d.attachments %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+      {% if d.student_submission %}<div class="dev-note"><b>Rendu Ghost</b> - {{ d.student_submission.date }}<br>{{ d.student_submission.text }}</div>{% if d.student_submission.attachments %}<div class="student-attachments">{% for a in d.student_submission.attachments %}<a href="{{ a }}" target="_blank">Rendu {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% endif %}
     </div>
     {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun devoir.</div>{% endfor %}
+  </div>
+</div>
+
+<!-- ECHANGES -->
+<div id="tab-echanges" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">Nouveau feedback</div>
+    <div style="display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:8px;margin-bottom:8px">
+      <input class="fi" id="sf-title" placeholder="Titre du feedback">
+      <select class="fi" id="sf-kind"><option value="feedback">Feedback</option><option value="game">Analyse de partie</option><option value="homework">Devoir</option><option value="lesson">Seance</option></select>
+      <select class="fi" id="sf-priority"><option value="normal">Normal</option><option value="high">Important</option><option value="urgent">Urgent</option></select>
+    </div>
+    <textarea class="fta" id="sf-text" rows="3" placeholder="Message visible dans l'espace Ghost..."></textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <input class="fi" id="sf-fen" placeholder="FEN optionnelle">
+      <input class="fi" id="sf-tags" placeholder="Tags : tactique, finale...">
+    </div>
+    <textarea class="fta" id="sf-pgn" rows="2" placeholder="PGN / variante optionnelle"></textarea>
+    <input class="fi" type="file" id="sf-files" accept="image/*,.pdf,.pgn,.txt" multiple>
+    <label style="font-size:12px;color:#555;display:block;margin:4px 0 10px"><input type="checkbox" id="sf-action"> Action demandee au Ghost</label>
+    <button class="btn btn-red" onclick="sendStudentFeedback()">Envoyer au Ghost</button>
+    <span id="sf-msg" style="font-size:12px;color:#555;margin-left:8px"></span>
+  </div>
+  <div class="s-section">
+    <div class="s-section-title">Echanges recents feedback</div>
+    {% for f in s.get('client_feedback', []) %}
+    <div class="exchange-card" id="feedback-{{ f.id }}">
+      <div class="exchange-head">
+        <div><div class="exchange-title">{{ f.title }}</div><div class="exchange-meta">{{ f.date }} - {{ f.kind }}</div></div>
+        {% if f.action_required %}<span class="exchange-pill">action</span>{% endif %}
+      </div>
+      {% if f.text %}<div class="exchange-text">{{ f.text }}</div>{% endif %}
+      {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div>{% endif %}
+      {% if f.pgn %}<div class="fen">{{ f.pgn[:800] }}{% if f.pgn|length > 800 %}...{% endif %}</div>{% endif %}
+      {% if f.attachments %}<div class="exchange-files">{% for a in f.attachments %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+      {% if f.replies %}
+      <div class="exchange-replies">
+        {% for r in f.replies %}
+        <div class="exchange-bubble {{ 'student' if r.author=='student' else '' }}"><b>{{ 'Ghost' if r.author=='student' else 'Coach' }}</b> - {{ r.date }}<br>{{ r.text }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="exchange-reply-row">
+        <textarea class="fta" id="sf-reply-{{ f.id }}" placeholder="Repondre dans ce fil..."></textarea>
+        <button class="btn btn-ghost btn-sm" onclick="replyStudentFeedback('{{ f.id }}')">Repondre</button>
+      </div>
+      <span id="sf-reply-msg-{{ f.id }}" style="font-size:12px;color:#555"></span>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun feedback envoye pour le moment.</div>{% endfor %}
   </div>
 </div>
 
@@ -1147,8 +1214,15 @@ function showTab(tab,btn){
   for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
   var btns=document.querySelectorAll('.s-tab');
   for(var i=0;i<btns.length;i++) btns[i].classList.remove('active');
-  document.getElementById('tab-'+tab).classList.add('active');
+  var panel=document.getElementById('tab-'+tab);
+  if(!panel) return;
+  panel.classList.add('active');
   if(btn) btn.classList.add('active');
+  else {
+    for(var j=0;j<btns.length;j++){
+      if((btns[j].getAttribute('onclick')||'').indexOf("'"+tab+"'")>=0) btns[j].classList.add('active');
+    }
+  }
   if(tab==='elo') renderEloChart();
 }
 
@@ -1246,6 +1320,21 @@ function post(url,data,cb){
 
 function v(id){var el=document.getElementById(id);return el?el.value.trim():'';}
 
+async function postJSON(url,payload){
+  var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  return await r.json();
+}
+async function uploadStudentFiles(inputId){
+  var input=document.getElementById(inputId);
+  var files=[].slice.call(input && input.files ? input.files : []);
+  if(!files.length) return [];
+  var fd=new FormData();
+  files.forEach(function(f){fd.append('files',f);});
+  var r=await fetch('/api/admin/upload',{method:'POST',body:fd});
+  var d=await r.json();
+  return d.ok ? (d.urls || [d.url]).filter(Boolean) : [];
+}
+
 function toast(msg){
   var t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);
@@ -1308,13 +1397,14 @@ function deleteProgression(i){
   post('/api/students/progression',{student_index:STUDENT_IDX,action:'delete',prog_index:i},function(){location.reload();});
 }
 
-function addDevoir(){
+async function addDevoir(){
   var title=v('dev-title'); if(!title) return;
   var due=document.getElementById('dev-due').value;
   var parts=due?due.split('-'):[];
   var dueStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:'';
-  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'add',title:title,due:dueStr,note:v('dev-note')},
-    function(){location.reload();});
+  var attachments=await uploadStudentFiles('dev-files');
+  var d=await postJSON('/api/students/devoir',{student_index:STUDENT_IDX,action:'add',title:title,due:dueStr,note:v('dev-note'),attachments:attachments});
+  if(d.ok) location.reload(); else toast(d.error || 'Erreur devoir');
 }
 function changeDevStatus(di,status){
   post('/api/students/devoir',{student_index:STUDENT_IDX,action:'status',devoir_index:di,status:status},null);
@@ -1322,6 +1412,36 @@ function changeDevStatus(di,status){
 function deleteDevoir(di){
   if(!confirm('Supprimer ?')) return;
   post('/api/students/devoir',{student_index:STUDENT_IDX,action:'delete',devoir_index:di},function(){location.reload();});
+}
+
+async function sendStudentFeedback(){
+  var msg=document.getElementById('sf-msg');
+  if(msg) msg.textContent='Envoi...';
+  var attachments=await uploadStudentFiles('sf-files');
+  var d=await postJSON('/api/admin/feedback/send',{
+    student_index:STUDENT_IDX,
+    title:v('sf-title') || 'Feedback coach',
+    kind:v('sf-kind') || 'feedback',
+    priority:v('sf-priority') || 'normal',
+    text:v('sf-text'),
+    attachments:attachments,
+    image_url:attachments[0] || '',
+    position_fen:v('sf-fen'),
+    pgn:v('sf-pgn'),
+    tags:v('sf-tags'),
+    action_required:document.getElementById('sf-action')?.checked || false
+  });
+  if(msg) msg.textContent=d.ok?'Feedback envoye.':(d.error || 'Erreur');
+  if(d.ok) setTimeout(function(){location.reload();},650);
+}
+
+async function replyStudentFeedback(feedbackId){
+  var el=document.getElementById('sf-reply-'+feedbackId);
+  var msg=document.getElementById('sf-reply-msg-'+feedbackId);
+  if(msg) msg.textContent='Envoi...';
+  var d=await postJSON('/api/admin/feedback/reply',{student_index:STUDENT_IDX,feedback_id:feedbackId,text:el?el.value:''});
+  if(msg) msg.textContent=d.ok?'Reponse envoyee.':(d.error || 'Erreur');
+  if(d.ok) setTimeout(function(){location.reload();},650);
 }
 
 function insertTag(tag){var ta=document.getElementById('rem-text');ta.value=(ta.value.trim()+' '+tag).trim();}
@@ -1466,6 +1586,18 @@ if(rdi){var nd=new Date();rdi.value=nd.getFullYear()+'-'+(nd.getMonth()+1<10?'0'
   var el=document.getElementById('ag-date'); if(el) el.value=y+'-'+m+'-'+d;
   var pe=document.getElementById('pay-date'); if(pe) pe.value=y+'-'+m+'-'+d;
 })();
+
+function openStudentHash(){
+  var raw=(location.hash||'').replace('#','');
+  var map={homework:'devoirs',devoir:'devoirs',devoirs:'devoirs',feedback:'echanges',feedback_reply:'echanges',echanges:'echanges',message:'echanges',games:'parties',game:'parties',parties:'parties',appointment:'agenda',appointments:'agenda',payment:'finances',payments:'finances'};
+  var tab=map[raw]||raw;
+  if(tab && document.getElementById('tab-'+tab)){
+    showTab(tab);
+    setTimeout(function(){document.getElementById('tab-'+tab).scrollIntoView({behavior:'smooth',block:'start'});},80);
+  }
+}
+window.addEventListener('hashchange',openStudentHash);
+openStudentHash();
 
 // ── EXAM ────────────────────────────────────────────────────
 var EXAM_BANK = {{ exam_bank|tojson }};
