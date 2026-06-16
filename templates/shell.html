@@ -363,10 +363,10 @@ function enforceFrameScroll(){
     st.id = 'ghost-shell-scroll-fix';
     st.textContent = `
       html, body { height:auto !important; min-height:100% !important; overflow:visible !important; }
-      body { padding-bottom:180px !important; background:transparent !important; }
+      body { padding-bottom:92px !important; background:transparent !important; }
       .main { height:auto !important; min-height:100vh !important; overflow:visible !important; }
-      .page.active { min-height:100vh !important; padding-bottom:190px !important; }
-      .page-frame-safe, .rp-wrap, .live-wrap, .ex-wrap, .wp-wrap, .bk-wrap, .tc-wrap, .rr-wrap, .s-main, .rp-wrap, .bk-wrap { padding-bottom:210px !important; }
+      .page.active { min-height:100vh !important; padding-bottom:104px !important; }
+      .page-frame-safe, .rp-wrap, .live-wrap, .ex-wrap, .wp-wrap, .bk-wrap, .tc-wrap, .rr-wrap, .s-main, .rp-wrap, .bk-wrap { padding-bottom:112px !important; }
       .modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(2,2,10,.58)!important;filter:none!important;z-index:999999!important;overflow:auto!important;padding:64px 20px 160px!important;align-items:flex-start!important;}
       .modal-overlay.open{display:flex!important;}
       .modal-overlay:not(.open){display:none!important;}
@@ -386,7 +386,7 @@ function resizeFrameToContent(){
     const d = frame.contentDocument || frame.contentWindow.document;
     if(!d) return;
     const candidates = [d.documentElement.scrollHeight, d.body.scrollHeight, d.body.offsetHeight, d.documentElement.offsetHeight];
-    const h = Math.max(720, ...candidates.filter(Boolean)) + 260;
+    const h = Math.max(720, ...candidates.filter(Boolean)) + 96;
     frame.style.height = h + 'px';
   }catch(e){ frame.style.height = '1200px'; }
 }
@@ -426,6 +426,30 @@ async function deleteShellNotification(ev,id){
     }
   }catch(e){ console.warn(e); }
 }
+function shellEsc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function renderShellNotifications(items){
+  const count=document.getElementById('notifCount');
+  if(count) count.textContent=String(items.length);
+  let list=document.getElementById('adminNotifList');
+  const panel=document.getElementById('notifPanel');
+  if(!panel) return;
+  if(!list){
+    list=document.createElement('div');
+    list.id='adminNotifList';
+    panel.appendChild(list);
+  }
+  if(!items.length){list.innerHTML="<div class=\"notif-empty\">Aucune notification pour l'instant.</div>";return;}
+  list.innerHTML=items.map(n=>`<div class="notif-row notif-link" id="shell-notif-${shellEsc(n.id)}"><a href="${shellEsc(n.target_url||'/admin/clients#notifications')}" target="appFrame" onclick="notifPanel.classList.remove('open')"><b>${shellEsc(n.title)}</b><br><span>${shellEsc(n.text)}</span></a><button class="notif-delete" onclick="deleteShellNotification(event,'${shellEsc(n.id)}')">Supprimer</button></div>`).join('');
+}
+async function pollShellNotifications(){
+  try{
+    const r=await fetch('/api/admin/notifications',{headers:{'Accept':'application/json'}});
+    const d=await r.json();
+    if(d.ok) renderShellNotifications(d.notifications||[]);
+  }catch(e){}
+}
+setInterval(pollShellNotifications,7000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollShellNotifications();});
 
 let ytPlayer;
 const PLAYLIST='PLl-vhnGPY7cqwDaXdzRSJKdaW9iPEHVZD';
@@ -513,7 +537,7 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
         d.body ? d.body.scrollHeight : 0,
         d.body ? d.body.offsetHeight : 0,
         d.documentElement.offsetHeight || 0
-      ) + (isMobile()?520:260);
+      ) + (isMobile()?180:96);
       frame.style.height = h + 'px';
       const fw = document.getElementById('frameWrap');
       if(fw) fw.style.minHeight = Math.min(h, 2600) + 'px';

@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Centre Ghosts — GHOST</title>
+<title>Centre Ghosts â€” GHOST</title>
 <link rel="stylesheet" href="/static/style.css">
 <style>
 html,body{min-height:100%;overflow:auto!important;background:transparent!important;color:#f5f3ff;font-family:var(--font-body,system-ui)}
 body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;margin-bottom:18px}.head h1{font-family:var(--font-display);letter-spacing:2px;font-size:34px;margin:0}.sub{color:#777190;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:rgba(5,5,18,.82);border:1px solid rgba(167,139,250,.18);border-radius:22px;padding:18px;box-shadow:0 20px 70px #0005}.full{grid-column:1/-1}.ttl{font-size:12px;color:#ef4444;text-transform:uppercase;letter-spacing:.13em;font-weight:950;margin-bottom:12px}.fi,.ta{width:100%;box-sizing:border-box;background:#060612;border:1px solid #24243b;border-radius:12px;color:#eee;padding:12px 13px;font-family:inherit;margin-bottom:10px}.ta{min-height:86px;resize:vertical}.btn{border:0;border-radius:13px;background:#cc1a1a;color:#fff;font-weight:950;padding:11px 14px;cursor:pointer}.btn.secondary{background:#151528;border:1px solid #2a2a44;color:#c4b5fd}.btn.good{background:#15803d}.btn.warn{background:#7c2d12}.btn.danger{background:#991b1b}.btn:disabled{opacity:.45;cursor:not-allowed}.muted{color:#777190}.code{font-family:var(--font-mono);color:#fbbf24}.pill,.badge{display:inline-block;padding:3px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.14);font-size:11px}.badge.ok{color:#4ade80;border-color:#4ade8055}.badge.warn{color:#fbbf24;border-color:#fbbf2455}.badge.danger{color:#f87171;border-color:#f8717155}.row{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,.06);padding:10px 0}.read{opacity:.48}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.appt,.homework,.paybox{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:16px;padding:12px;margin-bottom:10px}.appt-title,.hw-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.paygrid{display:grid;grid-template-columns:1.3fr 140px 130px 130px 150px;gap:8px;align-items:end}.plan-table{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 90px 2fr;gap:8px;margin-bottom:8px}.plan-table input{margin-bottom:0}.preview-img{max-width:220px;max-height:160px;border-radius:12px;border:1px solid #ffffff22;margin-top:8px}.fen{font-family:var(--font-mono);font-size:11px;color:#a78bfa;background:#0b0b18;border:1px solid #2a2a44;border-radius:10px;padding:8px;margin-top:8px;overflow-wrap:anywhere}.quick{display:flex;gap:8px;flex-wrap:wrap}.count{font-size:11px;color:#fbbf24}.section-note{font-size:12px;color:#777190;margin-top:-6px;margin-bottom:12px}.attach-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.attach{font-size:11px;border:1px solid #ffffff22;background:#ffffff08;border-radius:999px;padding:4px 8px;color:#c4b5fd;text-decoration:none}.file-count{font-size:11px;color:#a78bfa;margin-bottom:8px}.pkg{margin-top:10px;padding:10px;border:1px solid #ffffff10;border-radius:14px;background:#060612}.bar{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin:6px 0}.bar span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24,#ef4444)}.pending-request{margin-top:8px;color:#fbbf24;font-size:12px}.completed{color:#4ade80}.pkg.completed{border-color:#4ade8055;background:#052e1f55}.conversation{border:1px solid rgba(255,255,255,.08);background:#060612;border-radius:16px;padding:12px;margin-bottom:10px}.bubble{border-top:1px solid #ffffff0b;padding:8px 0}.bubble.student{color:#fbbf24}.tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tool{font-size:11px;text-decoration:none;color:#c4b5fd;border:1px solid #ffffff22;background:#ffffff08;border-radius:999px;padding:5px 9px}.finance-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.finance-card{background:linear-gradient(135deg,#09091a,#060612);border:1px solid #2a2a44;border-radius:18px;padding:16px}.finance-card b{font-size:26px;color:#fff}.finance-card.good b{color:#4ade80}.finance-card.warn b{color:#fbbf24}.finance-card.danger b{color:#ef4444}.mini-list{display:grid;gap:6px;margin-top:10px}.mini-item{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #ffffff0b;padding:8px 0;font-size:12px}.ghost-offer{border-color:#fbbf2477!important;background:radial-gradient(circle at 0 0,#fbbf2414,transparent 38%),#060612!important}.target-list{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.target-list label{font-size:12px;color:#c4b5fd}.backup-link{display:inline-flex;text-decoration:none}.msgbox{border:1px solid rgba(96,165,250,.22);background:#06101f;border-radius:16px;padding:12px;margin-bottom:10px}.tournament-admin{border:1px solid #fbbf2444;background:linear-gradient(135deg,#160f08,#060612);border-radius:16px;padding:12px;margin-top:10px}.tournament-admin-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.tournament-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.tournament-stats span{font-size:11px;border:1px solid #ffffff18;border-radius:999px;padding:4px 9px;color:#c4b5fd}.tournament-meter{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin-top:9px}.tournament-meter span{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#fbbf24);border-radius:999px}.btn.tiny{padding:7px 10px;font-size:12px;border-radius:10px}@media(max-width:980px){.grid,.mini-grid,.row,.paygrid,.plan-table,.finance-cards,.target-list{grid-template-columns:1fr}body{padding:18px 16px 190px}.head{align-items:flex-start;flex-direction:column}}
 
 
-/* V30 — centre Ghosts mobile */
+/* V30 â€” centre Ghosts mobile */
 @media(max-width:820px){
   html,body{height:auto!important;min-height:100%!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;}
   body{padding:14px 10px 120px!important;}
@@ -28,7 +28,7 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
 
 
 
-/* V32 — centre de commandement plus compact */
+/* V32 â€” centre de commandement plus compact */
 .card.full{scroll-margin-top:90px}
 @media(min-width:821px){
   .grid{align-items:start}.card{overflow:hidden}.card.full{max-height:none}.mini-list{max-height:420px;overflow:auto;padding-right:4px}.conversation,.paybox,.appt,.homework{break-inside:avoid}
@@ -38,22 +38,22 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
 }
 
 
-/* V33 — visites toujours lisibles */
+/* V33 â€” visites toujours lisibles */
 .visit-cards{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:10px;width:100%;}
 .visits-card{overflow:visible!important;min-width:0;}
 .visits-card .finance-card{min-width:0!important;white-space:normal!important;}
 @media(max-width:820px){.visit-cards{grid-template-columns:1fr!important}.visits-card{margin:10px 0!important}.tabs{position:sticky;bottom:0;top:auto;overflow-x:auto;flex-wrap:nowrap}.tab{white-space:nowrap}}
 
 
-/* V34 — centre de commandement stabilisé */
+/* V34 â€” centre de commandement stabilisÃ© */
 .command-grid{display:grid;grid-template-columns:1fr 1.65fr;gap:14px;margin-bottom:14px;align-items:stretch}
-.command-grid .card{margin:0}.command-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric-card{min-width:0;background:linear-gradient(135deg,#09091a,#060612);border:1px solid #2a2a44;border-radius:18px;padding:14px;overflow:hidden}.metric-card span{display:block;color:#8a82a6;font-size:12px;margin-bottom:8px}.metric-card b{display:block;font-size:24px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card small{display:block;color:#777190;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card.good b{color:#4ade80}.metric-card.warn b{color:#fbbf24}.metric-card.danger b{color:#ef4444}.center-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.center-nav a{text-decoration:none;color:#c4b5fd;background:#ffffff08;border:1px solid #ffffff14;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.finance-ledger{margin-top:14px;border:1px solid #ffffff10;border-radius:16px;overflow:hidden;background:#050512}.ledger-row{display:grid;grid-template-columns:1.15fr 1fr 120px 110px auto;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid #ffffff0b;font-size:12px}.ledger-row:first-child{border-top:0}.ledger-head{color:#8a82a6;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#ffffff05}.ledger-student b{display:block}.ledger-student small{display:block;color:#777190;margin-top:2px}.compact-section{margin-top:10px}.compact-section summary{cursor:pointer;list-style:none;padding:10px 0;color:#c4b5fd;font-weight:950}.compact-section summary::-webkit-details-marker{display:none}.compact-section summary:before{content:'▸';display:inline-block;margin-right:8px;color:#fbbf24}.compact-section[open] summary:before{content:'▾'}
+.command-grid .card{margin:0}.command-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric-card{min-width:0;background:linear-gradient(135deg,#09091a,#060612);border:1px solid #2a2a44;border-radius:18px;padding:14px;overflow:hidden}.metric-card span{display:block;color:#8a82a6;font-size:12px;margin-bottom:8px}.metric-card b{display:block;font-size:24px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card small{display:block;color:#777190;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric-card.good b{color:#4ade80}.metric-card.warn b{color:#fbbf24}.metric-card.danger b{color:#ef4444}.center-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.center-nav a{text-decoration:none;color:#c4b5fd;background:#ffffff08;border:1px solid #ffffff14;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.finance-ledger{margin-top:14px;border:1px solid #ffffff10;border-radius:16px;overflow:hidden;background:#050512}.ledger-row{display:grid;grid-template-columns:1.15fr 1fr 120px 110px auto;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid #ffffff0b;font-size:12px}.ledger-row:first-child{border-top:0}.ledger-head{color:#8a82a6;text-transform:uppercase;letter-spacing:.08em;font-size:10px;background:#ffffff05}.ledger-student b{display:block}.ledger-student small{display:block;color:#777190;margin-top:2px}.compact-section{margin-top:10px}.compact-section summary{cursor:pointer;list-style:none;padding:10px 0;color:#c4b5fd;font-weight:950}.compact-section summary::-webkit-details-marker{display:none}.compact-section summary:before{content:'â–¸';display:inline-block;margin-right:8px;color:#fbbf24}.compact-section[open] summary:before{content:'â–¾'}
 @media(max-width:1100px){.command-grid{grid-template-columns:1fr}.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ledger-row{grid-template-columns:1fr 1fr}.ledger-head{display:none}.ledger-row>*{min-width:0}.ledger-row .btn{width:auto!important}}
 @media(max-width:760px){body{padding:10px 8px 120px!important}.command-metrics{grid-template-columns:1fr}.metric-card b{font-size:22px}.center-nav{position:sticky;top:72px;z-index:65;background:rgba(5,5,18,.92);padding:8px;border:1px solid #ffffff10;border-radius:16px;backdrop-filter:blur(12px);overflow-x:auto;flex-wrap:nowrap}.center-nav a{white-space:nowrap}.ledger-row{display:block}.ledger-row>div,.ledger-row>span{display:block;margin:6px 0}.finance-ledger{border-radius:14px}.head{position:sticky;top:0}.ttl{font-size:11px}.sub{font-size:12px}}
 
 
 
-/* V35 — centre de commandement lisible + accordéons */
+/* V35 â€” centre de commandement lisible + accordÃ©ons */
 .command-grid{grid-template-columns:1fr!important;gap:12px!important;}
 .command-grid .card{width:100%!important;min-width:0!important;}
 .command-metrics{grid-template-columns:repeat(3,minmax(180px,1fr))!important;}
@@ -62,28 +62,28 @@ body{padding:26px 28px 190px}.head{display:flex;align-items:center;gap:12px;marg
 .metric-card b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;}
 .card.collapsible{transition:.15s ease;}
 .card.collapsible>.ttl{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;}
-.card.collapsible>.ttl:before{content:'▸';color:#fbbf24;font-size:13px;}
-.card.collapsible:not(.is-collapsed)>.ttl:before{content:'▾';}
+.card.collapsible>.ttl:before{content:'â–¸';color:#fbbf24;font-size:13px;}
+.card.collapsible:not(.is-collapsed)>.ttl:before{content:'â–¾';}
 .card.collapsible.is-collapsed>*:not(.ttl){display:none!important;}
 .card.full{margin-bottom:12px!important;}
 .grid{display:block!important;}
 .msgbox{max-width:820px;border-radius:18px;background:linear-gradient(135deg,#0b0b20,#07111f);border-color:#60a5fa44;margin-left:0;}
-.msgbox b{color:#fff}.msgbox .muted{font-size:11px}.msgbox:before{content:'💬';float:left;margin-right:8px;opacity:.8}
+.msgbox b{color:#fff}.msgbox .muted{font-size:11px}.msgbox:before{content:'ðŸ’¬';float:left;margin-right:8px;opacity:.8}
 @media(max-width:900px){.command-metrics,.visits-card .command-metrics{grid-template-columns:1fr!important}.center-nav{overflow-x:auto!important;flex-wrap:nowrap!important}.center-nav a{white-space:nowrap}.ledger-row{display:block!important}.ledger-row>div{margin:7px 0}.card.full{border-radius:18px!important}}
 
 
 
-/* V36 — command center compact clean layout */
+/* V36 â€” command center compact clean layout */
 .cc-dashboard{margin:0 0 14px;background:radial-gradient(circle at 0 0,#7c3aed22,transparent 32%),linear-gradient(135deg,#080817,#060612);border:1px solid rgba(167,139,250,.20);border-radius:24px;padding:16px;box-shadow:0 24px 70px #0006;overflow:hidden}
 .cc-dash-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}
 .cc-mini-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.cc-mini-actions a{color:#e9d5ff;text-decoration:none;border:1px solid #ffffff18;background:#ffffff08;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.cc-mini-actions a:hover{background:#7c3aed22;border-color:#a78bfa55}
 .cc-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.cc-metric{min-width:0;border:1px solid #ffffff14;border-radius:18px;padding:16px;background:linear-gradient(135deg,#0b1021,#070713);overflow:hidden;position:relative}.cc-metric:after{content:'';position:absolute;right:-22px;bottom:-22px;width:78px;height:78px;border-radius:50%;background:currentColor;opacity:.08}.cc-metric span{display:block;color:#9ca3af;font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:8px}.cc-metric b{font-size:26px;line-height:1.05;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-metric small{display:block;color:#837a9f;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-metric.violet{color:#a78bfa}.cc-metric.green{color:#4ade80}.cc-metric.blue{color:#38bdf8}.cc-metric.yellow{color:#fbbf24}.cc-metric.red{color:#ef4444}
 .center-nav{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(118px,1fr))!important;gap:8px!important;margin:0 0 14px!important}.center-nav a{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:14px!important;padding:10px 12px!important;background:rgba(255,255,255,.055)!important}
-section.grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:start}.card.full{grid-column:auto!important}.card.full.cc-wide{grid-column:1/-1!important}.cc-panel{padding:0!important;overflow:hidden!important}.cc-panel>.ttl{margin:0!important;padding:16px 18px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;cursor:pointer!important;border-bottom:1px solid rgba(255,255,255,.06)}.cc-panel>.ttl:after{content:'▾';color:#fbbf24;font-size:13px;transition:.18s transform}.cc-panel.is-collapsed>.ttl:after{transform:rotate(-90deg)}.cc-panel-body{padding:16px 18px 18px}.cc-panel.is-collapsed .cc-panel-body{display:none}.cc-panel.is-collapsed{background:rgba(5,5,18,.68)!important}.cc-panel:hover{border-color:rgba(167,139,250,.34)!important}.cc-panel .paybox,.cc-panel .conversation,.cc-panel .homework,.cc-panel .appt{margin-bottom:10px}.finance-ledger{max-height:320px;overflow:auto}.mini-list{max-height:320px;overflow:auto}.quick-compact-note{font-size:12px;color:#8a82a6}
+section.grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:start}.card.full{grid-column:auto!important}.card.full.cc-wide{grid-column:1/-1!important}.cc-panel{padding:0!important;overflow:hidden!important}.cc-panel>.ttl{margin:0!important;padding:16px 18px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;cursor:pointer!important;border-bottom:1px solid rgba(255,255,255,.06)}.cc-panel>.ttl:after{content:'â–¾';color:#fbbf24;font-size:13px;transition:.18s transform}.cc-panel.is-collapsed>.ttl:after{transform:rotate(-90deg)}.cc-panel-body{padding:16px 18px 18px}.cc-panel.is-collapsed .cc-panel-body{display:none}.cc-panel.is-collapsed{background:rgba(5,5,18,.68)!important}.cc-panel:hover{border-color:rgba(167,139,250,.34)!important}.cc-panel .paybox,.cc-panel .conversation,.cc-panel .homework,.cc-panel .appt{margin-bottom:10px}.finance-ledger{max-height:320px;overflow:auto}.mini-list{max-height:320px;overflow:auto}.quick-compact-note{font-size:12px;color:#8a82a6}
 @media(max-width:1200px){.cc-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}section.grid{grid-template-columns:1fr!important}.card.full{grid-column:1/-1!important}}
 @media(max-width:820px){.cc-dashboard{padding:12px;border-radius:18px}.cc-dash-head{display:block}.cc-mini-actions{justify-content:flex-start;margin-top:10px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.cc-mini-actions a{flex:0 0 auto}.cc-metrics{grid-template-columns:1fr 1fr!important;gap:8px}.cc-metric{padding:12px;border-radius:16px}.cc-metric b{font-size:20px}.cc-metric span{font-size:10px}.cc-metric small{font-size:11px}.center-nav{display:flex!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px}.center-nav a{flex:0 0 auto;min-width:110px}.cc-panel>.ttl{padding:13px 14px!important}.cc-panel-body{padding:12px 14px 14px}.finance-ledger,.mini-list{max-height:none}.ledger-row{display:block!important}.ledger-row>*{margin:5px 0}.ledger-head{display:none!important}}
 
-/* V37 — command center dense, lisible et mobile-first */
+/* V37 â€” command center dense, lisible et mobile-first */
 *,*::before,*::after{box-sizing:border-box}
 html,body{width:100%!important;max-width:100%!important;min-height:100%!important;overflow-x:hidden!important}
 body{
@@ -259,11 +259,11 @@ section.grid{
 </head>
 <body>
 <div class="head">
-  <div><h1>🎓 Centre Ghosts</h1><div class="sub">Codes, paiements, devoirs, feedbacks et RDV connectés à l’espace Ghost.</div></div>
+  <div><h1>ðŸŽ“ Centre Ghosts</h1><div class="sub">Codes, paiements, devoirs, feedbacks et RDV connectÃ©s Ã  lâ€™espace Ghost.</div></div>
   <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
     <a href="/client" target="_blank" class="btn secondary" style="text-decoration:none">Tester portail Ghost</a>
-    <a href="/login" target="_blank" class="btn secondary" style="text-decoration:none">Entrée commune</a>
-    <a href="/api/admin/backup/export" class="btn secondary backup-link">Exporter sauvegarde</a><a href="/coach/logout" class="btn danger" style="text-decoration:none">Déconnexion coach</a>
+    <a href="/login" target="_blank" class="btn secondary" style="text-decoration:none">EntrÃ©e commune</a>
+    <a href="/api/admin/backup/export" class="btn secondary backup-link">Exporter sauvegarde</a><a href="/coach/logout" class="btn danger" style="text-decoration:none">DÃ©connexion coach</a>
   </div>
 </div>
 
@@ -271,7 +271,7 @@ section.grid{
   <div class="cc-dash-head">
     <div>
       <div class="ttl" style="margin-bottom:4px">Tableau de bord rapide</div>
-      <div class="muted">Vue compacte : tout l’essentiel sans scroller longtemps.</div>
+      <div class="muted">Vue compacte : tout lâ€™essentiel sans scroller longtemps.</div>
     </div>
     <div class="cc-mini-actions">
       <a href="#payments">Paiements</a>
@@ -282,11 +282,11 @@ section.grid{
     </div>
   </div>
   <div class="cc-metrics">
-    <div class="cc-metric violet"><span>Visites totales</span><b>{{ visit_stats.total or 0 }}</b><small>{{ visit_stats.today_count or 0 }} aujourd’hui</small></div>
-    <div class="cc-metric green"><span>Encaissé validé</span><b>{{ finance.paid_fmt }}</b><small>paiements confirmés</small></div>
+    <div class="cc-metric violet"><span>Visites totales</span><b>{{ visit_stats.total or 0 }}</b><small>{{ visit_stats.today_count or 0 }} aujourdâ€™hui</small></div>
+    <div class="cc-metric green"><span>EncaissÃ© validÃ©</span><b>{{ finance.paid_fmt }}</b><small>paiements confirmÃ©s</small></div>
     <div class="cc-metric blue"><span>Ghosts actifs</span><b>{{ students|length }}</b><small>profils suivis</small></div>
-    <div class="cc-metric yellow"><span>En attente</span><b>{{ finance.pending_fmt }}</b><small>paiements à confirmer</small></div>
-    <div class="cc-metric red"><span>Volume suivi</span><b>{{ finance.total_fmt }}</b><small>validé + attente</small></div>
+    <div class="cc-metric yellow"><span>En attente</span><b>{{ finance.pending_fmt }}</b><small>paiements Ã  confirmer</small></div>
+    <div class="cc-metric red"><span>Volume suivi</span><b>{{ finance.total_fmt }}</b><small>validÃ© + attente</small></div>
   </div>
 </div>
 
@@ -296,14 +296,14 @@ section.grid{
 
 <section class="grid">
   <div class="card full">
-    <div class="ttl">💰 Journal financier détaillé</div>
-    <div class="muted">Les paiements validés apparaissent avec le Ghost concerné. Tu peux supprimer une ligne de test sans toucher au compte Ghost.</div>
+    <div class="ttl">ðŸ’° Journal financier dÃ©taillÃ©</div>
+    <div class="muted">Les paiements validÃ©s apparaissent avec le Ghost concernÃ©. Tu peux supprimer une ligne de test sans toucher au compte Ghost.</div>
     {% if payment_logs %}
     <div class="finance-ledger">
       <div class="ledger-row ledger-head"><div>Ghost</div><div>Objet</div><div>Montant</div><div>Statut</div><div>Action</div></div>
       {% for p in payment_logs[:40] %}
       <div class="ledger-row">
-        <div class="ledger-student"><b>{{ p.student_name or p.name or 'Ghost non lié' }}</b><small>{{ p.date or '—' }}</small></div>
+        <div class="ledger-student"><b>{{ p.student_name or p.name or 'Ghost non liÃ©' }}</b><small>{{ p.date or 'â€”' }}</small></div>
         <div>{{ p.plan or p.plan_key or 'Paiement' }}</div>
         <div><b>{{ p.amount_label or (p.amount ~ ' FCFA') }}</b></div>
         <div><span class="badge {{ 'ok' if p.status in ['paid','validated','confirmed'] else 'warn' }}">{{ p.status or 'paid' }}</span></div>
@@ -311,180 +311,183 @@ section.grid{
       </div>
       {% endfor %}
     </div>
-    {% else %}<div class="muted" style="margin-top:10px">Aucune ligne d’encaissement enregistrée.</div>{% endif %}
-    {% if finance.by_plan %}<details class="compact-section"><summary>Répartition par formule</summary><div class="mini-list">{% for name, amount in finance.by_plan.items() %}<div class="mini-item"><span>{{ name }}</span><b>{{ amount }} FCFA</b></div>{% endfor %}</div></details>{% endif %}
+    {% else %}<div class="muted" style="margin-top:10px">Aucune ligne dâ€™encaissement enregistrÃ©e.</div>{% endif %}
+    {% if finance.by_plan %}<details class="compact-section"><summary>RÃ©partition par formule</summary><div class="mini-list">{% for name, amount in finance.by_plan.items() %}<div class="mini-item"><span>{{ name }}</span><b>{{ amount }} FCFA</b></div>{% endfor %}</div></details>{% endif %}
   </div>
   <div class="card full" id="registration-requests">
-    <div class="ttl">🎟️ Inscriptions Ghost — {{ registration_fee }}</div>
-    <div class="section-note">L’élève paie l’inscription unique pour accéder à l’app. Après validation, un code d’inscription est généré : tu peux le lui transmettre.</div>
+    <div class="ttl">ðŸŽŸï¸ Inscriptions Ghost â€” {{ registration_fee }}</div>
+    <div class="section-note">Lâ€™Ã©lÃ¨ve paie lâ€™inscription unique pour accÃ©der Ã  lâ€™app. AprÃ¨s validation, un code dâ€™inscription est gÃ©nÃ©rÃ© : tu peux le lui transmettre.</div>
     {% set pending_regs = registration_requests|selectattr('status','equalto','pending_validation')|list %}
     {% if registration_requests %}
       <div class="mini-list">
       {% for r in registration_requests[:20] %}
         <div class="paybox" id="reg-{{ r.id }}">
           <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-            <div><b>{{ r.name }}</b> <span class="badge {{ 'ok' if r.status=='approved' else 'danger' if r.status=='rejected' else 'warn' }}">{{ r.status }}</span><div class="muted">{{ r.email }}{% if r.phone %} · {{ r.phone }}{% endif %} · {{ r.amount_label or registration_fee }}</div>{% if r.reference %}<div class="code">Référence : {{ r.reference }}</div>{% endif %}{% if r.note %}<div class="muted">{{ r.note }}</div>{% endif %}{% if r.code %}<div class="code" style="font-size:18px;margin-top:8px">Code : {{ r.code }}</div>{% endif %}</div>
-            <div class="actions">{% if r.status in ['pending_validation','pending'] %}<button class="btn good" onclick="approveRegistration('{{ r.id }}')">✅ Valider et générer code</button><button class="btn danger" onclick="rejectRegistration('{{ r.id }}')">Refuser</button>{% elif r.status=='approved' %}<button class="btn secondary" onclick="copyText('{{ r.code }}')">Copier code</button>{% endif %}<button class="btn danger" onclick="deleteRegistration('{{ r.id }}')">🗑 Supprimer</button></div>
+            <div><b>{{ r.name }}</b> <span class="badge {{ 'ok' if r.status=='approved' else 'danger' if r.status=='rejected' else 'warn' }}">{{ r.status }}</span><div class="muted">{{ r.email }}{% if r.phone %} Â· {{ r.phone }}{% endif %} Â· {{ r.amount_label or registration_fee }}</div>{% if r.reference %}<div class="code">RÃ©fÃ©rence : {{ r.reference }}</div>{% endif %}{% if r.note %}<div class="muted">{{ r.note }}</div>{% endif %}{% if r.code %}<div class="code" style="font-size:18px;margin-top:8px">Code : {{ r.code }}</div>{% endif %}</div>
+            <div class="actions">{% if r.status in ['pending_validation','pending'] %}<button class="btn good" onclick="approveRegistration('{{ r.id }}')">âœ… Valider et gÃ©nÃ©rer code</button><button class="btn danger" onclick="rejectRegistration('{{ r.id }}')">Refuser</button>{% elif r.status=='approved' %}<button class="btn secondary" onclick="copyText('{{ r.code }}')">Copier code</button>{% endif %}<button class="btn danger" onclick="deleteRegistration('{{ r.id }}')">ðŸ—‘ Supprimer</button></div>
           </div>
         </div>
       {% endfor %}
       </div>
-    {% else %}<div class="muted">Aucune demande d’inscription pour le moment.</div>{% endif %}
+    {% else %}<div class="muted">Aucune demande dâ€™inscription pour le moment.</div>{% endif %}
   </div>
 
   <div class="card" id="manual-code">
-    <div class="ttl">Générer un code manuel</div>
-    <select class="fi" id="student-index"><option value="">Créer un nouveau profil au moment de l'inscription</option>{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }} · {{ s._rank.title }}</option>{% endfor %}</select>
-    <input class="fi" id="email" placeholder="Email prévu optionnel">
+    <div class="ttl">GÃ©nÃ©rer un code manuel</div>
+    <select class="fi" id="student-index"><option value="">CrÃ©er un nouveau profil au moment de l'inscription</option>{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }} Â· {{ s._rank.title }}</option>{% endfor %}</select>
+    <input class="fi" id="email" placeholder="Email prÃ©vu optionnel">
     <select class="fi" id="access-kind"><option value="paid_registration">Inscription 5 000 FCFA</option><option value="free_registration">Inscription offerte</option></select>
-    <select class="fi" id="plan" style="display:none"><option value="no_plan">Accès Ghost</option></select>
-    <button class="btn" onclick="generateCode()">Créer le code</button>
+    <select class="fi" id="plan" style="display:none"><option value="no_plan">AccÃ¨s Ghost</option></select>
+    <button class="btn" onclick="generateCode()">CrÃ©er le code</button>
     <div id="new-code" style="margin-top:12px"></div>
   </div>
 
   <div class="card" id="feedback">
-    <div class="ttl">Feedback structuré</div>
+    <div class="ttl">Feedback structurÃ©</div>
     <select class="fi" id="fb-student">{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }}</option>{% endfor %}</select>
-    <input class="fi" id="fb-title" placeholder="Titre : Analyse reçue, correction, conseil…">
-    <div class="mini-grid"><select class="fi" id="fb-kind"><option value="feedback">Feedback général</option><option value="game">Analyse de partie</option><option value="homework">Devoir</option><option value="payment">Paiement</option><option value="appointment">RDV</option></select><select class="fi" id="fb-priority"><option value="normal">Priorité normale</option><option value="high">Important</option><option value="urgent">Urgent</option></select></div>
-    <textarea class="ta" id="fb-text" placeholder="Feedback visible dans l'espace Ghost. Structure possible : 1) point positif 2) erreur 3) exercice à faire…"></textarea>
+    <input class="fi" id="fb-title" placeholder="Titre : Analyse reÃ§ue, correction, conseilâ€¦">
+    <div class="mini-grid"><select class="fi" id="fb-kind"><option value="feedback">Feedback gÃ©nÃ©ral</option><option value="game">Analyse de partie</option><option value="homework">Devoir</option><option value="payment">Paiement</option><option value="appointment">RDV</option></select><select class="fi" id="fb-priority"><option value="normal">PrioritÃ© normale</option><option value="high">Important</option><option value="urgent">Urgent</option></select></div>
+    <textarea class="ta" id="fb-text" placeholder="Feedback visible dans l'espace Ghost. Structure possible : 1) point positif 2) erreur 3) exercice Ã  faireâ€¦"></textarea>
     <input class="fi" id="fb-fen" placeholder="FEN / position optionnelle">
     <textarea class="ta" id="fb-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea>
-    <input class="fi" id="fb-tags" placeholder="Tags : tactique, finales, ouverture…">
+    <input class="fi" id="fb-tags" placeholder="Tags : tactique, finales, ouvertureâ€¦">
     <input class="fi" type="file" id="fb-file" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'fb-file-count')">
-    <div class="file-count" id="fb-file-count"></div><label class="muted" style="font-size:12px"><input type="checkbox" id="fb-action"> Action demandée à l’élève</label>
-    <input type="hidden" id="fb-linked-game-id"><div class="actions"><button class="btn" onclick="sendFeedback()">Envoyer à l'élève</button><span class="muted" id="fb-msg"></span></div>
+    <div class="file-count" id="fb-file-count"></div><label class="muted" style="font-size:12px"><input type="checkbox" id="fb-action"> Action demandÃ©e Ã  lâ€™Ã©lÃ¨ve</label>
+    <input type="hidden" id="fb-linked-game-id"><div class="actions"><button class="btn" onclick="sendFeedback()">Envoyer Ã  l'Ã©lÃ¨ve</button><span class="muted" id="fb-msg"></span></div>
   </div>
 
   <div class="card full">
-    <div class="ttl" id="payments">💳 Paiements / accès élèves</div>
-    <div class="section-note">Cette liste affiche uniquement les demandes de formule, forfaits actifs/terminés et paiements à traiter. Un Ghost revenu à l’accès de base disparaît automatiquement de cette section.</div>
+    <div class="ttl" id="payments">ðŸ’³ Paiements / accÃ¨s Ã©lÃ¨ves</div>
+    <div class="section-note">Cette liste affiche uniquement les demandes de formule, forfaits actifs/terminÃ©s et paiements Ã  traiter. Un Ghost revenu Ã  lâ€™accÃ¨s de base disparaÃ®t automatiquement de cette section.</div>
     {% if users %}
       {% for u in users %}
       {% set reminders = u.payment_reminders or 0 %}
       <div class="paybox">
         <div class="paygrid">
-          <div><b>{{ u.name }}</b> <span class="badge {{ 'danger' if u.banned or u.access_restricted else 'ok' if u.payment_status=='paid' or u.payment_status=='free' else 'warn' }}">{% if u.banned or u.access_restricted %}suspendu{% else %}{{ u.payment_status or 'pending' }}{% endif %}</span><div class="muted">{{ u.email }} · relances : <span class="count">{{ reminders }}</span>{% if u.banned or u.access_restricted %} · 🔒 compte suspendu par le coach{% endif %}</div>{% set ap = u.active_plan or {} %}{% set ps = u._plan_state or {} %}{% set total = ps.total_sessions or ap.total_sessions or 1 %}{% set used = ps.used_sessions or ap.used_sessions or 0 %}{% set pct = ps.percent or (((ap.used_sessions or 0) / total) * 100)|round|int if total else 0 %}<div class="pkg {{ 'completed' if ap.status in ['completed','epuise','épuisé'] else '' }}"><b>{% if ap.status in ['completed','epuise','épuisé'] %}✅ Forfait terminé :{% else %}Forfait :{% endif %} {{ ap.plan_name or u.plan or '—' }}</b>{% if ap.status in ['completed','epuise','épuisé'] %}<div class="completed" style="margin-top:6px">{{ used }}/{{ total }} séance(s). Pas de retard de paiement : proposer un renouvellement si besoin.</div>{% else %}<div class="bar"><span style="width:{{ pct }}%"></span></div><div class="muted">{{ used }}/{{ total }} séance(s) · {{ pct }}% utilisé · {{ ap.status or 'à confirmer' }}</div>{% endif %}{% if u.pending_plan_request %}<div class="pending-request">Demande : {{ u.pending_plan_request.plan_name }} · {{ u.pending_plan_request.price }}{% if u.pending_plan_request.renewal %} · renouvellement{% endif %}</div>{% endif %}</div></div>
-          <select class="fi" id="pay-status-{{ u.id }}"><option value="pending" {% if u.payment_status == 'pending' or not u.payment_status %}selected{% endif %}>À confirmer</option><option value="paid" {% if u.payment_status == 'paid' %}selected{% endif %}>Payé</option><option value="overdue" {% if u.payment_status == 'overdue' %}selected{% endif %}>Relancé</option><option value="free" {% if u.payment_status == 'free' %}selected{% endif %}>Accès de base / offert</option></select>
+          <div><b>{{ u.name }}</b> <span class="badge {{ 'danger' if u.banned or u.access_restricted else 'ok' if u.payment_status=='paid' or u.payment_status=='free' else 'warn' }}">{% if u.banned or u.access_restricted %}suspendu{% else %}{{ u.payment_status or 'pending' }}{% endif %}</span><div class="muted">{{ u.email }} Â· relances : <span class="count">{{ reminders }}</span>{% if u.banned or u.access_restricted %} Â· ðŸ”’ compte suspendu par le coach{% endif %}</div>{% set ap = u.active_plan or {} %}{% set ps = u._plan_state or {} %}{% set total = ps.total_sessions or ap.total_sessions or 1 %}{% set used = ps.used_sessions or ap.used_sessions or 0 %}{% set pct = ps.percent or (((ap.used_sessions or 0) / total) * 100)|round|int if total else 0 %}<div class="pkg {{ 'completed' if ap.status in ['completed','epuise','Ã©puisÃ©'] else '' }}"><b>{% if ap.status in ['completed','epuise','Ã©puisÃ©'] %}âœ… Forfait terminÃ© :{% else %}Forfait :{% endif %} {{ ap.plan_name or u.plan or 'â€”' }}</b>{% if ap.status in ['completed','epuise','Ã©puisÃ©'] %}<div class="completed" style="margin-top:6px">{{ used }}/{{ total }} sÃ©ance(s). Pas de retard de paiement : proposer un renouvellement si besoin.</div>{% else %}<div class="bar"><span style="width:{{ pct }}%"></span></div><div class="muted">{{ used }}/{{ total }} sÃ©ance(s) Â· {{ pct }}% utilisÃ© Â· {{ ap.status or 'Ã  confirmer' }}</div>{% endif %}{% if u.pending_plan_request %}<div class="pending-request">Demande : {{ u.pending_plan_request.plan_name }} Â· {{ u.pending_plan_request.price }}{% if u.pending_plan_request.renewal %} Â· renouvellement{% endif %}</div>{% endif %}</div></div>
+          <select class="fi" id="pay-status-{{ u.id }}"><option value="pending" {% if u.payment_status == 'pending' or not u.payment_status %}selected{% endif %}>Ã€ confirmer</option><option value="paid" {% if u.payment_status == 'paid' %}selected{% endif %}>PayÃ©</option><option value="overdue" {% if u.payment_status == 'overdue' %}selected{% endif %}>RelancÃ©</option><option value="free" {% if u.payment_status == 'free' %}selected{% endif %}>AccÃ¨s de base / offert</option></select>
           <input class="fi" id="pay-amount-{{ u.id }}" placeholder="Montant" value="{{ u.amount_due or '' }}">
           <input class="fi" type="date" id="pay-due-{{ u.id }}" value="{{ u.next_due or '' }}">
           <select class="fi" id="pay-plan-{{ u.id }}">{% for p in price_plans %}<option value="{{ p.key }}" {% if u.plan == p.key %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
         </div>
         <div class="actions">
-          <button class="btn good" onclick="confirmPayment('{{ u.id }}')">✅ Valider paiement / activer</button>
-          <button class="btn secondary" onclick="useSession('{{ u.id }}',1)" {% if (u.active_plan or {}).status in ['completed','epuise','épuisé','pending'] %}disabled{% endif %}>☑️ 1 séance</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.5)" {% if (u.active_plan or {}).status in ['completed','epuise','épuisé','pending'] %}disabled{% endif %}>½</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.333)" {% if (u.active_plan or {}).status in ['completed','epuise','épuisé','pending'] %}disabled{% endif %}>⅓</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.25)" {% if (u.active_plan or {}).status in ['completed','epuise','épuisé','pending'] %}disabled{% endif %}>¼</button><button class="btn secondary" onclick="undoSession('{{ u.id }}')">↩ Annuler séance</button>
-          <button class="btn warn" onclick="remindPayment('{{ u.id }}')">🔔 Relancer</button>
-          <button class="btn danger" onclick="deletePaymentAttempt('{{ u.id }}')">🗑 Supprimer paiement / forfait</button>
-          <button class="btn secondary" onclick="savePayment('{{ u.id }}')">Sauver détails</button>
+          <button class="btn good" onclick="confirmPayment('{{ u.id }}')">âœ… Valider paiement / activer</button>
+          <button class="btn secondary" onclick="useSession('{{ u.id }}',1)" {% if (u.active_plan or {}).status in ['completed','epuise','Ã©puisÃ©','pending'] %}disabled{% endif %}>â˜‘ï¸ 1 sÃ©ance</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.5)" {% if (u.active_plan or {}).status in ['completed','epuise','Ã©puisÃ©','pending'] %}disabled{% endif %}>Â½</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.333)" {% if (u.active_plan or {}).status in ['completed','epuise','Ã©puisÃ©','pending'] %}disabled{% endif %}>â…“</button><button class="btn secondary" onclick="useSession('{{ u.id }}',0.25)" {% if (u.active_plan or {}).status in ['completed','epuise','Ã©puisÃ©','pending'] %}disabled{% endif %}>Â¼</button><button class="btn secondary" onclick="undoSession('{{ u.id }}')">â†© Annuler sÃ©ance</button>
+          <button class="btn warn" onclick="remindPayment('{{ u.id }}')">ðŸ”” Relancer</button>
+          <button class="btn danger" onclick="deletePaymentAttempt('{{ u.id }}')">ðŸ—‘ Supprimer paiement / forfait</button>
+          <button class="btn secondary" onclick="savePayment('{{ u.id }}')">Sauver dÃ©tails</button>
         </div>
       </div>
       {% endfor %}
-    {% else %}<div class="muted">Aucun paiement ou forfait à traiter. Les Ghosts en accès de base ne sont pas affichés ici.</div>{% endif %}
+    {% else %}<div class="muted">Aucun paiement ou forfait Ã  traiter. Les Ghosts en accÃ¨s de base ne sont pas affichÃ©s ici.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="games">♟ Parties / analyses reçues</div>
-    {% set game_found = [] %}{% for s in students %}{% for g in s.get('client_games', []) %}{% set _ = game_found.append(1) %}<div class="conversation" id="game-{{ g.id }}"><b>{{ s.name or '?' }} — {{ g.url or 'Position / analyse' }}</b><span class="badge warn" style="margin-left:8px">{{ g.status or 'nouveau' }}</span><div class="muted">{{ g.date }}</div>{% if g.note %}<div>{{ g.note }}</div>{% endif %}{% if g.url %}<div class="tools"><a class="tool" href="{{ g.url }}" target="_blank">Ouvrir la partie</a></div>{% endif %}{% if g.position_fen %}<div class="fen">{{ g.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(g.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a></div>{% endif %}{% if g.pgn %}<div class="fen">{{ g.pgn[:600] }}{% if g.pgn|length > 600 %}…{% endif %}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN</a></div>{% endif %}{% if g.attachments %}<div class="attach-list">{% for a in g.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}<div class="actions"><button class="btn secondary" onclick="markGame({{ s._index }},'{{ g.id }}','en analyse')">En analyse</button><button class="btn good" onclick="markGame({{ s._index }},'{{ g.id }}','corrigé')">Corrigé</button><button class="btn" onclick="prefillFeedback({{ s._index }},'Analyse de partie','{{ g.id }}')">Répondre avec feedback</button><button class="btn danger" onclick="deleteGame({{ s._index }},'{{ g.id }}')">Supprimer</button></div></div>{% endfor %}{% endfor %}{% if not game_found %}<div class="muted">Aucune partie reçue.</div>{% endif %}
+  <div class="card full"><div class="ttl" id="games">â™Ÿ Parties / analyses reÃ§ues</div>
+    {% set game_found = [] %}{% for s in students %}{% for g in s.get('client_games', []) %}{% set _ = game_found.append(1) %}<div class="conversation" id="game-{{ g.id }}"><b>{{ s.name or '?' }} â€” {{ g.url or 'Position / analyse' }}</b><span class="badge warn" style="margin-left:8px">{{ g.status or 'nouveau' }}</span><div class="muted">{{ g.date }}</div>{% if g.note %}<div>{{ g.note }}</div>{% endif %}{% if g.url %}<div class="tools"><a class="tool" href="{{ g.url }}" target="_blank">Ouvrir la partie</a></div>{% endif %}{% if g.position_fen %}<div class="fen">{{ g.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(g.position_fen) }}" target="_blank">â™Ÿ Ouvrir sur Lichess</a></div>{% endif %}{% if g.pgn %}<div class="fen">{{ g.pgn[:600] }}{% if g.pgn|length > 600 %}â€¦{% endif %}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN</a></div>{% endif %}{% if g.attachments %}<div class="attach-list">{% for a in g.attachments %}<a class="attach" href="{{ a }}" target="_blank">ðŸ“Ž fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}<div class="actions"><button class="btn secondary" onclick="markGame({{ s._index }},'{{ g.id }}','en analyse')">En analyse</button><button class="btn good" onclick="markGame({{ s._index }},'{{ g.id }}','corrigÃ©')">CorrigÃ©</button><button class="btn" onclick="prefillFeedback({{ s._index }},'Analyse de partie','{{ g.id }}')">RÃ©pondre avec feedback</button><button class="btn danger" onclick="deleteGame({{ s._index }},'{{ g.id }}')">Supprimer</button></div></div>{% endfor %}{% endfor %}{% if not game_found %}<div class="muted">Aucune partie reÃ§ue.</div>{% endif %}
   </div>
 
   <div class="card full">
-    <div class="ttl" id="homework">📚 Devoirs rendus à corriger</div>
+    <div class="ttl" id="homework">ðŸ“š Devoirs rendus Ã  corriger</div>
     {% set hw_found = [] %}
-    {% for s in students %}{% for d in s.get('devoirs', []) %}{% if d.get('student_submission') or d.status in ['📤 Rendu','🧑‍🏫 À corriger'] %}{% set _ = hw_found.append(1) %}
+    {% for s in students %}{% for d in s.get('devoirs', []) %}{% if d.get('student_submission') or d.status in ['ðŸ“¤ Rendu','ðŸ§‘â€ðŸ« Ã€ corriger'] %}{% set _ = hw_found.append(1) %}
       <div class="homework">
         <div class="hw-title"><b>{{ s.name or '?' }}</b><span class="badge warn">{{ d.status }}</span><span>{{ d.title }}</span>{% if d.due %}<span class="muted">pour {{ d.due }}</span>{% endif %}</div>
         {% if d.note %}<div class="muted">Consigne : {{ d.note }}</div>{% endif %}
-        {% if d.student_submission %}<div style="margin-top:8px"><b>Rendu élève</b><div class="muted">{{ d.student_submission.date }}</div><div>{{ d.student_submission.text }}</div>{% if d.student_submission.url %}<a href="{{ d.student_submission.url }}" target="_blank" style="color:#93c5fd">{{ d.student_submission.url }}</a>{% endif %}{% if d.student_submission.image_url %}<br>{% if is_image_url(d.student_submission.image_url) %}<img class="preview-img" src="{{ d.student_submission.image_url }}" onerror="this.remove()">{% else %}<a class="attach" href="{{ d.student_submission.image_url }}" target="_blank">📎 fichier rendu</a>{% endif %}{% endif %}{% if d.student_submission.attachments %}<div class="attach-list">{% for a in d.student_submission.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}</div>{% endif %}
-        <textarea class="ta" id="hw-text-{{ s._index }}-{{ loop.index0 }}" placeholder="Correction / commentaire visible par l’élève…"></textarea>
+        {% if d.student_submission %}<div style="margin-top:8px"><b>Rendu Ã©lÃ¨ve</b><div class="muted">{{ d.student_submission.date }}</div><div>{{ d.student_submission.text }}</div>{% if d.student_submission.url %}<a href="{{ d.student_submission.url }}" target="_blank" style="color:#93c5fd">{{ d.student_submission.url }}</a>{% endif %}{% if d.student_submission.image_url %}<br>{% if is_image_url(d.student_submission.image_url) %}<img class="preview-img" src="{{ d.student_submission.image_url }}" onerror="this.remove()">{% else %}<a class="attach" href="{{ d.student_submission.image_url }}" target="_blank">ðŸ“Ž fichier rendu</a>{% endif %}{% endif %}{% if d.student_submission.attachments %}<div class="attach-list">{% for a in d.student_submission.attachments %}<a class="attach" href="{{ a }}" target="_blank">ðŸ“Ž fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}</div>{% endif %}
+        <textarea class="ta" id="hw-text-{{ s._index }}-{{ loop.index0 }}" placeholder="Correction / commentaire visible par lâ€™Ã©lÃ¨veâ€¦"></textarea>
         <input class="fi" id="hw-fen-{{ s._index }}-{{ loop.index0 }}" placeholder="FEN / position optionnelle">
-        <select class="fi" id="hw-status-{{ s._index }}-{{ loop.index0 }}"><option value="✅ Corrigé">✅ Corrigé</option><option value="🔄 En cours">🔄 À reprendre</option><option value="📋 À faire">📋 À refaire</option></select>
+        <select class="fi" id="hw-status-{{ s._index }}-{{ loop.index0 }}"><option value="âœ… CorrigÃ©">âœ… CorrigÃ©</option><option value="ðŸ”„ En cours">ðŸ”„ Ã€ reprendre</option><option value="ðŸ“‹ Ã€ faire">ðŸ“‹ Ã€ refaire</option></select>
         <input class="fi" type="file" id="hw-review-file-{{ s._index }}-{{ loop.index0 }}" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'hw-review-file-count-{{ s._index }}-{{ loop.index0 }}')"><div class="file-count" id="hw-review-file-count-{{ s._index }}-{{ loop.index0 }}"></div><div class="actions"><button class="btn good" onclick="reviewHomework({{ s._index }},{{ loop.index0 }})">Envoyer correction</button></div>
       </div>
     {% endif %}{% endfor %}{% endfor %}
     {% if not hw_found %}<div class="muted">Aucun devoir rendu en attente.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="appointments">📅 RDV demandés par les élèves</div>
-    {% set found = [] %}{% for s in students %}{% for a in s.get('client_appointments', []) %}{% if a.status in ['demandé','proposition','à revoir'] %}{% set _ = found.append(1) %}
-    <div class="appt"><div class="appt-title"><b>{{ s.name or '?' }}</b><span class="badge warn">{{ a.status }}</span><span class="muted">{{ a.day }} · {{ a.time }}</span></div><div class="muted">{{ a.reason or 'Sans précision' }}</div>{% if a.coach_reply %}<div style="margin-top:6px;color:#c4b5fd">Réponse coach : {{ a.coach_reply }}</div>{% endif %}{% if a.student_response %}<div style="margin-top:6px;color:#fbbf24">Réponse élève : {{ a.student_response }}</div>{% endif %}<div class="mini-grid" style="margin-top:10px"><input class="fi" id="msg-{{ a.id }}" placeholder="Message optionnel"><input class="fi" id="day-{{ a.id }}" type="date"><input class="fi" id="time-{{ a.id }}" type="time"></div><div class="actions"><button class="btn good" onclick="apptAction({{ s._index }},'{{ a.id }}','accept')">Valider</button><button class="btn warn" onclick="apptAction({{ s._index }},'{{ a.id }}','reject')">Refuser</button><button class="btn secondary" onclick="apptAction({{ s._index }},'{{ a.id }}','propose')">Proposer cette date</button></div></div>
+  <div class="card full"><div class="ttl" id="appointments">ðŸ“… RDV demandÃ©s par les Ã©lÃ¨ves</div>
+    {% set found = [] %}{% for s in students %}{% for a in s.get('client_appointments', []) %}{% if a.status in ['demandÃ©','proposition','Ã  revoir'] %}{% set _ = found.append(1) %}
+    <div class="appt"><div class="appt-title"><b>{{ s.name or '?' }}</b><span class="badge warn">{{ a.status }}</span><span class="muted">{{ a.day }} Â· {{ a.time }}</span></div><div class="muted">{{ a.reason or 'Sans prÃ©cision' }}</div>{% if a.coach_reply %}<div style="margin-top:6px;color:#c4b5fd">RÃ©ponse coach : {{ a.coach_reply }}</div>{% endif %}{% if a.student_response %}<div style="margin-top:6px;color:#fbbf24">RÃ©ponse Ã©lÃ¨ve : {{ a.student_response }}</div>{% endif %}<div class="mini-grid" style="margin-top:10px"><input class="fi" id="msg-{{ a.id }}" placeholder="Message optionnel"><input class="fi" id="day-{{ a.id }}" type="date"><input class="fi" id="time-{{ a.id }}" type="time"></div><div class="actions"><button class="btn good" onclick="apptAction({{ s._index }},'{{ a.id }}','accept')">Valider</button><button class="btn warn" onclick="apptAction({{ s._index }},'{{ a.id }}','reject')">Refuser</button><button class="btn secondary" onclick="apptAction({{ s._index }},'{{ a.id }}','propose')">Proposer cette date</button></div></div>
     {% endif %}{% endfor %}{% endfor %}{% if not found %}<div class="muted">Aucune demande de RDV en attente.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl">Tarifs visibles côté élève</div><div class="section-note">Ajoute le nombre de séances incluses : 1 pour séance simple, 4 pour pack, 8 pour mensuel, etc.</div><div id="plans-editor">{% for p in price_plans %}<div class="plan-table"><input class="fi plan-key" placeholder="clé" value="{{ p.key }}"><input class="fi plan-name" placeholder="nom" value="{{ p.name }}"><input class="fi plan-price" placeholder="prix" value="{{ p.price }}"><input class="fi plan-period" placeholder="période" value="{{ p.period }}"><input class="fi plan-sessions" type="number" min="1" placeholder="séances" value="{{ p.sessions_total or 1 }}"><input class="fi plan-desc" placeholder="description" value="{{ p.desc }}"></div>{% endfor %}</div><button class="btn secondary" onclick="addPlanRow()">+ Formule</button><button class="btn" onclick="savePlans()">Sauvegarder les tarifs</button><span class="muted" id="plans-msg"></span></div>
+  <div class="card full"><div class="ttl">Tarifs visibles cÃ´tÃ© Ã©lÃ¨ve</div><div class="section-note">Ajoute le nombre de sÃ©ances incluses : 1 pour sÃ©ance simple, 4 pour pack, 8 pour mensuel, etc.</div><div id="plans-editor">{% for p in price_plans %}<div class="plan-table"><input class="fi plan-key" placeholder="clÃ©" value="{{ p.key }}"><input class="fi plan-name" placeholder="nom" value="{{ p.name }}"><input class="fi plan-price" placeholder="prix" value="{{ p.price }}"><input class="fi plan-period" placeholder="pÃ©riode" value="{{ p.period }}"><input class="fi plan-sessions" type="number" min="1" placeholder="sÃ©ances" value="{{ p.sessions_total or 1 }}"><input class="fi plan-desc" placeholder="description" value="{{ p.desc }}"></div>{% endfor %}</div><button class="btn secondary" onclick="addPlanRow()">+ Formule</button><button class="btn" onclick="savePlans()">Sauvegarder les tarifs</button><span class="muted" id="plans-msg"></span></div>
 
-  <div class="card full"><div class="ttl">💬 Échanges récents feedbacks/devoirs</div>
+  <div class="card full"><div class="ttl">ðŸ’¬ Ã‰changes rÃ©cents feedbacks/devoirs</div>
     {% set conv_found = [] %}
     {% for s in students %}
       {% for f in s.get('client_feedback', []) %}
         {% if f.get('replies') %}{% set _ = conv_found.append(1) %}
-        <div class="conversation"><b>{{ s.name or '?' }} — {{ f.title }}</b><div class="muted">{{ f.date }} · {{ f.kind }}</div><div>{{ f.text }}</div>{% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Lichess</a></div>{% endif %}
-          {% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><b>{{ 'Élève' if r.author=='student' else 'Coach' }}</b> · {{ r.date }}<br>{{ r.text }}</div>{% endfor %}
+        <div class="conversation" id="thread-{{ f.id }}"><b>{{ s.name or '?' }} â€” {{ f.title }}</b><div class="muted">{{ f.date }} Â· {{ f.kind }}</div><div>{{ f.text }}</div>{% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">â™Ÿ Lichess</a></div>{% endif %}
+          {% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><b>{{ 'Ã‰lÃ¨ve' if r.author=='student' else 'Coach' }}</b> Â· {{ r.date }}<br>{{ r.text }}</div>{% endfor %}
+          <div class="reply-row"><textarea class="ta" id="coach-reply-{{ f.id }}" placeholder="Répondre dans ce fil..."></textarea><button class="btn secondary" onclick="replyCoachFeedback({{ s._index }},'{{ f.id }}')">Répondre au Ghost</button><span class="muted" id="coach-reply-msg-{{ f.id }}"></span></div>
         </div>
         {% endif %}
       {% endfor %}
     {% endfor %}
-    {% if not conv_found %}<div class="muted">Aucun échange récent.</div>{% endif %}
+    {% if not conv_found %}<div class="muted">Aucun Ã©change rÃ©cent.</div>{% endif %}
   </div>
 
 
-  <div class="card full"><div class="ttl" id="tournaments">🏆 Tournois / événements</div>
-    <div class="mini-grid"><input class="fi" id="tour-title" placeholder="Nom du tournoi / événement"><input class="fi" id="tour-link" placeholder="Lien optionnel"><input class="fi" type="date" id="tour-day"><input class="fi" type="time" id="tour-time"></div>
-    <textarea class="ta" id="tour-desc" placeholder="Description : cadence, niveau, objectif, infos pratiques…"></textarea>
-    <textarea class="ta" id="tour-prep" placeholder="Préparation recommandée : ouvertures, tactiques, gestion du temps…"></textarea>
-    <label class="muted"><input type="checkbox" id="tour-all" checked> Envoyer à tous les élèves</label>
+  <div class="card full"><div class="ttl" id="tournaments">ðŸ† Tournois / Ã©vÃ©nements</div>
+    <div class="mini-grid"><input class="fi" id="tour-title" placeholder="Nom du tournoi / Ã©vÃ©nement"><input class="fi" id="tour-link" placeholder="Lien optionnel"><input class="fi" type="date" id="tour-day"><input class="fi" type="time" id="tour-time"></div>
+    <textarea class="ta" id="tour-desc" placeholder="Description : cadence, niveau, objectif, infos pratiquesâ€¦"></textarea>
+    <textarea class="ta" id="tour-prep" placeholder="PrÃ©paration recommandÃ©e : ouvertures, tactiques, gestion du tempsâ€¦"></textarea>
+    <label class="muted"><input type="checkbox" id="tour-all" checked> Envoyer Ã  tous les Ã©lÃ¨ves</label>
     <div class="target-list" id="tour-targets">{% for s in students %}<label><input type="checkbox" value="{{ loop.index0 }}"> {{ s.name or '?' }}</label>{% endfor %}</div>
     <button class="btn" onclick="createTournament()">Planifier et notifier</button><span class="muted" id="tour-msg"></span>
     {% if tournaments %}<div class="mini-list">{% for t in tournaments[:12] %}<div class="tournament-admin">
-      <div class="tournament-admin-top"><span><b>{{ t.title }}</b> · {{ t.day }} {{ t.time }}</span><button class="btn danger tiny" onclick="deleteTournament('{{ t.id }}')">Supprimer</button></div>
-      <div class="muted" style="margin-top:4px">{{ 'Envoyé à tous' if t.target_all else (t._invited ~ ' élève(s) invité(s)') }}</div>
-      <div class="tournament-stats"><span>✅ {{ t._accepted }}/{{ t._invited }} participent</span><span>⛔ {{ t._unavailable }} indisponible(s)</span><span>… {{ t._pending }} sans réponse</span></div>
+      <div class="tournament-admin-top"><span><b>{{ t.title }}</b> Â· {{ t.day }} {{ t.time }}</span><button class="btn danger tiny" onclick="deleteTournament('{{ t.id }}')">Supprimer</button></div>
+      <div class="muted" style="margin-top:4px">{{ 'EnvoyÃ© Ã  tous' if t.target_all else (t._invited ~ ' Ã©lÃ¨ve(s) invitÃ©(s)') }}</div>
+      <div class="tournament-stats"><span>âœ… {{ t._accepted }}/{{ t._invited }} participent</span><span>â›” {{ t._unavailable }} indisponible(s)</span><span>â€¦ {{ t._pending }} sans rÃ©ponse</span></div>
       <div class="tournament-meter"><span style="width:{{ (t._accepted / t._invited * 100)|int if t._invited else 0 }}%"></span></div>
     </div>{% endfor %}</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="messages">💬 Messages / échanges élèves</div>
-    {% if messages %}{% for m in messages[:20] %}<div class="msgbox"><b>{{ m.from_name }}</b><div class="muted">{{ m.date }}</div><div>{{ m.text }}</div>{% if m.url %}<a class="attach" href="{{ m.url }}" target="_blank">Lien partagé</a>{% endif %}{% if m.fen %}<div class="fen">{{ m.fen }}</div><a class="tool" href="{{ lichess_analysis_url(m.fen) }}" target="_blank">Ouvrir sur Lichess</a>{% endif %}</div>{% endfor %}{% else %}<div class="muted">Aucun échange élève pour le moment.</div>{% endif %}
+  <div class="card full"><div class="ttl" id="messages">ðŸ’¬ Messages / Ã©changes Ã©lÃ¨ves</div>
+    {% if messages %}{% for m in messages[:20] %}<div class="msgbox" id="student-msg-{{ m.id }}"><b>{{ m.from_name }}</b>{% if m.target_label %}<span class="badge" style="margin-left:8px">{{ m.target_label }}</span>{% endif %}<div class="muted">{{ m.date }}</div><div>{{ m.text }}</div>{% if m.url %}<a class="attach" href="{{ m.url }}" target="_blank">Lien partagÃ©</a>{% endif %}{% if m.fen %}<div class="fen">{{ m.fen }}</div><a class="tool" href="{{ lichess_analysis_url(m.fen) }}" target="_blank">Ouvrir sur Lichess</a>{% endif %}{% if m.replies %}<div class="thread">{% for r in m.replies %}<div class="bubble"><b>{{ 'Coach' if r.author=='coach' else 'Élève' }}</b> · {{ r.date }}<br>{{ r.text }}</div>{% endfor %}</div>{% endif %}<div class="reply-row"><textarea class="ta" id="msg-reply-{{ m.id }}" placeholder="Répondre au Ghost..."></textarea><button class="btn secondary" onclick="replyStudentMessage('{{ m.id }}')">Répondre</button><span class="muted" id="msg-reply-status-{{ m.id }}"></span></div></div>{% endfor %}{% else %}<div class="muted">Aucun Ã©change Ã©lÃ¨ve pour le moment.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="accounts">🔐 Comptes / accès</div>
-    {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} · {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">Réinitialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">Réactiver</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
+  <div class="card full"><div class="ttl" id="accounts">ðŸ” Comptes / accÃ¨s</div>
+    {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} Â· {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">RÃ©initialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">RÃ©activer</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
   </div>
 
-  <div class="card full"><div class="ttl" id="notifications">Notifications élèves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
-  <div class="card full"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes %}<div class="row"><div class="code">{{ c.code }}</div><div>{{ c.plan }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
+  <div class="card full"><div class="ttl" id="notifications">Notifications Ã©lÃ¨ves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
+  <div class="card full"><div class="ttl">Codes gÃ©nÃ©rÃ©s</div>{% if codes %}{% for c in codes %}<div class="row"><div class="code">{{ c.code }}</div><div>{{ c.plan }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisÃ©' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
 </section>
 <script>
 const $ = (id)=>document.getElementById(id);
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
-function showFileCount(input,id){const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
+function showFileCount(input,id){const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sÃ©lectionnÃ©(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();return d.ok?(d.urls||[d.url]).filter(Boolean):[]}
-async function generateCode(){const d=await postJSON('/api/admin/codes/generate',{student_index:$('student-index').value,email:$('email').value,plan:'no_plan',access_kind:$('access-kind').value});if(d.ok){$('new-code').innerHTML='<div class="code" style="font-size:22px">'+d.code.code+'</div><div class="muted">'+(d.code.free_access?'Inscription offerte : non comptabilisée.':'Inscription 5 000 FCFA comptabilisée.')+'</div>';setTimeout(()=>location.reload(),1200)}}
+async function generateCode(){const d=await postJSON('/api/admin/codes/generate',{student_index:$('student-index').value,email:$('email').value,plan:'no_plan',access_kind:$('access-kind').value});if(d.ok){$('new-code').innerHTML='<div class="code" style="font-size:22px">'+d.code.code+'</div><div class="muted">'+(d.code.free_access?'Inscription offerte : non comptabilisÃ©e.':'Inscription 5 000 FCFA comptabilisÃ©e.')+'</div>';setTimeout(()=>location.reload(),1200)}}
 async function markRead(){await fetch('/api/admin/notifications/read',{method:'POST'});location.reload()}
-async function deleteAdminNotification(notification_id){if(!confirm('Supprimer cette notification côté coach ?'))return;const d=await postJSON('/api/admin/notifications/delete',{notification_id});if(d.ok){const row=$('admin-notif-'+notification_id);if(row)row.remove();}else alert(d.error||'Erreur')}
-async function sendFeedback(){ $('fb-msg').textContent='Envoi…'; const attachments=await uploadAdminFiles('fb-file'); const linkedGame=$('fb-linked-game-id')?.value||''; const d=await postJSON('/api/admin/feedback/send',{student_index:$('fb-student').value,title:$('fb-title').value,kind:$('fb-kind').value,priority:$('fb-priority').value,text:$('fb-text').value,attachments,image_url:attachments[0]||'',position_fen:$('fb-fen').value,pgn:$('fb-pgn').value,tags:$('fb-tags').value,linked_id:linkedGame,action_required:$('fb-action').checked}); if(d.ok && linkedGame){ await postJSON('/api/admin/game/status',{student_index:$('fb-student').value,game_id:linkedGame,status:'corrigé'}); } $('fb-msg').textContent=d.ok?'Feedback envoyé.':(d.error||'Erreur'); if(d.ok)setTimeout(()=>location.reload(),800)}
+async function deleteAdminNotification(notification_id){if(!confirm('Supprimer cette notification cÃ´tÃ© coach ?'))return;const d=await postJSON('/api/admin/notifications/delete',{notification_id});if(d.ok){const row=$('admin-notif-'+notification_id);if(row)row.remove();}else alert(d.error||'Erreur')}
+async function sendFeedback(){ $('fb-msg').textContent='Envoiâ€¦'; const attachments=await uploadAdminFiles('fb-file'); const linkedGame=$('fb-linked-game-id')?.value||''; const d=await postJSON('/api/admin/feedback/send',{student_index:$('fb-student').value,title:$('fb-title').value,kind:$('fb-kind').value,priority:$('fb-priority').value,text:$('fb-text').value,attachments,image_url:attachments[0]||'',position_fen:$('fb-fen').value,pgn:$('fb-pgn').value,tags:$('fb-tags').value,linked_id:linkedGame,action_required:$('fb-action').checked}); if(d.ok && linkedGame){ await postJSON('/api/admin/game/status',{student_index:$('fb-student').value,game_id:linkedGame,status:'corrigÃ©'}); } $('fb-msg').textContent=d.ok?'Feedback envoyÃ©.':(d.error||'Erreur'); if(d.ok)setTimeout(()=>location.reload(),800)}
 async function apptAction(student_index,id,action){const d=await postJSON('/api/admin/appointment/action',{student_index,appointment_id:id,action,message:$('msg-'+id).value,proposed_day:$('day-'+id).value,proposed_time:$('time-'+id).value});if(d.ok)location.reload();else alert(d.error||'Erreur')}
 async function savePayment(user_id){const d=await postJSON('/api/admin/payment/update',{user_id,payment_status:$('pay-status-'+user_id).value,amount_due:$('pay-amount-'+user_id).value,next_due:$('pay-due-'+user_id).value,plan:$('pay-plan-'+user_id).value}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function confirmPayment(user_id){const d=await postJSON('/api/admin/payment/confirm',{user_id,amount_due:$('pay-amount-'+user_id).value,next_due:$('pay-due-'+user_id).value}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function useSession(user_id,delta=1){const note=prompt('Note optionnelle pour cette séance (ex : analyse Ruy Lopez)')||'';const d=await postJSON('/api/admin/package/use',{user_id,delta,note}); if(d.ok){ if(d.completed) alert('Forfait terminé à 100%. Il n’est pas en retard : l’élève verra un message de renouvellement.'); location.reload(); } else alert(d.error||'Erreur')}
-async function undoSession(user_id){if(!confirm('Annuler la dernière séance consommée ?'))return;const d=await postJSON('/api/admin/package/undo',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function remindPayment(user_id){const message=prompt('Message de relance optionnel pour le Ghost')||''; const d=await postJSON('/api/admin/payment/remind',{user_id,message}); if(d.ok){ alert('Relance envoyée. Le compte reste actif.'); location.reload(); } else alert(d.error||'Erreur')}
+async function useSession(user_id,delta=1){const note=prompt('Note optionnelle pour cette sÃ©ance (ex : analyse Ruy Lopez)')||'';const d=await postJSON('/api/admin/package/use',{user_id,delta,note}); if(d.ok){ if(d.completed) alert('Forfait terminÃ© Ã  100%. Il nâ€™est pas en retard : lâ€™Ã©lÃ¨ve verra un message de renouvellement.'); location.reload(); } else alert(d.error||'Erreur')}
+async function undoSession(user_id){if(!confirm('Annuler la derniÃ¨re sÃ©ance consommÃ©e ?'))return;const d=await postJSON('/api/admin/package/undo',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function remindPayment(user_id){const message=prompt('Message de relance optionnel pour le Ghost')||''; const d=await postJSON('/api/admin/payment/remind',{user_id,message}); if(d.ok){ alert('Relance envoyÃ©e. Le compte reste actif.'); location.reload(); } else alert(d.error||'Erreur')}
 
 async function markGame(student_index,game_id,status){const d=await postJSON('/api/admin/game/status',{student_index,game_id,status}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function deleteGame(student_index,game_id){if(!confirm('Supprimer cette partie/analyse reçue ?'))return; const d=await postJSON('/api/admin/game/delete',{student_index,game_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-function prefillFeedback(student_index,title,game_id){$('fb-student').value=student_index;$('fb-kind').value='game';$('fb-title').value=title;$('fb-linked-game-id').value=game_id||'';$('fb-text').value='Analyse de ta partie :\n1) Point positif :\n2) Moment critique :\n3) Exercice à faire :';location.hash='feedback';$('feedback')?.scrollIntoView({behavior:'smooth',block:'start'});$('fb-text')?.focus();}
+async function deleteGame(student_index,game_id){if(!confirm('Supprimer cette partie/analyse reÃ§ue ?'))return; const d=await postJSON('/api/admin/game/delete',{student_index,game_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+function prefillFeedback(student_index,title,game_id){$('fb-student').value=student_index;$('fb-kind').value='game';$('fb-title').value=title;$('fb-linked-game-id').value=game_id||'';$('fb-text').value='Analyse de ta partie :\n1) Point positif :\n2) Moment critique :\n3) Exercice Ã  faire :';location.hash='feedback';$('feedback')?.scrollIntoView({behavior:'smooth',block:'start'});$('fb-text')?.focus();}
 async function reviewHomework(student_index,devoir_index){const key=student_index+'-'+devoir_index; const attachments=await uploadAdminFiles('hw-review-file-'+key); const d=await postJSON('/api/admin/homework/review',{student_index,devoir_index,status:$('hw-status-'+key).value,text:$('hw-text-'+key).value,position_fen:$('hw-fen-'+key).value,attachments,image_url:attachments[0]||''}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-function addPlanRow(){const wrap=$('plans-editor');const div=document.createElement('div');div.className='plan-table';div.innerHTML='<input class="fi plan-key" placeholder="clé"><input class="fi plan-name" placeholder="nom"><input class="fi plan-price" placeholder="prix"><input class="fi plan-period" placeholder="période"><input class="fi plan-sessions" type="number" min="1" placeholder="séances" value="1"><input class="fi plan-desc" placeholder="description">';wrap.appendChild(div)}
-async function savePlans(){const plans=[...document.querySelectorAll('.plan-table')].map(r=>({key:r.querySelector('.plan-key').value,name:r.querySelector('.plan-name').value,price:r.querySelector('.plan-price').value,period:r.querySelector('.plan-period').value,sessions_total:r.querySelector('.plan-sessions')?r.querySelector('.plan-sessions').value:1,desc:r.querySelector('.plan-desc').value}));const d=await postJSON('/api/admin/plans/save',{plans});$('plans-msg').textContent=d.ok?'Tarifs sauvegardés.':'Erreur';if(d.ok)setTimeout(()=>location.reload(),800)}
+function addPlanRow(){const wrap=$('plans-editor');const div=document.createElement('div');div.className='plan-table';div.innerHTML='<input class="fi plan-key" placeholder="clÃ©"><input class="fi plan-name" placeholder="nom"><input class="fi plan-price" placeholder="prix"><input class="fi plan-period" placeholder="pÃ©riode"><input class="fi plan-sessions" type="number" min="1" placeholder="sÃ©ances" value="1"><input class="fi plan-desc" placeholder="description">';wrap.appendChild(div)}
+async function savePlans(){const plans=[...document.querySelectorAll('.plan-table')].map(r=>({key:r.querySelector('.plan-key').value,name:r.querySelector('.plan-name').value,price:r.querySelector('.plan-price').value,period:r.querySelector('.plan-period').value,sessions_total:r.querySelector('.plan-sessions')?r.querySelector('.plan-sessions').value:1,desc:r.querySelector('.plan-desc').value}));const d=await postJSON('/api/admin/plans/save',{plans});$('plans-msg').textContent=d.ok?'Tarifs sauvegardÃ©s.':'Erreur';if(d.ok)setTimeout(()=>location.reload(),800)}
 
-async function createTournament(){const all=$('tour-all').checked;const targets=[...document.querySelectorAll('#tour-targets input:checked')].map(x=>x.value);const d=await postJSON('/api/admin/tournaments/create',{title:$('tour-title').value,link:$('tour-link').value,day:$('tour-day').value,time:$('tour-time').value,description:$('tour-desc').value,preparation:$('tour-prep').value,target_all:all,targets});$('tour-msg').textContent=d.ok?'Tournoi envoyé aux élèves.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}
+async function createTournament(){const all=$('tour-all').checked;const targets=[...document.querySelectorAll('#tour-targets input:checked')].map(x=>x.value);const d=await postJSON('/api/admin/tournaments/create',{title:$('tour-title').value,link:$('tour-link').value,day:$('tour-day').value,time:$('tour-time').value,description:$('tour-desc').value,preparation:$('tour-prep').value,target_all:all,targets});$('tour-msg').textContent=d.ok?'Tournoi envoyÃ© aux Ã©lÃ¨ves.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}
 async function deleteTournament(id){if(!confirm('Supprimer ce tournoi ?'))return; const d=await postJSON('/api/admin/tournaments/delete',{tournament_id:id}); if(d.ok)location.reload(); else alert(d.error||'Erreur suppression');}
-async function approveRegistration(id){const d=await postJSON('/api/admin/registration/approve',{request_id:id}); if(d.ok){alert('Code généré : '+d.code.code); location.reload();} else alert(d.error||'Erreur');}
+async function approveRegistration(id){const d=await postJSON('/api/admin/registration/approve',{request_id:id}); if(d.ok){alert('Code gÃ©nÃ©rÃ© : '+d.code.code); location.reload();} else alert(d.error||'Erreur');}
 async function rejectRegistration(id){const note=prompt('Motif optionnel du refus')||'';const d=await postJSON('/api/admin/registration/reject',{request_id:id,note}); if(d.ok)location.reload(); else alert(d.error||'Erreur');}
-function copyText(txt){navigator.clipboard?.writeText(txt); alert('Copié : '+txt);}
-async function resetPassword(user_id){const pwd=prompt('Nouveau mot de passe temporaire (min. 6 caractères)'); if(!pwd)return; const d=await postJSON('/api/admin/password/reset',{user_id,password:pwd}); if(d.ok)alert('Mot de passe mis à jour. Transmets-le à l’élève.'); else alert(d.error||'Erreur')}
-async function deletePaymentAttempt(user_id){if(!confirm('Supprimer ce paiement/forfait de cette liste ? Le Ghost reviendra à l’accès de base. Aucune suspension, aucune dette.'))return; const d=await postJSON('/api/admin/payment/delete',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function deletePaymentLog(payment_id){if(!confirm('Supprimer cette ligne d’encaissement/test ?'))return; const d=await postJSON('/api/admin/payment/delete',{payment_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function deleteRegistration(request_id,code_id=null){if(!confirm('Supprimer cette entrée ?'))return; const d=await postJSON('/api/admin/registration/delete',{request_id,code_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
-async function setBan(user_id,banned){const msg=banned?'Suspendre ce compte Ghost ?':'Réactiver ce compte Ghost ?'; if(!confirm(msg))return; const d=await postJSON('/api/admin/user/ban',{user_id,banned}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+function copyText(txt){navigator.clipboard?.writeText(txt); alert('CopiÃ© : '+txt);}
+async function resetPassword(user_id){const pwd=prompt('Nouveau mot de passe temporaire (min. 6 caractÃ¨res)'); if(!pwd)return; const d=await postJSON('/api/admin/password/reset',{user_id,password:pwd}); if(d.ok)alert('Mot de passe mis Ã  jour. Transmets-le Ã  lâ€™Ã©lÃ¨ve.'); else alert(d.error||'Erreur')}
+async function deletePaymentAttempt(user_id){if(!confirm('Supprimer ce paiement/forfait de cette liste ? Le Ghost reviendra Ã  lâ€™accÃ¨s de base. Aucune suspension, aucune dette.'))return; const d=await postJSON('/api/admin/payment/delete',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function deletePaymentLog(payment_id){if(!confirm('Supprimer cette ligne dâ€™encaissement/test ?'))return; const d=await postJSON('/api/admin/payment/delete',{payment_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function deleteRegistration(request_id,code_id=null){if(!confirm('Supprimer cette entrÃ©e ?'))return; const d=await postJSON('/api/admin/registration/delete',{request_id,code_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function setBan(user_id,banned){const msg=banned?'Suspendre ce compte Ghost ?':'RÃ©activer ce compte Ghost ?'; if(!confirm(msg))return; const d=await postJSON('/api/admin/user/ban',{user_id,banned}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function replyCoachFeedback(student_index,feedback_id){const el=$('coach-reply-'+feedback_id);const msg=$('coach-reply-msg-'+feedback_id);if(msg)msg.textContent='Envoi...';const d=await postJSON('/api/admin/feedback/reply',{student_index,feedback_id,text:el?.value||''});if(msg)msg.textContent=d.ok?'Réponse envoyée.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),650)}
+async function replyStudentMessage(message_id){const el=$('msg-reply-'+message_id);const msg=$('msg-reply-status-'+message_id);if(msg)msg.textContent='Envoi...';const d=await postJSON('/api/admin/message/reply',{message_id,text:el?.value||''});if(msg)msg.textContent=d.ok?'Réponse envoyée.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),650)}
 
 
 </script>

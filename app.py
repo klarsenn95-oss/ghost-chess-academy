@@ -1459,7 +1459,7 @@ def public_student_payload(student):
     rank = get_rank(student)
     island = get_island(student)
     vel, badge_color, badge_label, delta = get_progression_velocity(student)
-    all_feedback = student.get("client_feedback", [])[-40:]
+    all_feedback = student.get("client_feedback", [])[:40]
     pedagogic_kinds = {"feedback", "game", "homework", "analysis", "lesson"}
     coach_feedback = [f for f in all_feedback if (f.get("kind") or "feedback") in pedagogic_kinds]
     divers = [f for f in all_feedback if (f.get("kind") or "feedback") not in pedagogic_kinds]
@@ -1502,12 +1502,12 @@ def public_student_payload(student):
         "devoirs": student.get("devoirs", [])[-20:],
         "workplans": student.get("workplans", [])[-5:],
         "agenda": student.get("agenda", [])[-8:],
-        "client_games": student.get("client_games", [])[-20:],
-        "client_notes": student.get("client_notes", [])[-12:],
-        "client_appointments": student.get("client_appointments", [])[-12:],
+        "client_games": student.get("client_games", [])[:20],
+        "client_notes": student.get("client_notes", [])[:12],
+        "client_appointments": student.get("client_appointments", [])[:12],
         "payments": student.get("payments", [])[-30:],
-        "client_feedback": coach_feedback[-20:],
-        "client_divers": divers[-20:],
+        "client_feedback": coach_feedback[:20],
+        "client_divers": divers[:20],
         "client_notifications": ghost_notifications[:20],
         "client_notifications_count": len(ghost_notifications),
     }
@@ -3029,6 +3029,12 @@ def api_admin_notifications_delete():
     save_data(data)
     return jsonify({"ok": True, "removed": removed})
 
+@app.route("/api/admin/notifications")
+def api_admin_notifications_list():
+    data = load_data()
+    rows = unread_notifications(data, 20)
+    return jsonify({"ok": True, "count": len(rows), "notifications": rows})
+
 @app.route("/api/admin/appointment/action", methods=["POST"])
 def api_admin_appointment_action():
     body = request.get_json(force=True, silent=True) or {}
@@ -3129,6 +3135,34 @@ def api_admin_feedback_send():
         entry["attachments"] = attachments
     save_data(data)
     return jsonify({"ok": True, "feedback": entry})
+
+@app.route("/api/admin/feedback/reply", methods=["POST"])
+def api_admin_feedback_reply():
+    body = request.get_json(force=True, silent=True) or {}
+    data = load_data()
+    try:
+        idx = int(body.get("student_index"))
+    except Exception:
+        return jsonify({"ok": False, "error": "Élève invalide."}), 400
+    feedback_id = body.get("feedback_id")
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "Réponse vide."}), 400
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    feedbacks = data["students"][idx].setdefault("client_feedback", [])
+    fb = next((f for f in feedbacks if f.get("id") == feedback_id), None)
+    if not fb:
+        return jsonify({"ok": False, "error": "Feedback introuvable."}), 404
+    reply = {"id": str(uuid.uuid4()), "date": now_fr(), "author": "coach", "text": text, "read_by_student": False}
+    fb.setdefault("replies", []).append(reply)
+    fb["read_by_student"] = False
+    fb["date"] = now_fr()
+    # Remonte le fil en tête pour qu'il soit immédiatement visible côté Ghost.
+    feedbacks.remove(fb)
+    feedbacks.insert(0, fb)
+    save_data(data)
+    return jsonify({"ok": True, "reply": reply, "feedback": fb})
 
 
 @app.route("/api/admin/game/status", methods=["POST"])
@@ -3653,6 +3687,18 @@ def api_client_notifications_read():
     save_data(data)
     return jsonify({"ok": True, "marked": marked})
 
+@app.route("/api/client/notifications")
+def api_client_notifications_list():
+    data = load_data()
+    user = get_current_user(data)
+    if not user:
+        return jsonify({"ok": False, "error": "not_authenticated"}), 401
+    idx = user.get("student_index")
+    student = data.get("students", [])[idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else None
+    payload = public_student_payload(student)
+    notes = (payload or {}).get("client_notifications", [])
+    return jsonify({"ok": True, "count": len(notes), "notifications": notes})
+
 @app.route("/api/client/onboarding/done", methods=["POST"])
 def api_client_onboarding_done():
     data, user, resp, code = require_client_json()
@@ -3799,6 +3845,37 @@ def api_client_message_send():
     add_client_notification(data, "Message élève", f"{user.get('name')} a partagé un message/une partie avec son binôme.", "message", user.get("id"), user.get("student_index"), target_url="/admin/clients#messages")
     save_data(data)
     return jsonify({"ok": True, "message": entry})
+
+@app.route("/api/admin/message/reply", methods=["POST"])
+def api_admin_message_reply():
+    body = request.get_json(force=True, silent=True) or {}
+    data = load_data()
+    message_id = body.get("message_id")
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "Réponse vide."}), 400
+    msg = next((m for m in data.get("student_messages", []) if m.get("id") == message_id), None)
+    if not msg:
+        return jsonify({"ok": False, "error": "Message introuvable."}), 404
+    reply = {"id": str(uuid.uuid4()), "date": now_fr(), "author": "coach", "text": text}
+    msg.setdefault("replies", []).append(reply)
+    msg["coach_read"] = True
+    msg["updated_at"] = now_fr()
+    recipients = []
+    sender_idx = msg.get("from_student_index")
+    if isinstance(sender_idx, int):
+        recipients.append(sender_idx)
+    for idx in msg.get("targets") or []:
+        try:
+            idx = int(idx)
+        except Exception:
+            continue
+        if idx not in recipients:
+            recipients.append(idx)
+    for idx in recipients:
+        add_student_feedback(data, idx, "Réponse coach", text, "message", "student_message", message_id)
+    save_data(data)
+    return jsonify({"ok": True, "reply": reply, "message": msg})
 
 
 @app.route("/api/client/profile/update", methods=["POST"])
