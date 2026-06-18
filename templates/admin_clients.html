@@ -231,6 +231,17 @@ async function deletePaymentLog(payment_id){if(!confirm('Supprimer cette ligne d
 async function deleteRegistration(request_id,code_id=null){if(!confirm('Supprimer cette entrée ?'))return; const d=await postJSON('/api/admin/registration/delete',{request_id,code_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function setBan(user_id,banned){const msg=banned?'Suspendre ce compte Ghost ?':'Réactiver ce compte Ghost ?'; if(!confirm(msg))return; const d=await postJSON('/api/admin/user/ban',{user_id,banned}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 
+window.addEventListener('message', (ev) => {
+  if (ev.data && ev.data.type === 'ghost_notification') {
+    if (document.querySelector('.floating-reload')) return;
+    const b = document.createElement('button');
+    b.className = 'btn good floating-reload';
+    b.innerHTML = '⚡ Nouvelles actions élèves détectées. Actualiser la page ?';
+    b.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999999;box-shadow:0 10px 40px #000;padding:14px 22px;border-radius:18px;animation:pop .3s ease;';
+    b.onclick = () => location.reload();
+    document.body.appendChild(b);
+  }
+});
 </script>
 </body>
 </html>

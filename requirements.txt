@@ -4,3 +4,5 @@ Flask-APScheduler>=1.13
 gunicorn>=21.2
 supabase>=2.15
 python-dotenv>=1.0
+pywebpush>=1.14
+cryptography>=41.0
