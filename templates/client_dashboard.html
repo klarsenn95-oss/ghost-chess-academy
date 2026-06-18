@@ -146,6 +146,7 @@
         <input class="fi" id="profile-name" placeholder="Nom / pseudo" value="{{ (student.name if student else user.name) or user.name }}">
         <input class="fi" id="profile-email" placeholder="Email" value="{{ (student.email if student else user.email) or user.email }}">
         <input class="fi" id="profile-phone" placeholder="Téléphone" value="{{ student.phone if student else '' }}">
+        <input class="fi" id="profile-telegram" placeholder="Telegram chat ID optionnel" value="{{ student.telegram_chat_id if student else '' }}">
         <input class="fi" id="profile-city" placeholder="Ville / pays" value="{{ student.city if student else '' }}">
         <label class="profile-field-label">Date de naissance <input class="fi" type="date" id="profile-birthdate" value="{{ student.birthdate if student else '' }}"></label>
         <input class="fi" id="profile-lichess" placeholder="Pseudo Lichess" value="{{ student.lichess if student else '' }}">
@@ -309,6 +310,7 @@ async function saveProfile(){
     name:$('profile-name')?.value,
     email:$('profile-email')?.value,
     phone:$('profile-phone')?.value,
+    telegram_chat_id:$('profile-telegram')?.value,
     city:$('profile-city')?.value,
     birthdate:$('profile-birthdate')?.value,
     lichess:$('profile-lichess')?.value,

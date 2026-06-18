@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Centre Ghosts — GHOST</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="stylesheet" href="/static/style.css">
 <style>
 html,body{min-height:100%;overflow:auto!important;background:transparent!important;color:#f5f3ff;font-family:var(--font-body,system-ui)}
@@ -223,6 +224,22 @@ section.grid{
 .plan-table{grid-template-columns:1fr 1.2fr .8fr .8fr 74px 1.6fr!important;gap:6px!important}
 .cc-flash{outline:2px solid #fbbf24!important;box-shadow:0 0 0 4px #fbbf2426,0 0 30px #fbbf2440!important}
 .dashboard-deprecated{display:none!important}
+.finance-ledger{border-radius:18px!important;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018))!important;border-color:rgba(167,139,250,.18)!important}
+.ledger-row{grid-template-columns:minmax(180px,1fr) minmax(150px,1fr) minmax(110px,.55fr) minmax(105px,.45fr) minmax(210px,.8fr)!important}
+.ledger-row:not(.ledger-head):hover{background:rgba(167,139,250,.055)}
+.ledger-student b{font-size:13px;color:#fff}.ledger-student small{font-size:11px}
+.ledger-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:900;border:1px solid #ffffff22}
+.status-pill.paid{color:#4ade80;border-color:#4ade8055;background:#052e1f55}.status-pill.pending{color:#fbbf24;border-color:#fbbf2455;background:#2a1d0555}.status-pill.rejected{color:#f87171;border-color:#f8717155;background:#2a080855}
+.reg-card{border:1px solid rgba(251,191,36,.20);background:linear-gradient(135deg,rgba(251,191,36,.06),rgba(167,139,250,.04));border-radius:16px;padding:12px;margin-bottom:10px}
+.reg-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.reg-name{font-weight:950;color:#fff}.reg-meta{font-size:12px;color:#9f97bd;margin-top:3px}
+.reg-controls{display:grid;grid-template-columns:minmax(180px,1fr) minmax(160px,.7fr);gap:8px;margin-top:10px}
+.code-row{display:grid;grid-template-columns:minmax(190px,1fr) minmax(170px,1fr) minmax(150px,.8fr) minmax(120px,.55fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid #ffffff0b}
+.code-owner b{display:block;color:#fff}.code-owner small{display:block;color:#8a82a6;margin-top:2px}
+.exercise-admin{display:grid;gap:8px}.exercise-history{max-height:220px;overflow:auto;margin-top:10px;border-top:1px solid #ffffff0b;padding-top:8px}
+.cc-panel:not(.is-collapsed)>.ttl{background:linear-gradient(90deg,rgba(239,68,68,.10),transparent 70%)}
+.center-nav{position:sticky!important;top:8px!important;z-index:70!important;background:rgba(6,6,18,.72)!important;backdrop-filter:blur(14px)!important;border:1px solid rgba(167,139,250,.12)!important;border-radius:16px!important;padding:8px!important}
+.center-nav a{transition:transform .15s ease,background .15s ease,border-color .15s ease}.center-nav a:hover{transform:translateY(-1px);background:rgba(167,139,250,.16)!important;border-color:rgba(167,139,250,.38)!important}
 @media(max-width:1180px){
   .cc-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}
   section.grid{grid-template-columns:1fr!important}
@@ -251,6 +268,8 @@ body{padding:8px 8px 72px!important}
   .finance-ledger,.mini-list{max-height:none!important}
   .ledger-row{display:block!important;padding:8px 0!important}
   .ledger-row>*{margin:5px 0!important}
+  .ledger-actions{justify-content:flex-start!important}
+  .reg-controls,.code-row{grid-template-columns:1fr!important}
   .ledger-head{display:none!important}
   .target-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-height:230px!important}
 }
@@ -310,7 +329,7 @@ body{padding:8px 8px 72px!important}
         <div class="ledger-student"><b>{{ p.student_name or p.name or 'Ghost non lié' }}</b><small>{{ p.date or '—' }}</small></div>
         <div>{{ p.plan or p.plan_key or 'Paiement' }}</div>
         <div><b>{{ p.amount_label or (p.amount ~ ' FCFA') }}</b></div>
-        <div><span class="badge {{ 'ok' if p.status in ['paid','validated','confirmed'] else 'warn' }}">{{ p.status or 'paid' }}</span></div>
+        <div><span class="status-pill {{ 'paid' if p.status in ['paid','validated','confirmed'] else 'pending' if p.status in ['pending','awaiting_validation'] else 'rejected' }}">{{ 'payé' if p.status in ['paid','validated','confirmed'] else 'en attente' if p.status in ['pending','awaiting_validation'] else (p.status or 'payé') }}</span></div>
         <div><button class="btn danger tiny" onclick="deletePaymentLog('{{ p.id }}')">Supprimer</button></div>
       </div>
       {% endfor %}
@@ -450,15 +469,30 @@ body{padding:8px 8px 72px!important}
     {% if messages %}{% for m in messages[:20] %}<div class="msgbox" id="student-msg-{{ m.id }}"><b>{{ m.from_name }}</b>{% if m.target_label %}<span class="badge" style="margin-left:8px">{{ m.target_label }}</span>{% endif %}<div class="muted">{{ m.date }}</div><div>{{ m.text }}</div>{% if m.url %}<a class="attach" href="{{ m.url }}" target="_blank">Lien partagé</a>{% endif %}{% if m.fen %}<div class="fen">{{ m.fen }}</div><a class="tool" href="{{ lichess_analysis_url(m.fen) }}" target="_blank">Ouvrir sur Lichess</a>{% endif %}{% if m.replies %}<div class="thread">{% for r in m.replies %}<div class="bubble"><b>{{ 'Coach' if r.author=='coach' else 'Élève' }}</b> · {{ r.date }}<br>{{ r.text }}</div>{% endfor %}</div>{% endif %}<div class="reply-row"><textarea class="ta" id="msg-reply-{{ m.id }}" placeholder="Répondre au Ghost..."></textarea><button class="btn secondary" onclick="replyStudentMessage('{{ m.id }}')">Répondre</button><span class="muted" id="msg-reply-status-{{ m.id }}"></span></div></div>{% endfor %}{% else %}<div class="muted">Aucun échange élève pour le moment.</div>{% endif %}
   </div>
 
+  <div class="card full" id="exercises"><div class="ttl">Exercices ciblés</div>
+    <div class="section-note">Envoie un exercice à tous les Ghosts ou à une sélection. Il apparaîtra aussi comme devoir dans leur fiche.</div>
+    <div class="exercise-admin">
+      <input class="fi" id="ex-title" placeholder="Titre de l'exercice">
+      <textarea class="ta" id="ex-text" placeholder="Consigne, objectif, position, lien utile..."></textarea>
+      <div class="mini-grid"><select class="fi" id="ex-level"><option value="standard">Standard</option><option value="débutant">Débutant</option><option value="intermédiaire">Intermédiaire</option><option value="avancé">Avancé</option></select><input class="fi" id="ex-solution" placeholder="Solution / correction optionnelle"></div>
+      <input class="fi" type="file" id="ex-files" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'ex-file-count')"><div class="file-count" id="ex-file-count"></div>
+      <label class="muted"><input type="checkbox" id="ex-all" checked> Envoyer à tous les élèves</label>
+      <div class="target-list" id="ex-targets">{% for s in students %}<label><input type="checkbox" value="{{ loop.index0 }}"> {{ s.name or '?' }}</label>{% endfor %}</div>
+      <button class="btn" onclick="createExercise()">Envoyer l'exercice</button><span class="muted" id="ex-msg"></span>
+    </div>
+    {% if exercises %}<div class="exercise-history">{% for e in exercises[:10] %}<div class="mini-item"><span><b>{{ e.title }}</b><br><span class="muted">{{ e.date }} · {{ e.level }} · {{ e.targets|length if e.targets else 'tous' }} cible(s)</span></span><span class="pill">{{ e.status or 'envoyé' }}</span></div>{% endfor %}</div>{% endif %}
+  </div>
+
   <div class="card full"><div class="ttl" id="accounts">🔐 Comptes / accès</div>
     {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} · {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">Réinitialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">Réactiver</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
   </div>
 
   <div class="card full"><div class="ttl" id="notifications">Notifications élèves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
-  <div class="card full"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes %}<div class="row"><div class="code">{{ c.code }}</div><div>{{ c.plan }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
+  <div class="card full"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes %}<div class="code-row"><div class="code">{{ c.code }}</div><div class="code-owner"><b>{{ c.student_name or c.request_name or 'Profil à créer' }}</b><small>{{ c.email_hint or 'email non précisé' }}</small></div><div>{{ c.access_label or ('Inscription offerte' if c.free_access else 'Inscription Ghost - 5 000 FCFA') }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
 </section>
 <script>
 const $ = (id)=>document.getElementById(id);
+const ADMIN_STUDENTS = {{ students|map(attribute='name')|list|tojson }};
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
 function showFileCount(input,id){const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();return d.ok?(d.urls||[d.url]).filter(Boolean):[]}
@@ -481,13 +515,15 @@ function addPlanRow(){const wrap=$('plans-editor');const div=document.createElem
 async function savePlans(){const plans=[...document.querySelectorAll('.plan-table')].map(r=>({key:r.querySelector('.plan-key').value,name:r.querySelector('.plan-name').value,price:r.querySelector('.plan-price').value,period:r.querySelector('.plan-period').value,sessions_total:r.querySelector('.plan-sessions')?r.querySelector('.plan-sessions').value:1,desc:r.querySelector('.plan-desc').value}));const d=await postJSON('/api/admin/plans/save',{plans});$('plans-msg').textContent=d.ok?'Tarifs sauvegardés.':'Erreur';if(d.ok)setTimeout(()=>location.reload(),800)}
 
 async function createTournament(){const all=$('tour-all').checked;const targets=[...document.querySelectorAll('#tour-targets input:checked')].map(x=>x.value);const d=await postJSON('/api/admin/tournaments/create',{title:$('tour-title').value,link:$('tour-link').value,day:$('tour-day').value,time:$('tour-time').value,description:$('tour-desc').value,preparation:$('tour-prep').value,target_all:all,targets});$('tour-msg').textContent=d.ok?'Tournoi envoyé aux élèves.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}
+async function createExercise(){const all=$('ex-all').checked;const targets=[...document.querySelectorAll('#ex-targets input:checked')].map(x=>x.value);$('ex-msg').textContent='Envoi...';const attachments=await uploadAdminFiles('ex-files');const d=await postJSON('/api/admin/exercise/create',{title:$('ex-title').value,text:$('ex-text').value,level:$('ex-level').value,solution:$('ex-solution').value,target_all:all,targets,attachments});$('ex-msg').textContent=d.ok?'Exercice envoyé.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}
 async function deleteTournament(id){if(!confirm('Supprimer ce tournoi ?'))return; const d=await postJSON('/api/admin/tournaments/delete',{tournament_id:id}); if(d.ok)location.reload(); else alert(d.error||'Erreur suppression');}
-async function approveRegistration(id){const d=await postJSON('/api/admin/registration/approve',{request_id:id}); if(d.ok){alert('Code généré : '+d.code.code); location.reload();} else alert(d.error||'Erreur');}
+async function approveRegistration(id){const d=await postJSON('/api/admin/registration/approve',{request_id:id,student_index:$('reg-student-'+id)?.value||'',access_kind:$('reg-access-'+id)?.value||'paid_registration'}); if(d.ok){alert('Code généré : '+d.code.code); location.reload();} else alert(d.error||'Erreur');}
 async function rejectRegistration(id){const note=prompt('Motif optionnel du refus')||'';const d=await postJSON('/api/admin/registration/reject',{request_id:id,note}); if(d.ok)location.reload(); else alert(d.error||'Erreur');}
 function copyText(txt){navigator.clipboard?.writeText(txt); alert('Copié : '+txt);}
 async function resetPassword(user_id){const pwd=prompt('Nouveau mot de passe temporaire (min. 6 caractères)'); if(!pwd)return; const d=await postJSON('/api/admin/password/reset',{user_id,password:pwd}); if(d.ok)alert('Mot de passe mis à jour. Transmets-le à l’élève.'); else alert(d.error||'Erreur')}
 async function deletePaymentAttempt(user_id){if(!confirm('Supprimer ce paiement/forfait de cette liste ? Le Ghost reviendra à l’accès de base. Aucune suspension, aucune dette.'))return; const d=await postJSON('/api/admin/payment/delete',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function deletePaymentLog(payment_id){if(!confirm('Supprimer cette ligne d’encaissement/test ?'))return; const d=await postJSON('/api/admin/payment/delete',{payment_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function setPaymentLogStatus(payment_id,status){const d=await postJSON('/api/admin/payment/log_status',{payment_id,status}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function deleteRegistration(request_id,code_id=null){if(!confirm('Supprimer cette entrée ?'))return; const d=await postJSON('/api/admin/registration/delete',{request_id,code_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function setBan(user_id,banned){const msg=banned?'Suspendre ce compte Ghost ?':'Réactiver ce compte Ghost ?'; if(!confirm(msg))return; const d=await postJSON('/api/admin/user/ban',{user_id,banned}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function replyCoachFeedback(student_index,feedback_id){const el=$('coach-reply-'+feedback_id);const msg=$('coach-reply-msg-'+feedback_id);if(msg)msg.textContent='Envoi...';const d=await postJSON('/api/admin/feedback/reply',{student_index,feedback_id,text:el?.value||''});if(msg)msg.textContent=d.ok?'Réponse envoyée.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),650)}
@@ -497,8 +533,25 @@ async function replyStudentMessage(message_id){const el=$('msg-reply-'+message_i
 </script>
 
 <script>
-// V36: transforme les grandes sections du centre en menus repliables propres.
 document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('[id^="reg-"]').forEach(function(card){
+    const id=card.id.replace('reg-','');
+    if(card.querySelector('#reg-student-'+id) || !card.querySelector('[onclick*="approveRegistration"]')) return;
+    const controls=document.createElement('div');
+    controls.className='reg-controls';
+    controls.innerHTML='<select class="fi" id="reg-student-'+id+'"><option value="">Créer un nouveau profil au moment de l\\'inscription</option>'+ADMIN_STUDENTS.map(function(name,i){return '<option value="'+i+'">'+(name||'?')+'</option>';}).join('')+'</select><select class="fi" id="reg-access-'+id+'"><option value="paid_registration">Paiement reçu - 5 000 FCFA</option><option value="free_registration">Inscription offerte</option></select>';
+    card.appendChild(controls);
+  });
+  document.querySelectorAll('[onclick^="deletePaymentLog"]').forEach(function(btn){
+    const m=(btn.getAttribute('onclick')||'').match(/deletePaymentLog\\('([^']+)'\\)/);
+    if(!m || btn.dataset.enhanced) return;
+    btn.dataset.enhanced='1';
+    const wrap=document.createElement('span');
+    wrap.className='ledger-actions';
+    wrap.innerHTML='<button class="btn secondary tiny" onclick="setPaymentLogStatus(\\''+m[1]+'\\',\\'pending\\')">En attente</button><button class="btn good tiny" onclick="setPaymentLogStatus(\\''+m[1]+'\\',\\'paid\\')">Payé</button>';
+    btn.parentNode.insertBefore(wrap,btn);
+    wrap.appendChild(btn);
+  });
   const cards = Array.from(document.querySelectorAll('section.grid > .card.full, section.grid > .card[id]'));
   const keepOpenIds = new Set(['registration-requests', 'manual-code']);
   cards.forEach(function(card, index){

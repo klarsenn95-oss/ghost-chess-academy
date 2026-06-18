@@ -238,6 +238,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div class="field-row"><label class="field-label">Âge calculé</label><div class="fi" style="background:#090909;color:#888">{{ s.age or '—' }}</div></div>
     <div class="field-row"><label class="field-label">Ville</label><input class="fi" id="f-city" value="{{ s.city or '' }}"></div>
     <div class="field-row"><label class="field-label">Téléphone</label><input class="fi" id="f-phone" value="{{ s.phone or '' }}"></div>
+    <div class="field-row"><label class="field-label">Telegram chat ID</label><input class="fi" id="f-telegram" value="{{ s.telegram_chat_id or '' }}" placeholder="Optionnel"></div>
     <div class="field-row"><label class="field-label">Études / Métier</label><input class="fi" id="f-job" value="{{ s.job or '' }}"></div>
     <div class="field-row"><label class="field-label">Pseudo Lichess</label><input class="fi" id="f-lichess" value="{{ s.lichess or '' }}"></div>
     <div class="field-row"><label class="field-label">Pseudo Chess.com</label><input class="fi" id="f-chesscom" value="{{ s.chesscom or '' }}"></div>
@@ -1344,7 +1345,7 @@ function toast(msg){
 
 function saveFiche(){
   var s={_index:STUDENT_IDX,
-    name:v('f-name'),birthdate:v('f-birthdate'),city:v('f-city'),phone:v('f-phone'),job:v('f-job'),
+    name:v('f-name'),birthdate:v('f-birthdate'),city:v('f-city'),phone:v('f-phone'),telegram_chat_id:v('f-telegram'),job:v('f-job'),
     lichess:v('f-lichess'),chesscom:v('f-chesscom'),
     style:v('f-style'),opening_white:v('f-opening-white'),opening_black:v('f-opening-black'),
     strengths:v('f-strengths'),weaknesses:v('f-weaknesses'),chess_start:v('f-chess-start'),

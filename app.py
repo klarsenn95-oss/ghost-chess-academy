@@ -13,6 +13,7 @@ from functools import wraps
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 import urllib.parse
+from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -988,11 +989,42 @@ def weekly_reports_job():
 
 
 # ─── Client portal helpers ─────────────────────────────────
+PARIS_TZ = ZoneInfo("Europe/Paris")
+
+def now_paris():
+    return datetime.now(PARIS_TZ)
+
 def now_iso():
-    return datetime.now().isoformat(timespec="seconds")
+    return now_paris().isoformat(timespec="seconds")
 
 def now_fr():
-    return datetime.now().strftime("%d/%m/%Y %H:%M")
+    return now_paris().strftime("%d/%m/%Y %H:%M")
+
+def student_name_from_index(data, student_index, fallback="Ghost non lié"):
+    if isinstance(student_index, int) and 0 <= student_index < len(data.get("students", [])):
+        return data["students"][student_index].get("name") or fallback
+    return fallback
+
+def telegram_send(chat_id, text):
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("GHOST_TELEGRAM_BOT_TOKEN")
+    if not token or not chat_id or not text:
+        return False
+    try:
+        payload = urllib.parse.urlencode({"chat_id": str(chat_id), "text": text[:3900]}).encode("utf-8")
+        req = Request(f"https://api.telegram.org/bot{token}/sendMessage", data=payload, method="POST")
+        with urlopen(req, timeout=4) as resp:
+            return 200 <= resp.status < 300
+    except Exception as e:
+        print(f"[GHOST] Telegram notification skipped: {e}")
+        return False
+
+def telegram_chat_for_student(data, student_index):
+    if isinstance(student_index, int) and 0 <= student_index < len(data.get("students", [])):
+        stu = data["students"][student_index]
+        if stu.get("telegram_chat_id"):
+            return stu.get("telegram_chat_id")
+    user = find_user_for_student(data, student_index)
+    return user.get("telegram_chat_id") if user else ""
 def default_price_grid():
     return {
         "registration_fee": 5000,
@@ -1403,6 +1435,9 @@ def add_student_feedback(data, student_index, title, text, kind="feedback", link
     }
     student.setdefault("client_feedback", []).insert(0, entry)
     student["client_feedback"] = student.get("client_feedback", [])[:80]
+    chat_id = telegram_chat_for_student(data, student_index)
+    if chat_id:
+        telegram_send(chat_id, f"GHOST Academy\n{title}\n{text}".strip())
     return entry
 
 def find_user_for_student(data, student_index):
@@ -1441,6 +1476,7 @@ def notification_target_url(kind="info", student_index=None, item_id=None):
     return base + "#notifications"
 
 def add_client_notification(data, title, text, kind="info", user_id=None, student_index=None, target_url=None, item_id=None):
+    target = target_url or notification_target_url(kind, student_index, item_id)
     data.setdefault("client_notifications", []).insert(0, {
         "id": str(uuid.uuid4()),
         "title": title,
@@ -1449,11 +1485,18 @@ def add_client_notification(data, title, text, kind="info", user_id=None, studen
         "user_id": user_id,
         "student_index": student_index,
         "item_id": item_id,
-        "target_url": target_url or notification_target_url(kind, student_index, item_id),
+        "target_url": target,
         "date": now_iso(),
         "read": False,
     })
     data["client_notifications"] = data.get("client_notifications", [])[:120]
+    admin_chat_id = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or
+                     os.environ.get("GHOST_TELEGRAM_ADMIN_CHAT_ID") or
+                     os.environ.get("TELEGRAM_COACH_CHAT_ID"))
+    if admin_chat_id:
+        who = student_name_from_index(data, student_index, "")
+        suffix = f" - {who}" if who else ""
+        telegram_send(admin_chat_id, f"GHOST Academy\n{title}{suffix}\n{text}\n{target}".strip())
 
 
 def calculate_age_from_birthdate(birthdate):
@@ -1496,6 +1539,7 @@ def public_student_payload(student):
         "chesscom": student.get("chesscom", ""),
         "email": student.get("email", ""),
         "phone": student.get("phone", ""),
+        "telegram_chat_id": student.get("telegram_chat_id", ""),
         "city": student.get("city", ""),
         "birthdate": student.get("birthdate", ""),
         "age": calculate_age_from_birthdate(student.get("birthdate")) or student.get("age", ""),
@@ -1934,7 +1978,7 @@ def save_student():
     data = load_data()
     student = request.json
     idx = student.get("_index")
-    student["updated"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    student["updated"] = now_fr()
     if not student.get("created"): student["created"] = student["updated"]
     clean = {k:v for k,v in student.items() if not k.startswith("_")}
     if idx is not None and 0<=idx<len(data["students"]):
@@ -2671,6 +2715,10 @@ def client_portal():
         theme=plan_theme(selected_plan.get("key")),
     )
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(app.static_folder, "favicon.svg", mimetype="image/svg+xml")
+
 @app.route("/client/logout")
 def client_logout():
     session.pop("client_user_id", None)
@@ -2696,6 +2744,12 @@ def admin_clients():
         needs_payment_attention = status in ("pending", "overdue", "awaiting_validation") or bool(u.get("pending_plan_request")) or (amount_due_value > 0 and (u.get("plan") or "no_plan") != "no_plan")
         if has_real_plan or needs_payment_attention:
             payment_users.append(u)
+    payment_logs = []
+    for rec in data.get("payments_log", [])[:80]:
+        row = dict(rec)
+        if not row.get("student_name"):
+            row["student_name"] = row.get("request_name") or student_name_from_index(data, row.get("student_index"))
+        payment_logs.append(row)
     return render_template(
         "admin_clients.html",
         students=students,
@@ -2707,8 +2761,9 @@ def admin_clients():
         notifications=data.get("client_notifications", [])[:60],
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         finance=finance_summary(data),
-        payment_logs=data.get("payments_log", [])[:80],
+        payment_logs=payment_logs,
         tournaments=enriched_tournaments(data, 30),
+        exercises=data.get("exercises", [])[:30],
         messages=data.get("student_messages", [])[:30],
         visit_stats=data.get("visit_stats", {}),
     )
@@ -2749,18 +2804,34 @@ def api_admin_registration_approve():
     req = next((r for r in data.get("registration_requests", []) if r.get("id") == rid), None)
     if not req:
         return jsonify({"ok": False, "error": "Demande introuvable."}), 404
+    student_index = body.get("student_index")
+    if student_index == "" or student_index is None:
+        student_index = None
+    else:
+        try:
+            student_index = int(student_index)
+        except Exception:
+            student_index = None
+    access_kind = (body.get("access_kind") or "paid_registration").strip()
+    free_access = access_kind == "free_registration"
+    ghost_name = student_name_from_index(data, student_index, req.get("name") or "Ghost non lié")
     raw = uuid.uuid4().hex[:8].upper()
     code_value = "GHOST-" + raw[:4] + "-" + raw[4:]
     entry = {
-        "id": str(uuid.uuid4()), "code": code_value, "kind": "app_access", "student_index": None,
+        "id": str(uuid.uuid4()), "code": code_value, "kind": "app_access", "student_index": student_index,
         "email_hint": (req.get("email") or "").lower(), "plan": "no_plan", "amount_due": "0 FCFA",
         "created_at": now_fr(), "used": False, "source_request_id": rid,
+        "student_name": ghost_name,
+        "request_name": req.get("name"),
+        "free_access": free_access,
+        "access_label": "Inscription offerte" if free_access else "Inscription Ghost - 5 000 FCFA",
     }
     data.setdefault("registration_codes", []).insert(0, entry)
-    req.update({"status": "approved", "approved_at": now_fr(), "code": code_value})
-    payment_record = {"id": str(uuid.uuid4()), "date": now_fr(), "user_id": None, "student_index": None, "student_name": req.get("name"), "plan_key": "registration", "plan": "Inscription Ghost", "amount": safe_int(req.get("amount"), 5000), "amount_label": req.get("amount_label") or "5 000 FCFA", "status": "paid", "source_request_id": rid}
-    data.setdefault("payments_log", []).insert(0, payment_record)
-    data["payments_log"] = data.get("payments_log", [])[:300]
+    req.update({"status": "approved", "approved_at": now_fr(), "code": code_value, "student_index": student_index, "student_name": ghost_name, "access_kind": access_kind})
+    if not free_access:
+        payment_record = {"id": str(uuid.uuid4()), "date": now_fr(), "user_id": None, "student_index": student_index, "student_name": ghost_name, "request_name": req.get("name"), "plan_key": "registration", "plan": "Inscription Ghost", "amount": safe_int(req.get("amount"), 5000), "amount_label": req.get("amount_label") or "5 000 FCFA", "status": "paid", "source_request_id": rid}
+        data.setdefault("payments_log", []).insert(0, payment_record)
+        data["payments_log"] = data.get("payments_log", [])[:300]
     add_client_notification(data, "Inscription validée", f"Code généré pour {req.get('name')} : {code_value}", "registration", None, None, target_url="/admin/clients#registration-requests", item_id=rid)
     save_data(data)
     return jsonify({"ok": True, "code": entry, "request": req})
@@ -2995,6 +3066,7 @@ def api_admin_generate_code():
         except Exception: student_index = None
     access_kind = (body.get("access_kind") or "paid_registration").strip()
     free_access = access_kind == "free_registration"
+    ghost_name = student_name_from_index(data, student_index, "Profil à créer")
     # V30 : les codes manuels servent à ouvrir l'accès Ghost. On distingue inscription payée et offerte.
     entry = {
         "id": str(uuid.uuid4()),
@@ -3007,14 +3079,15 @@ def api_admin_generate_code():
         "created_at": now_fr(),
         "used": False,
         "free_access": free_access,
-        "access_label": "Inscription offerte" if free_access else "Inscription 5 000 FCFA",
+        "access_label": "Inscription offerte" if free_access else "Inscription Ghost - 5 000 FCFA",
+        "student_name": ghost_name,
     }
     data.setdefault("registration_codes", []).insert(0, entry)
     if not free_access:
         # Comptabilise uniquement les inscriptions réellement payées.
         payment_record = {
             "id": str(uuid.uuid4()), "date": now_fr(), "user_id": None,
-            "student_index": student_index, "student_name": None,
+            "student_index": student_index, "student_name": ghost_name,
             "plan_key": "registration", "plan": "Inscription Ghost",
             "amount": 5000, "amount_label": "5 000 FCFA", "status": "paid",
             "source": "manual_code",
@@ -3430,6 +3503,33 @@ def api_admin_payment_delete():
 
     save_data(data)
     return jsonify({"ok": True, "removed": removed})
+
+@app.route("/api/admin/payment/log_status", methods=["POST"])
+def api_admin_payment_log_status():
+    body = request.get_json(force=True, silent=True) or {}
+    payment_id = body.get("payment_id")
+    status = (body.get("status") or "pending").strip()
+    if status not in ("paid", "validated", "confirmed", "pending", "awaiting_validation"):
+        return jsonify({"ok": False, "error": "Statut invalide."}), 400
+    data = load_data()
+    found = None
+    for rec in data.get("payments_log", []):
+        if rec.get("id") == payment_id:
+            rec["status"] = status
+            rec["updated_at"] = now_fr()
+            if not rec.get("student_name"):
+                rec["student_name"] = student_name_from_index(data, rec.get("student_index"))
+            found = rec
+            break
+    if not found:
+        return jsonify({"ok": False, "error": "Paiement introuvable."}), 404
+    for u in data.get("users", []):
+        for pmt in u.get("payment_history", []) or []:
+            if pmt.get("id") == payment_id:
+                pmt["status"] = status
+                pmt["updated_at"] = now_fr()
+    save_data(data)
+    return jsonify({"ok": True, "payment": found})
 
 @app.route("/api/admin/registration/delete", methods=["POST"])
 def api_admin_registration_delete():
@@ -3906,7 +4006,7 @@ def api_client_profile_update():
         return jsonify({"ok": False, "error": "Profil introuvable."}), 404
     # Champs simples et volontairement limités pour éviter le désordre et l'injection.
     allowed = {
-        "name": 60, "email": 120, "phone": 40, "city": 60, "birthdate": 10,
+        "name": 60, "email": 120, "phone": 40, "telegram_chat_id": 60, "city": 60, "birthdate": 10,
         "lichess": 60, "chesscom": 60, "goal": 240, "style": 120,
         "interests": 300, "strengths": 300, "weaknesses": 300, "special_difficulties": 400
     }
