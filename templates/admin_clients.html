@@ -311,7 +311,7 @@ body{padding:8px 8px 72px!important}
 </div>
 
 <div class="center-nav" aria-label="Navigation rapide centre de commandement">
-  <a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#profile-updates">Profils</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
+  <a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#profile-updates">Profils</a><a href="#telegram-setup">Telegram</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
 </div>
 
 <section class="grid">
@@ -365,6 +365,15 @@ body{padding:8px 8px 72px!important}
       {% endfor %}
     </div>
     {% else %}<div class="muted">Aucune info personnelle renseignée récemment.</div>{% endif %}
+  </div>
+
+  <div class="card" id="telegram-setup">
+    <div class="ttl">Notifications Telegram</div>
+    <div class="section-note">Envoie d'abord <b>/start</b> au bot, puis lance la détection. Le token reste proté dans Render.</div>
+    <button class="btn secondary" type="button" onclick="discoverTelegramChats()">Détecter les comptes</button>
+    <select class="fi" id="telegram-chat" style="display:none;margin-top:10px"></select>
+    <button class="btn" id="telegram-connect" type="button" style="display:none" onclick="connectTelegramCoach()">Connecter le coach et tester</button>
+    <span class="muted" id="telegram-msg"></span>
   </div>
 
   <div class="card" id="manual-code">
@@ -509,6 +518,8 @@ async function postJSON(url,payload){const r=await fetch(url,{method:'POST',head
 function showFileCount(input,id){const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Impossible d\u2019envoyer le fichier.');return(d.urls||[d.url]).filter(Boolean)}
 async function generateCode(){const d=await postJSON('/api/admin/codes/generate',{student_index:$('student-index').value,email:$('email').value,plan:'no_plan',access_kind:$('access-kind').value});if(d.ok){$('new-code').innerHTML='<div class="code" style="font-size:22px">'+d.code.code+'</div><div class="muted">'+(d.code.free_access?'Inscription offerte : non comptabilisée.':'Inscription 5 000 FCFA comptabilisée.')+'</div>';setTimeout(()=>location.reload(),1200)}}
+async function discoverTelegramChats(){const msg=$('telegram-msg');msg.textContent='Détection…';const d=await postJSON('/api/admin/telegram/chats',{});if(!d.ok){msg.textContent=d.error||'Erreur Telegram';return}const select=$('telegram-chat');select.innerHTML=(d.chats||[]).map(c=>'<option value="'+c.id+'">'+(c.name||'Compte')+(c.username?' (@'+c.username+')':'')+' · '+c.id+'</option>').join('');if(!d.chats?.length){msg.textContent='Aucun compte trouvé. Envoie /start au bot puis recommence.';return}select.style.display='block';$('telegram-connect').style.display='inline-flex';msg.textContent=d.chats.length+' compte(s) détecté(s).'}
+async function connectTelegramCoach(){const msg=$('telegram-msg');msg.textContent='Envoi du test…';const d=await postJSON('/api/admin/telegram/connect',{chat_id:$('telegram-chat').value});msg.textContent=d.ok?'Telegram coach connecté. Vérifie le message reçu.':(d.error||'Erreur Telegram')}
 async function markRead(){await fetch('/api/admin/notifications/read',{method:'POST'});location.reload()}
 async function deleteAdminNotification(notification_id){if(!confirm('Supprimer cette notification côté coach ?'))return;const d=await postJSON('/api/admin/notifications/delete',{notification_id});if(d.ok){const row=$('admin-notif-'+notification_id);if(row)row.remove();}else alert(d.error||'Erreur')}
 async function sendFeedback(){const msg=$('fb-msg');msg.textContent='Envoi…';try{const attachments=await uploadAdminFiles('fb-file');const linkedGame=$('fb-linked-game-id')?.value||'';const d=await postJSON('/api/admin/feedback/send',{student_index:$('fb-student').value,title:$('fb-title').value,kind:$('fb-kind').value,priority:$('fb-priority').value,text:$('fb-text').value,attachments,image_url:attachments[0]||'',position_fen:$('fb-fen').value,pgn:$('fb-pgn').value,tags:$('fb-tags').value,linked_id:linkedGame,action_required:$('fb-action').checked});if(d.ok&&linkedGame)await postJSON('/api/admin/game/status',{student_index:$('fb-student').value,game_id:linkedGame,status:'corrigé'});msg.textContent=d.ok?'Feedback envoyé.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}catch(error){msg.textContent=error.message||'Erreur pendant l\u2019envoi.'}}
@@ -556,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function(){
     card.appendChild(controls);
   });
   const cards = Array.from(document.querySelectorAll('section.grid > .card.full, section.grid > .card[id]'));
-  const keepOpenIds = new Set(['registration-requests', 'manual-code', 'profile-updates']);
+  const keepOpenIds = new Set(['registration-requests', 'manual-code', 'profile-updates', 'telegram-setup']);
   cards.forEach(function(card, index){
     if(card.classList.contains('cc-panel')) return;
     const ttl = card.querySelector(':scope > .ttl');

@@ -1064,6 +1064,34 @@ def telegram_send(chat_id, text):
         print(f"[GHOST] Telegram notification skipped: {e}")
         return False
 
+def telegram_recent_chats():
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("GHOST_TELEGRAM_BOT_TOKEN")
+    if not token:
+        return [], "Token Telegram absent dans l'environnement."
+    try:
+        req = Request(f"https://api.telegram.org/bot{token}/getUpdates", method="GET")
+        with urlopen(req, timeout=6) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        if not payload.get("ok"):
+            return [], payload.get("description") or "Telegram a refusé la requête."
+        chats = {}
+        for update in payload.get("result", []):
+            message = update.get("message") or update.get("edited_message") or update.get("channel_post") or {}
+            chat = message.get("chat") or {}
+            chat_id = chat.get("id")
+            if chat_id is None:
+                continue
+            name = " ".join(filter(None, [chat.get("first_name"), chat.get("last_name")])).strip()
+            chats[str(chat_id)] = {
+                "id": str(chat_id),
+                "name": name or chat.get("title") or chat.get("username") or "Compte Telegram",
+                "username": chat.get("username") or "",
+                "type": chat.get("type") or "private",
+            }
+        return list(chats.values()), ""
+    except Exception as e:
+        return [], f"Connexion Telegram impossible : {e}"
+
 def telegram_chat_for_student(data, student_index):
     if isinstance(student_index, int) and 0 <= student_index < len(data.get("students", [])):
         stu = data["students"][student_index]
@@ -1538,7 +1566,8 @@ def add_client_notification(data, title, text, kind="info", user_id=None, studen
     data["client_notifications"] = data.get("client_notifications", [])[:120]
     admin_chat_id = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or
                      os.environ.get("GHOST_TELEGRAM_ADMIN_CHAT_ID") or
-                     os.environ.get("TELEGRAM_COACH_CHAT_ID"))
+                     os.environ.get("TELEGRAM_COACH_CHAT_ID") or
+                     data.get("telegram_admin_chat_id"))
     if admin_chat_id:
         who = student_name_from_index(data, student_index, "")
         suffix = f" - {who}" if who else ""
@@ -3397,6 +3426,26 @@ def api_admin_upload():
     if not urls:
         return jsonify({"ok": False, "error": "Aucun fichier valide."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
+
+@app.route("/api/admin/telegram/chats", methods=["POST"])
+def api_admin_telegram_chats():
+    chats, error = telegram_recent_chats()
+    if error:
+        return jsonify({"ok": False, "error": error}), 400
+    return jsonify({"ok": True, "chats": chats})
+
+@app.route("/api/admin/telegram/connect", methods=["POST"])
+def api_admin_telegram_connect():
+    body = request.get_json(force=True, silent=True) or {}
+    chat_id = str(body.get("chat_id") or "").strip()
+    if not chat_id or not chat_id.lstrip("-").isdigit():
+        return jsonify({"ok": False, "error": "Chat Telegram invalide."}), 400
+    if not telegram_send(chat_id, "GHOST Academy\nNotifications coach connectées avec succès."):
+        return jsonify({"ok": False, "error": "Telegram n'a pas pu envoyer le message test."}), 400
+    data = load_data()
+    data["telegram_admin_chat_id"] = chat_id
+    save_data(data)
+    return jsonify({"ok": True, "chat_id": chat_id})
 
 @app.route("/api/admin/payment/confirm", methods=["POST"])
 def api_admin_payment_confirm():
