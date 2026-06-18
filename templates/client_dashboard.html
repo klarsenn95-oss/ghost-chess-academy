@@ -76,6 +76,35 @@
       <div class="stat"><b>{% if selected_plan.key == 'no_plan' %}—{% else %}{{ plan_state.remaining_sessions }}/{{ plan_state.total_sessions }}{% endif %}</b><span class="muted">Séances restantes</span></div>
     </div>{% if student and student.hakis %}<div class="haki-row">{% for h in student.hakis %}<span class="haki-pill" style="color:{{ h.color }}">{{ h.label }}</span>{% endfor %}</div>{% endif %}
     <div class="syncbox"><button class="btn secondary" onclick="syncElo()">🔄 Actualiser mon ELO</button><span class="msg" id="elo-msg"></span></div>
+    {% if student %}
+    <div class="syncbox" style="margin-top:10px">
+      <span style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="color:#60a5fa">📱</span>
+        <span id="tg-status-text">
+        {% if student.telegram_linked %}
+          🟢 <b>Telegram connecté</b> — tu reçois tes notifications directement
+        {% else %}
+          <span class="muted">🔗 Lie ton compte Telegram pour recevoir les notifications</span>
+        {% endif %}
+        </span>
+      </span>
+      {% if student.telegram_linked %}
+        <button class="btn secondary" onclick="telegramUnlink()" style="margin-left:auto;font-size:12px;padding:6px 11px">✕ Délier</button>
+      {% else %}
+        <button class="btn secondary" id="tg-link-btn" onclick="telegramGetCode()" style="margin-left:auto;font-size:12px;padding:6px 11px">Lier Telegram</button>
+      {% endif %}
+    </div>
+    <div id="tg-code-box" style="display:none;margin-top:8px;background:#0a0a1e;border:1px solid #a78bfa44;border-radius:14px;padding:14px">
+      <div style="font-weight:900;margin-bottom:6px;color:#a78bfa">📋 Code de liaison</div>
+      <div style="font-size:22px;font-family:monospace;letter-spacing:3px;color:#fbbf24;text-align:center;padding:8px" id="tg-code-display">—</div>
+      <div class="muted small" style="margin-top:6px">
+        <b>Dans Telegram :</b><br>
+        1. Ouvre <a href="https://t.me/{{ student.telegram_bot_username }}" target="_blank" style="color:#60a5fa">@{{ student.telegram_bot_username }}</a><br>
+        2. Envoie ce code (valable <span id="tg-expires">15</span> minutes)
+      </div>
+      <div class="msg" id="tg-status-msg"></div>
+    </div>
+    {% endif %}
     {% endif %}
     {% if selected_plan.key == 'no_plan' %}
     <div class="progress-wrap pending-note">
@@ -228,6 +257,76 @@ function onTargetModeChange(){const mode=document.getElementById('msg-target-mod
 async function sendStudentMessage(){const msg=document.getElementById('msg-send-status');msg.textContent='Envoi…';const mode=document.getElementById('msg-target-mode')?.value||'pairs';const d=await postJSON('/api/client/message/send',{target_mode:mode,target_student:document.getElementById('msg-target-student')?.value||'',text:document.getElementById('msg-text').value,url:document.getElementById('msg-url').value,fen:document.getElementById('msg-fen').value,pgn:document.getElementById('msg-pgn').value});msg.textContent=d.ok?'Message envoyé.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),700)}
 const QUOTES=['Quand tu vois un bon coup, cherche-en un meilleur. — Lasker','Les pions sont l’âme des échecs. — Philidor','Une erreur répétée devient un thème d’entraînement.','Travaille les finales : elles clarifient tout le jeu.','Analyse tes défaites sans ego : elles montrent le chemin.'];document.getElementById('quoteText').textContent=QUOTES[Math.floor(Math.random()*QUOTES.length)];
 window.addEventListener('DOMContentLoaded',()=>{const h=(location.hash||'').replace('#','')||localStorage.getItem('ghost_client_tab');if(h&&document.getElementById('tab-'+h))showTab(h); if(localStorage.getItem('ghost_onboarding_done')==='1')document.getElementById('onboard')?.classList.add('hidden')});
+
+// ── Telegram linking ──
+async function telegramGetCode(){
+  const btn=document.getElementById('tg-link-btn'); if(btn)btn.disabled=true;
+  const box=document.getElementById('tg-code-box'); if(box)box.style.display='block';
+  const disp=document.getElementById('tg-code-display'); const msg=document.getElementById('tg-status-msg');
+  if(msg)msg.textContent='Génération…';
+  try{
+    const r=await fetch('/api/client/telegram/link',{method:'POST'});
+    const d=await r.json();
+    if(d.ok){
+      if(disp)disp.textContent=d.code;
+      if(msg)msg.textContent='Code prêt. Envoie-le au bot Telegram.';
+    }else{
+      if(msg)msg.textContent=d.error||'Erreur';
+    }
+  }catch(e){
+    if(msg)msg.textContent='Erreur réseau.';
+  }
+  if(btn)btn.disabled=false;
+}
+async function telegramUnlink(){
+  if(!confirm('Délier ton compte Telegram ? Tu ne recevras plus de notifications.'))return;
+  try{
+    const r=await fetch('/api/client/telegram/unlink',{method:'POST'});
+    const d=await r.json();
+    if(d.ok)location.reload();
+    else alert(d.error||'Erreur');
+  }catch(e){alert('Erreur réseau.');}
+}
+
+// Push subscription & polling for client
+(async function(){
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+  }
+  try{
+    if('serviceWorker' in navigator && 'PushManager' in window){
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const resp = await fetch('/api/push/vapid_public_key'); const k = (await resp.json()).vapid_public_key;
+      let sub = await reg.pushManager.getSubscription();
+      if(!sub){ const opts = { userVisibleOnly: true }; if(k) opts.applicationServerKey = urlBase64ToUint8Array(k); sub = await reg.pushManager.subscribe(opts); }
+      const payload = Object.assign({}, sub, { user_id: '{{ user.id if user and user.id else "" }}', student_index: {{ student._index if student and student._index is not none else 'null' }} });
+      await fetch('/api/client/notifications/subscribe', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+  }catch(e){ console.warn('push init client', e); }
+
+  async function pollClient(){
+    try{
+      const si = {{ student._index if student and student._index is not none else 'null' }};
+      const url = si !== null ? `/api/client/notifications/poll?student_index=${si}` : '/api/client/notifications/poll';
+      const r = await fetch(url); const j = await r.json();
+      const el = document.getElementById('ghostNotifCount'); if(el) el.textContent = j.unread_count || 0;
+      // optionally show lightweight toast in-page
+      if(j.notifications && j.notifications.length){
+        j.notifications.slice(0,3).forEach(n=>{
+          try{ if(Notification && Notification.permission === 'granted') new Notification(n.title || 'GHOST', { body: n.body || n.text || '', data: n.target_url || '/' }); }
+          catch(e){}
+        });
+      }
+    }catch(e){}
+  }
+  setInterval(pollClient, 12000);
+  pollClient();
+})();
 
 </script>
 </body>

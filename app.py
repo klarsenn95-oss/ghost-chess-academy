@@ -7,7 +7,10 @@
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, send_from_directory, session
-import json, os, uuid, threading
+import json, os, uuid, threading, base64
+import smtplib
+from email.message import EmailMessage
+from pywebpush import webpush, WebPushException
 from datetime import datetime, timedelta, date
 from functools import wraps
 from urllib.request import urlopen, Request
@@ -46,6 +49,11 @@ DATA_FILE = os.path.join(os.path.expanduser("~"), ".ghost_chess_data.json")
 
 ADMIN_USERNAME = os.environ.get("GHOST_ADMIN_USERNAME", "coach")
 ADMIN_PASSWORD = os.environ.get("GHOST_ADMIN_PASSWORD", "")
+ADMIN_EMAIL = os.environ.get("GHOST_ADMIN_EMAIL", "")
+
+# ── Telegram Bot ───────────────────────────────────────────
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_ADMIN_CHAT_ID = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "")
 
 def admin_auth_enabled():
     return bool(ADMIN_PASSWORD)
@@ -61,7 +69,7 @@ def protect_coach_space():
     if not admin_auth_enabled():
         return None
     path = request.path or "/"
-    public_prefixes = ("/static/", "/client", "/api/client", "/coach/login", "/login", "/health", "/favicon.ico")
+    public_prefixes = ("/static/", "/client", "/api/client", "/coach/login", "/login", "/health", "/favicon.ico", "/api/push", "/sw.js")
     if path.startswith(public_prefixes):
         return None
     if admin_logged_in():
@@ -148,6 +156,155 @@ def allowed_file(fn):
 app.config["SCHEDULER_API_ENABLED"] = False
 scheduler = APScheduler()
 scheduler.init_app(app)
+
+# --- Web Push / SMTP helpers -------------------------------------------------
+def _vapid_keys():
+    pub = os.environ.get("GHOST_PUSH_VAPID_PUBLIC_KEY")
+    priv = os.environ.get("GHOST_PUSH_VAPID_PRIVATE_KEY")
+    email = os.environ.get("GHOST_PUSH_VAPID_EMAIL")
+    return pub, priv, email
+
+def send_push(subscription: dict, payload: dict) -> bool:
+    pub, priv, email = _vapid_keys()
+    if not subscription or not priv:
+        return False
+    try:
+        webpush(
+            subscription_info=subscription,
+            data=json.dumps(payload),
+            vapid_private_key=priv,
+            vapid_claims={"sub": f"mailto:{email or 'notify@localhost'}"},
+        )
+        return True
+    except WebPushException as exc:
+        print(f"[GHOST/Push] Erreur envoi push: {exc}")
+        return False
+
+def send_email(to_addr: str, subject: str, body: str) -> bool:
+    host = os.environ.get('SMTP_HOST')
+    port = int(os.environ.get('SMTP_PORT') or 0)
+    user = os.environ.get('SMTP_USER')
+    pwd = os.environ.get('SMTP_PASSWORD')
+    sender = os.environ.get('SMTP_FROM') or user
+    use_tls = os.environ.get('SMTP_USE_TLS', '1') in ('1', 'true', 'yes')
+    if not host or not port:
+        return False
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = to_addr
+        msg.set_content(body)
+        if use_tls:
+            s = smtplib.SMTP(host, port, timeout=10)
+            s.starttls()
+        else:
+            s = smtplib.SMTP(host, port, timeout=10)
+        if user and pwd:
+            s.login(user, pwd)
+        s.send_message(msg)
+        s.quit()
+        return True
+    except Exception as e:
+        print(f"[GHOST/SMTP] Erreur envoi email: {e}")
+        return False
+
+# ── Telegram helpers ──────────────────────────────────────
+def send_telegram(chat_id: str, text: str, parse_mode: str = "HTML") -> bool:
+    """Send a message via Telegram Bot API. Returns True on success."""
+    token = TELEGRAM_BOT_TOKEN
+    if not token or not chat_id:
+        return False
+    try:
+        data = json.dumps({
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": parse_mode,
+            "disable_web_page_preview": True,
+        }).encode("utf-8")
+        req = Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        with urlopen(req, timeout=6) as r:
+            body = json.loads(r.read().decode("utf-8"))
+            return body.get("ok", False)
+    except Exception as exc:
+        print(f"[GHOST/Telegram] sendMessage échec: {exc}")
+        return False
+
+
+def _gen_telegram_link_code() -> str:
+    """Generate a short alphanumeric code for Telegram account linking."""
+    import random as _random, string as _string
+    chars = _string.ascii_uppercase + _string.digits
+    suffix = "".join(_random.choices(chars, k=4))
+    return f"GHOST-{suffix}"
+
+
+def _store_telegram_link_code(data: dict, user_id: str, code: str) -> None:
+    """Store a temporary one-time linking code (expires in 15 minutes)."""
+    data.setdefault("telegram_linking_codes", {})
+    data["telegram_linking_codes"][code] = {
+        "user_id": user_id,
+        "created_at": now_iso(),
+        "expires_at": (datetime.now() + timedelta(minutes=15)).isoformat(),
+    }
+
+
+def _consume_telegram_link_code(data: dict, code: str) -> dict | None:
+    """Validate and consume a one-time Telegram linking code. Returns user dict or None."""
+    codes = data.get("telegram_linking_codes", {})
+    entry = codes.get(code)
+    if not entry:
+        return None
+    try:
+        expires = datetime.fromisoformat(entry["expires_at"])
+        if datetime.now() > expires:
+            del codes[code]
+            return None
+    except Exception:
+        del codes[code]
+        return None
+    user_id = entry["user_id"]
+    user = next((u for u in data.get("users", []) if u.get("id") == user_id), None)
+    del codes[code]
+    return user
+
+
+def _notify_telegram(data: dict, title: str, text: str, is_admin_notif: bool,
+                     target_user: dict | None = None) -> None:
+    """Send Telegram notifications to coach and/or student."""
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    import html as _html
+    safe_title = _html.escape(title)
+    safe_text = _html.escape(text)
+    if is_admin_notif:
+        if TELEGRAM_ADMIN_CHAT_ID:
+            send_telegram(TELEGRAM_ADMIN_CHAT_ID, f"<b>\U0001f514 {safe_title}</b>\n\n{safe_text}")
+    else:
+        if target_user:
+            chat_id = target_user.get("telegram_chat_id")
+            if chat_id:
+                send_telegram(str(chat_id), f"<b>\U0001f40e {safe_title}</b>\n\n{safe_text}")
+            if TELEGRAM_ADMIN_CHAT_ID:
+                name = _html.escape(target_user.get("name", "Un Ghost"))
+                send_telegram(TELEGRAM_ADMIN_CHAT_ID, f"<b>\U0001f4e8 {name}</b>\n\n<i>{safe_title}</i>\n{safe_text}")
+
+# Admin push subscriptions (global list stored in data root)
+def add_admin_push_subscription(data, sub):
+    lst = data.setdefault('admin_push_subscriptions', [])
+    # dedupe by endpoint
+    endpoint = sub.get('endpoint')
+    lst = [s for s in lst if s.get('endpoint') != endpoint]
+    lst.insert(0, sub)
+    data['admin_push_subscriptions'] = lst[:60]
+
+def remove_admin_push_subscription(data, endpoint):
+    data['admin_push_subscriptions'] = [s for s in data.get('admin_push_subscriptions', []) if s.get('endpoint') != endpoint]
+
 
 MONTHS = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
 
@@ -1402,6 +1559,17 @@ def add_student_feedback(data, student_index, title, text, kind="feedback", link
     }
     student.setdefault("client_feedback", []).insert(0, entry)
     student["client_feedback"] = student.get("client_feedback", [])[:80]
+    
+    # Notify student via real-time and off-line channels
+    target_tab = "feedback"
+    if kind == "homework": target_tab = "homework"
+    elif kind == "payment": target_tab = "payment"
+    elif kind == "tournament": target_tab = "tournois"
+    elif kind == "appointment": target_tab = "rdv"
+    elif kind in ("system", "account"): target_tab = "divers"
+    
+    add_client_notification(data, title, text, kind, student_index=student_index, target_url=f"/client#{target_tab}")
+    
     return entry
 
 def find_user_for_student(data, student_index):
@@ -1425,6 +1593,7 @@ def notification_target_url(kind="info", student_index=None, item_id=None):
     return base + "#notifications"
 
 def add_client_notification(data, title, text, kind="info", user_id=None, student_index=None, target_url=None, item_id=None):
+    final_url = target_url or notification_target_url(kind, student_index, item_id)
     data.setdefault("client_notifications", []).insert(0, {
         "id": str(uuid.uuid4()),
         "title": title,
@@ -1433,13 +1602,65 @@ def add_client_notification(data, title, text, kind="info", user_id=None, studen
         "user_id": user_id,
         "student_index": student_index,
         "item_id": item_id,
-        "target_url": target_url or notification_target_url(kind, student_index, item_id),
+        "target_url": final_url,
         "date": now_iso(),
         "read": False,
     })
     data["client_notifications"] = data.get("client_notifications", [])[:120]
+    # Try to send push/email to the target user (if any) and to admins subscribed
+    try:
+        payload = {"title": title, "body": text, "url": final_url}
+        is_admin_notif = final_url.startswith("/admin")
+        u = None
+        
+        if is_admin_notif:
+            # Notify coach via Email
+            if ADMIN_EMAIL:
+                send_email(ADMIN_EMAIL, f"[GHOST] {title}", text)
+        else:
+            # Notify student via Push/Email
+            u = None
+            if user_id:
+                u = next((u for u in data.get('users', []) if u.get('id') == user_id), None)
+            elif isinstance(student_index, int):
+                u = find_user_for_student(data, student_index)
+            
+            if u:
+                sub = u.get('push_subscription')
+                if sub:
+                    send_push(sub, payload)
+                if u.get('email'):
+                    send_email(u.get('email'), title, text)
 
-def public_student_payload(student):
+        # Also notify all admin subscriptions (Push)
+        for s in data.get('admin_push_subscriptions', []) or []:
+            try:
+                send_push(s, payload)
+            except Exception:
+                pass
+
+        # ── Telegram notification ──
+        if TELEGRAM_BOT_TOKEN:
+            try:
+                target_user = u if u else (find_user_for_student(data, student_index) if isinstance(student_index, int) else None)
+                if is_admin_notif:
+                    if TELEGRAM_ADMIN_CHAT_ID:
+                        send_telegram(TELEGRAM_ADMIN_CHAT_ID, f"<b>\U0001f514 {title}</b>\n\n{text}")
+                else:
+                    if target_user:
+                        chat_id = target_user.get("telegram_chat_id")
+                        if chat_id:
+                            send_telegram(str(chat_id), f"<b>\U0001f40e {title}</b>\n\n{text}")
+                        if TELEGRAM_ADMIN_CHAT_ID:
+                            import html as _html
+                            name = _html.escape(target_user.get("name", "Un Ghost"))
+                            send_telegram(TELEGRAM_ADMIN_CHAT_ID, f"<b>\U0001f4e8 {name}</b>\n\n<i>{_html.escape(title)}</i>\n{_html.escape(text)}")
+            except Exception as _te:
+                print(f"[GHOST/Telegram] notif échec: {_te}")
+    except Exception as e:
+        print(f"[GHOST/Notify] erreur notification: {e}")
+
+def public_student_payload(student, user=None):
     if not student:
         return None
     rank = get_rank(student)
@@ -1484,6 +1705,8 @@ def public_student_payload(student):
         "client_divers": divers[-20:],
         "client_notifications": ghost_notifications[:20],
         "client_notifications_count": len(ghost_notifications),
+        "telegram_linked": bool((user and user.get("telegram_chat_id")) or student.get("telegram_chat_id")),
+        "telegram_bot_username": os.environ.get("TELEGRAM_BOT_USERNAME", ""),
     }
 
 def require_client_json():
@@ -1656,6 +1879,97 @@ def student_contacts_payload(data, student_index):
 @app.route("/health")
 def health():
     return jsonify({"ok": True, "app": "ghost-chess", "version": "v24", "port": 5023, "backend": backend_name(), "storage": "supabase" if storage_configured() else "local"})
+
+
+# Serve service worker at root path
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+
+@app.route('/api/push/vapid_public_key')
+def vapid_public_key():
+    pub, priv, email = _vapid_keys()
+    return jsonify({'vapid_public_key': pub or ''})
+
+
+@app.route('/api/client/notifications/subscribe', methods=['POST'])
+def client_notifications_subscribe():
+    sub = request.get_json() or {}
+    # try to infer user_id from JSON body
+    uid = sub.get('user_id') or request.args.get('user_id')
+    state = load_state()
+    if uid:
+        u = next((u for u in state.get('users', []) if u.get('id') == uid), None)
+        if u:
+            u['push_subscription'] = sub
+            save_state(state)
+            return jsonify({'ok': True})
+    # fallback: store in a generic place
+    state.setdefault('client_push_subscriptions', [])
+    # dedupe by endpoint
+    ep = sub.get('endpoint')
+    state['client_push_subscriptions'] = [s for s in state.get('client_push_subscriptions', []) if s.get('endpoint') != ep]
+    state['client_push_subscriptions'].insert(0, sub)
+    state['client_push_subscriptions'] = state['client_push_subscriptions'][:200]
+    save_state(state)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/client/notifications/unsubscribe', methods=['POST'])
+def client_notifications_unsubscribe():
+    body = request.get_json() or {}
+    endpoint = body.get('endpoint')
+    state = load_state()
+    # remove from users
+    for u in state.get('users', []):
+        if u.get('push_subscription', {}).get('endpoint') == endpoint:
+            u.pop('push_subscription', None)
+    # remove from generic list
+    state['client_push_subscriptions'] = [s for s in state.get('client_push_subscriptions', []) if s.get('endpoint') != endpoint]
+    save_state(state)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/client/notifications/poll')
+def client_notifications_poll():
+    # expects ?student_index= or ?user_id=
+    student_index = request.args.get('student_index')
+    user_id = request.args.get('user_id')
+    state = load_state()
+    if student_index is not None:
+        try:
+            si = int(student_index)
+        except Exception:
+            si = None
+        payload = public_student_payload(state, si) if si is not None else {}
+        notes = [n for n in payload.get('client_notifications', []) if not n.get('read')]
+        return jsonify({'unread_count': len(notes), 'notifications': notes})
+    if user_id:
+        notes = [n for n in state.get('client_notifications', []) if n.get('user_id') == user_id and not n.get('read')]
+        return jsonify({'unread_count': len(notes), 'notifications': notes})
+    # default: return recent unread global
+    notes = [n for n in state.get('client_notifications', []) if not n.get('read')][:50]
+    return jsonify({'unread_count': len(notes), 'notifications': notes})
+
+
+@app.route('/api/admin/notifications/subscribe', methods=['POST'])
+def admin_notifications_subscribe():
+    sub = request.get_json() or {}
+    state = load_state()
+    add_admin_push_subscription(state, sub)
+    save_state(state)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/admin/notifications/unsubscribe', methods=['POST'])
+def admin_notifications_unsubscribe():
+    body = request.get_json() or {}
+    endpoint = body.get('endpoint')
+    state = load_state()
+    remove_admin_push_subscription(state, endpoint)
+    save_state(state)
+    return jsonify({'ok': True})
 
 @app.route("/app")
 def app_shell():
@@ -2595,7 +2909,7 @@ def client_portal():
     return render_template(
         "client_dashboard.html",
         user=user,
-        student=public_student_payload(student),
+        student=public_student_payload(student, user),
         payment=get_user_payment_state(user),
         price_plans=plans,
         selected_plan=selected_plan,
@@ -3783,9 +4097,178 @@ def api_admin_plans_save():
     save_data(data)
     return jsonify({"ok": True, "plans": data["client_price_plans"]})
 
+# ═══════════════════════════════════════════════════════════
+# ─── Telegram Bot ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════
+
+@app.route("/api/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """Receive updates from Telegram (webhook mode)."""
+    if not TELEGRAM_BOT_TOKEN:
+        return jsonify({"ok": False, "error": "Telegram bot not configured"}), 503
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        return jsonify({"ok": False}), 400
+
+    message = body.get("message") or body.get("channel_post") or {}
+    if not message:
+        return jsonify({"ok": True, "reason": "no_message"})
+
+    chat = message.get("chat") or {}
+    chat_id = str(chat.get("id", ""))
+    text = (message.get("text") or "").strip()
+    if not chat_id or not text:
+        return jsonify({"ok": True, "reason": "empty"})
+
+    # ── /start command ──
+    if text == "/start":
+        send_telegram(chat_id,
+            "\U0001f44b Bienvenue sur le bot GHOST Chess !\n\n"
+            "Pour lier ton compte Ghost, connecte-toi d'abord sur le site, "
+            "va dans les r\u00e9glages et copie ton <b>code de liaison</b> "
+            "(ex: GHOST-X7K2). Ensuite envoie ce code ici."
+        )
+        # If this is the coach's first /start and TELEGRAM_ADMIN_CHAT_ID not set,
+        # store it for convenience (the coach can override in .env)
+        if not TELEGRAM_ADMIN_CHAT_ID:
+            pass  # Coach sets it manually in .env for safety
+        return jsonify({"ok": True, "action": "start"})
+
+    # ── Help ──
+    if text.lower() in ("/help", "aide", "help"):
+        send_telegram(chat_id,
+            "\U0001f4ac <b>Commandes disponibles :</b>\n\n"
+            "/start — D\u00e9marrer le bot\n"
+            "GHOST-XXXX — Lier ton compte Ghost\n"
+            "/stop — D\u00e9lier ton compte\n"
+            "/help — Cette aide"
+        )
+        return jsonify({"ok": True, "action": "help"})
+
+    # ── /stop — unlink ──
+    if text.lower() == "/stop":
+        data = load_data()
+        found = False
+        for u in data.get("users", []):
+            if str(u.get("telegram_chat_id") or "") == chat_id:
+                u["telegram_chat_id"] = ""
+                idx = u.get("student_index")
+                if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])):
+                    data["students"][idx]["telegram_chat_id"] = ""
+                found = True
+        if found:
+            save_data(data)
+            send_telegram(chat_id, "\u2705 Compte d\u00e9li\u00e9. Tu ne recevras plus de notifications Ghost ici.")
+        else:
+            send_telegram(chat_id, "\u2139\ufe0f Aucun compte li\u00e9 trouv\u00e9.")
+        return jsonify({"ok": True, "action": "stop"})
+
+    # ── Linking code (GHOST-XXXX) ──
+    if text.upper().startswith("GHOST-"):
+        code = text.upper().strip()
+        data = load_data()
+        user = _consume_telegram_link_code(data, code)
+        if not user:
+            send_telegram(chat_id, "\u274c Code invalide ou expir\u00e9. G\u00e9n\u00e8re un nouveau code depuis ton espace Ghost.")
+            return jsonify({"ok": True, "action": "invalid_code"})
+        # Link
+        user["telegram_chat_id"] = chat_id
+        idx = user.get("student_index")
+        if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])):
+            data["students"][idx]["telegram_chat_id"] = chat_id
+        save_data(data)
+        name = user.get("name", "Ghost")
+        send_telegram(chat_id,
+            f"\u2705 <b>Compte li\u00e9 !</b>\n\n"
+            f"Bienvenue {name} \U0001f40e\n"
+            f"Tu recevras d\u00e9sormais tes notifications GHOST ici : "
+            f"devoirs, corrections, tournois, paiements..."
+        )
+        return jsonify({"ok": True, "action": "linked", "user_name": name})
+
+    # ── Unknown ──
+    send_telegram(chat_id, "\u2753 Commande inconnue. Envoie /help pour voir les options.")
+    return jsonify({"ok": True, "action": "unknown"})
+
+
+@app.route("/api/client/telegram/link", methods=["POST"])
+def api_client_telegram_link():
+    """Generate a linking code for the authenticated student."""
+    data, user, resp, code = require_client_json()
+    if resp:
+        return resp, code
+    if client_is_restricted(user):
+        return restricted_response(user)
+    # Generate and store code
+    link_code = _gen_telegram_link_code()
+    _store_telegram_link_code(data, user["id"], link_code)
+    save_data(data)
+    bot_username = os.environ.get("TELEGRAM_BOT_USERNAME", "GhostChessBot")
+    return jsonify({
+        "ok": True,
+        "code": link_code,
+        "bot_username": bot_username,
+        "expires_in_minutes": 15,
+    })
+
+
+@app.route("/api/client/telegram/unlink", methods=["POST"])
+def api_client_telegram_unlink():
+    """Unlink the Telegram account from the current user."""
+    data, user, resp, code = require_client_json()
+    if resp:
+        return resp, code
+    old_chat_id = user.get("telegram_chat_id")
+    user["telegram_chat_id"] = ""
+    idx = user.get("student_index")
+    if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])):
+        data["students"][idx]["telegram_chat_id"] = ""
+    save_data(data)
+    if old_chat_id:
+        try:
+            send_telegram(str(old_chat_id), "\U0001f91d Compte d\u00e9li\u00e9. \u00c0 bient\u00f4t sur GHOST !")
+        except Exception:
+            pass
+    return jsonify({"ok": True})
+
+
+def _register_telegram_webhook(app_base_url: str) -> bool:
+    """Register the Telegram webhook URL. Returns True on success."""
+    token = TELEGRAM_BOT_TOKEN
+    if not token or not app_base_url:
+        return False
+    webhook_url = app_base_url.rstrip("/") + "/api/telegram/webhook"
+    try:
+        data = json.dumps({"url": webhook_url}).encode("utf-8")
+        req = Request(
+            f"https://api.telegram.org/bot{token}/setWebhook",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        with urlopen(req, timeout=10) as r:
+            body = json.loads(r.read().decode("utf-8"))
+            ok = body.get("ok", False)
+            if ok:
+                print(f"[GHOST/Telegram] Webhook enregistr\u00e9 : {webhook_url}")
+            else:
+                print(f"[GHOST/Telegram] \u00c9chec webhook : {body.get('description', '?')}")
+            return ok
+    except Exception as exc:
+        print(f"[GHOST/Telegram] Erreur webhook : {exc}")
+        return False
+
 if __name__ == "__main__":
     import webbrowser, time
     scheduler.start()
+    # Try to register Telegram webhook (silent if not configured)
+    if TELEGRAM_BOT_TOKEN:
+        try:
+            app_url = os.environ.get("APP_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or ""
+            if app_url:
+                threading.Thread(target=lambda: _register_telegram_webhook(app_url), daemon=True).start()
+        except Exception:
+            pass
     threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5025")),daemon=True).start()
-    print("\n♟ GHOST Chess Manager v26 Smart Cleanup → http://127.0.0.1:5025\n")
+    print("\n\u265f GHOST Chess Manager v26 Smart Cleanup \u2192 http://127.0.0.1:5025\n")
     app.run(debug=False, port=5025)
