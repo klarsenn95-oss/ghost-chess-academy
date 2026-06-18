@@ -1005,6 +1005,52 @@ def student_name_from_index(data, student_index, fallback="Ghost non lié"):
         return data["students"][student_index].get("name") or fallback
     return fallback
 
+def enrich_registration_code(data, code):
+    row = dict(code or {})
+    used_by = row.get("used_by")
+    user = next((u for u in data.get("users", []) if u.get("id") == used_by), None)
+    source_req = next((r for r in data.get("registration_requests", []) if r.get("id") == row.get("source_request_id")), None)
+    if not row.get("student_name"):
+        if isinstance(row.get("student_index"), int):
+            row["student_name"] = student_name_from_index(data, row.get("student_index"), "")
+        if not row.get("student_name") and user:
+            row["student_name"] = user.get("name") or student_name_from_index(data, user.get("student_index"), "")
+            row["student_index"] = user.get("student_index")
+        if not row.get("student_name") and source_req:
+            row["student_name"] = source_req.get("student_name") or source_req.get("name")
+    if user:
+        row["used_by_name"] = user.get("name")
+        row["used_by_email"] = user.get("email")
+    if source_req:
+        row["request_name"] = row.get("request_name") or source_req.get("name")
+        row["request_email"] = source_req.get("email")
+    row["student_name"] = row.get("student_name") or row.get("request_name") or "Profil à créer"
+    row["trace_label"] = row.get("used_by_name") or row.get("request_name") or row.get("student_name")
+    return row
+
+def recent_profile_updates(data, limit=8):
+    fields = [
+        ("goal", "Objectif"),
+        ("style", "Style"),
+        ("interests", "Intérêts"),
+        ("strengths", "Points forts"),
+        ("weaknesses", "Faiblesses"),
+        ("special_difficulties", "Difficultés"),
+    ]
+    rows = []
+    for idx, student in enumerate(data.get("students", [])):
+        filled = [(label, student.get(key)) for key, label in fields if student.get(key)]
+        if not filled:
+            continue
+        rows.append({
+            "index": idx,
+            "name": student.get("name") or "?",
+            "updated": student.get("profile_updated_at") or student.get("updated") or "",
+            "filled": filled[:4],
+        })
+    rows.sort(key=lambda r: r.get("updated") or "", reverse=True)
+    return rows[:limit]
+
 def telegram_send(chat_id, text):
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("GHOST_TELEGRAM_BOT_TOKEN")
     if not token or not chat_id or not text:
@@ -2750,12 +2796,13 @@ def admin_clients():
         if not row.get("student_name"):
             row["student_name"] = row.get("request_name") or student_name_from_index(data, row.get("student_index"))
         payment_logs.append(row)
+    codes = [enrich_registration_code(data, c) for c in data.get("registration_codes", [])]
     return render_template(
         "admin_clients.html",
         students=students,
         users=payment_users,
         all_users=users,
-        codes=data.get("registration_codes", []),
+        codes=codes,
         registration_requests=data.get("registration_requests", [])[:50],
         registration_fee=format_fcfa(default_price_grid().get("registration_fee", 5000)),
         notifications=data.get("client_notifications", [])[:60],
@@ -2765,6 +2812,7 @@ def admin_clients():
         tournaments=enriched_tournaments(data, 30),
         exercises=data.get("exercises", [])[:30],
         messages=data.get("student_messages", [])[:30],
+        profile_updates=recent_profile_updates(data),
         visit_stats=data.get("visit_stats", {}),
     )
 
@@ -4011,6 +4059,7 @@ def api_client_profile_update():
         "interests": 300, "strengths": 300, "weaknesses": 300, "special_difficulties": 400
     }
     stu = data["students"][idx]
+    changed = []
     for key, max_len in allowed.items():
         val = (body.get(key) or "").strip()
         # On garde du texte pur : Jinja échappe déjà l'affichage, mais on nettoie les balises évidentes.
@@ -4025,7 +4074,10 @@ def api_client_profile_update():
                     val = ""
         if key in ("name", "email") and not val:
             continue
+        old = (stu.get(key) or "").strip()
         stu[key] = val
+        if val and val != old:
+            changed.append(key)
         if key in ("name", "email"):
             user[key] = val
     # âge calculé automatiquement côté coach depuis la date de naissance
@@ -4037,7 +4089,19 @@ def api_client_profile_update():
             user["birthdate"] = stu.get("birthdate")
     user.setdefault("profile_updated_at", now_fr())
     user["profile_updated_at"] = now_fr()
+    stu["profile_updated_at"] = now_fr()
     data["students"][idx] = stu
+    interesting = {"goal", "style", "interests", "strengths", "weaknesses", "special_difficulties", "birthdate", "telegram_chat_id"}
+    changed_interesting = [k for k in changed if k in interesting]
+    if changed_interesting:
+        labels = {
+            "goal": "objectif", "style": "style", "interests": "intérêts",
+            "strengths": "points forts", "weaknesses": "faiblesses",
+            "special_difficulties": "difficultés", "birthdate": "date de naissance",
+            "telegram_chat_id": "Telegram",
+        }
+        summary = ", ".join(labels.get(k, k) for k in changed_interesting[:5])
+        add_client_notification(data, "Profil Ghost mis à jour", f"{user.get('name')} a modifié : {summary}.", "profile", user.get("id"), idx, target_url=f"/student/{idx}#fiche")
     save_data(data)
     return jsonify({"ok": True, "student": public_student_payload(stu)})
 
