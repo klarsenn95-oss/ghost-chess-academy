@@ -3440,12 +3440,30 @@ def api_admin_telegram_connect():
     chat_id = str(body.get("chat_id") or "").strip()
     if not chat_id or not chat_id.lstrip("-").isdigit():
         return jsonify({"ok": False, "error": "Chat Telegram invalide."}), 400
-    if not telegram_send(chat_id, "GHOST Academy\nNotifications coach connectées avec succès."):
-        return jsonify({"ok": False, "error": "Telegram n'a pas pu envoyer le message test."}), 400
     data = load_data()
-    data["telegram_admin_chat_id"] = chat_id
+    student_index = body.get("student_index")
+    if student_index not in (None, ""):
+        try:
+            student_index = int(student_index)
+        except Exception:
+            return jsonify({"ok": False, "error": "Ghost invalide."}), 400
+        if student_index < 0 or student_index >= len(data.get("students", [])):
+            return jsonify({"ok": False, "error": "Ghost introuvable."}), 404
+        student = data["students"][student_index]
+        if not telegram_send(chat_id, f"GHOST Academy\nNotifications connectées pour {student.get('name') or 'Ghost'}."):
+            return jsonify({"ok": False, "error": "Telegram n'a pas pu envoyer le message test."}), 400
+        student["telegram_chat_id"] = chat_id
+        user = find_user_for_student(data, student_index)
+        if user is not None:
+            user["telegram_chat_id"] = chat_id
+        target = "student"
+    else:
+        if not telegram_send(chat_id, "GHOST Academy\nNotifications coach connectées avec succès."):
+            return jsonify({"ok": False, "error": "Telegram n'a pas pu envoyer le message test."}), 400
+        data["telegram_admin_chat_id"] = chat_id
+        target = "coach"
     save_data(data)
-    return jsonify({"ok": True, "chat_id": chat_id})
+    return jsonify({"ok": True, "chat_id": chat_id, "target": target})
 
 @app.route("/api/admin/payment/confirm", methods=["POST"])
 def api_admin_payment_confirm():
