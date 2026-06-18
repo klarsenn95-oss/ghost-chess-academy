@@ -3785,7 +3785,12 @@ def api_admin_homework_review():
     }
     title = "Correction de devoir"
     text = d["coach_correction"].get("text") or f"Ton devoir ‘{d.get('title','')}’ a été corrigé."
-    feedback = add_student_feedback(data, idx, title, text, "homework", "devoir", d.get("id"), image_url=d["coach_correction"].get("image_url"), position_fen=d["coach_correction"].get("position_fen"))
+    feedback = add_student_feedback(
+        data, idx, title, text, "homework", "devoir", d.get("id"),
+        image_url=d["coach_correction"].get("image_url"),
+        position_fen=d["coach_correction"].get("position_fen"),
+        attachments=d["coach_correction"].get("attachments"),
+    )
     save_data(data)
     return jsonify({"ok": True, "devoir": d, "feedback": feedback})
 

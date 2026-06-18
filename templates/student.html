@@ -62,6 +62,10 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .dev-note,.exchange-text{width:100%;font-size:12px;color:#888;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;}
 .student-attachments,.exchange-files{width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;}
 .student-attachments a,.exchange-files a{font-size:11px;color:#c4b5fd;text-decoration:none;border:1px solid #262640;background:#080816;border-radius:999px;padding:4px 8px;}
+.student-attachments a:has(img){padding:0;border:0;background:transparent;border-radius:12px;overflow:hidden}
+.student-attachments img{display:block;max-width:220px;max-height:160px;object-fit:contain;border-radius:12px;border:1px solid #262640}
+.exchange-files a:has(img){padding:0;border:0;background:transparent;border-radius:12px;overflow:hidden}
+.exchange-files img{display:block;max-width:220px;max-height:160px;object-fit:contain;border-radius:12px;border:1px solid #262640}
 .exchange-card{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
 .exchange-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px;}
 .exchange-title{font-size:13px;color:#eee;font-weight:700;}
@@ -500,8 +504,9 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       </select>
       <button class="btn btn-danger btn-xs" onclick="deleteDevoir({{ loop.index0 }})">🗑</button>
       {% if d.note %}<div class="dev-note">{{ d.note }}</div>{% endif %}
-      {% if d.attachments %}<div class="student-attachments">{% for a in d.attachments %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
-      {% if d.student_submission %}<div class="dev-note"><b>Rendu Ghost</b> - {{ d.student_submission.date }}<br>{{ d.student_submission.text }}</div>{% if d.student_submission.attachments %}<div class="student-attachments">{% for a in d.student_submission.attachments %}<a href="{{ a }}" target="_blank">Rendu {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% endif %}
+      {% if d.attachments %}<div class="student-attachments">{% for a in d.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img class="preview-img" src="{{ a }}" alt="Image du devoir" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}
+      {% if d.student_submission %}<div class="dev-note"><b>Rendu Ghost</b> - {{ d.student_submission.date }}<br>{{ d.student_submission.text }}{% if d.student_submission.url %}<br><a href="{{ d.student_submission.url }}" target="_blank">Lien du rendu</a>{% endif %}</div>{% if d.student_submission.attachments %}<div class="student-attachments">{% for a in d.student_submission.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img src="{{ a }}" alt="Image rendue par le Ghost" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Rendu {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% endif %}
+      {% if d.coach_correction %}<div class="dev-note"><b>Correction coach</b> - {{ d.coach_correction.date }}<br>{{ d.coach_correction.text }}{% if d.coach_correction.position_fen %}<div class="fen">{{ d.coach_correction.position_fen }}</div>{% endif %}</div>{% if d.coach_correction.attachments %}<div class="student-attachments">{% for a in d.coach_correction.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img src="{{ a }}" alt="Image de correction" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Correction {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% endif %}
     </div>
     {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun devoir.</div>{% endfor %}
   </div>
@@ -538,7 +543,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       {% if f.text %}<div class="exchange-text">{{ f.text }}</div>{% endif %}
       {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div>{% endif %}
       {% if f.pgn %}<div class="fen">{{ f.pgn[:800] }}{% if f.pgn|length > 800 %}...{% endif %}</div>{% endif %}
-      {% if f.attachments %}<div class="exchange-files">{% for a in f.attachments %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+      {% if f.attachments %}<div class="exchange-files">{% for a in f.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img src="{{ a }}" alt="Image du feedback" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Fichier {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}
       {% if f.replies %}
       <div class="exchange-replies">
         {% for r in f.replies %}
