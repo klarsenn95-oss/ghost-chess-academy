@@ -65,6 +65,7 @@
 
 /* V35 — profil Ghost + lisibilité */
 .profile-field-label{display:block;color:#8a82a6;font-size:12px;font-weight:900}.profile-field-label .fi{margin-top:6px}
+.profile-avatar{width:92px;height:92px;border-radius:24px;object-fit:cover;border:2px solid #a78bfa66;background:#11112a}.profile-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}.elo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.elo-platform{border:1px solid #ffffff12;border-radius:18px;padding:15px;background:#070718}.elo-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.elo-mode{background:#0d0d24;border-radius:12px;padding:10px}.elo-mode b{display:block;font-size:20px;color:#fbbf24}.elo-canvas{width:100%;height:280px;background:linear-gradient(180deg,#0b1025,#060612);border-radius:16px}.squad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.squad-member{display:flex;align-items:center;gap:10px;border:1px solid #ffffff12;border-radius:16px;padding:12px;background:#09091a}.squad-member.me{border-color:#fbbf2466;background:#fbbf240b}.member-avatar{width:42px;height:42px;border-radius:13px;object-fit:cover;background:#151528}.cash-tournament{border-color:#fbbf2488!important;background:radial-gradient(circle at 95% 0,#fbbf2430,transparent 36%),linear-gradient(135deg,#211305,#09091a)!important;box-shadow:0 16px 50px #fbbf2410}.cash-prize{display:inline-flex;gap:7px;align-items:center;background:#fbbf2418;border:1px solid #fbbf2466;color:#fbbf24;border-radius:999px;padding:6px 10px;font-weight:950;margin:7px 0}@media(max-width:760px){.elo-grid,.squad-grid{grid-template-columns:1fr}.elo-modes{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -132,7 +133,7 @@
   <div class="card pay-alert"><div class="ttl">💳 Rappel bref</div><b>{{ payment.label }}</b><div class="muted" style="margin-top:6px">Relances : {{ payment.reminders }}/3. {% if payment.amount_due %}Montant attendu : {{ payment.amount_due }}. {% endif %}{% if payment.next_due %}Échéance : {{ payment.next_due }}. {% endif %}</div><button class="btn secondary" style="margin-top:12px" onclick="claimPayment()">J’ai payé / à vérifier</button><span class="msg" id="pay-claim-msg"></span></div>
   {% endif %}
 
-  <nav class="tabs"><button class="tab active" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" onclick="showTab('divers',this)">🧾 Divers</button></nav>
+  <nav class="tabs"><button class="tab active" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active">
     <div class="card"><div class="ttl">📚 Devoirs à suivre</div>{% if student and student.devoirs %}{% for d in student.devoirs[:5] %}<div class="item"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.status in ['✅ Corrigé','✅ Fait'] else 'warn' }}">{{ d.status }}</span><div class="date">{% if d.due %}À rendre : {{ d.due }}{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}</div>{% endfor %}{% else %}<div class="empty">Aucun devoir visible pour le moment.</div>{% endif %}</div>
@@ -142,6 +143,7 @@
 
   <section id="tab-profile" class="panel">
     <div class="card full"><div class="ttl">👤 Mon profil Ghost</div>
+      <div class="profile-head"><img class="profile-avatar" id="profile-avatar-preview" src="{{ student.avatar if student and student.avatar else '/static/favicon.svg' }}" alt="Photo de profil"><div><b>Photo de profil</b><div class="muted small">PNG, JPG, GIF ou WebP</div><input class="fi" style="margin:8px 0 0" type="file" id="profile-avatar" accept="image/*"><button class="btn secondary" onclick="uploadAvatar()">Mettre à jour la photo</button><span class="msg" id="avatar-msg"></span></div></div>
       <div class="mini-grid">
         <input class="fi" id="profile-name" placeholder="Nom / pseudo" value="{{ (student.name if student else user.name) or user.name }}">
         <input class="fi" id="profile-email" placeholder="Email" value="{{ (student.email if student else user.email) or user.email }}">
@@ -153,6 +155,8 @@
         <input class="fi" id="profile-chesscom" placeholder="Pseudo Chess.com" value="{{ student.chesscom if student else '' }}">
       </div>
       <input class="fi" id="profile-style" placeholder="Style de jeu : attaquant, positionnel, tactique…" value="{{ student.style if student else '' }}">
+      <div class="mini-grid"><input class="fi" id="profile-opening-white" placeholder="Ouverture préférée avec les Blancs" value="{{ student.opening_white if student else '' }}"><input class="fi" id="profile-opening-black" placeholder="Défense préférée avec les Noirs" value="{{ student.opening_black if student else '' }}"></div>
+      <div class="mini-grid"><select class="fi" id="profile-occupation-status"><option value="">Situation actuelle</option>{% for v in ['Scolaire','Étudiant','En activité','En recherche','Indépendant','Autre'] %}<option value="{{ v }}" {{ 'selected' if student and student.occupation_status==v else '' }}>{{ v }}</option>{% endfor %}</select><input class="fi" id="profile-occupation-title" placeholder="Métier / activité" value="{{ student.occupation_title if student else '' }}"><input class="fi" id="profile-education-level" placeholder="Niveau scolaire / diplôme" value="{{ student.education_level if student else '' }}"><input class="fi" id="profile-study-field" placeholder="Domaine d'étude / spécialité" value="{{ student.study_field if student else '' }}"></div>
       <textarea class="ta" id="profile-goal" placeholder="Objectif personnel : préparer un tournoi, progresser en tactique, mieux gérer le temps…">{{ student.goal if student else '' }}</textarea>
       <div class="mini-grid">
         <textarea class="ta" id="profile-interests" placeholder="Centres d'intérêts : ouvertures, joueurs, formats, thèmes…">{{ student.interests if student else '' }}</textarea>
@@ -160,10 +164,20 @@
         <textarea class="ta" id="profile-weaknesses" placeholder="Faiblesses : zeitnot, tactique, plans, confiance…">{{ student.weaknesses if student else '' }}</textarea>
         <textarea class="ta" id="profile-special-difficulties" placeholder="Difficultés particulières : stress, disponibilité, matériel, blocages…">{{ student.special_difficulties if student else '' }}</textarea>
       </div>
+      <div class="mini-grid"><textarea class="ta" id="profile-chess-meaning" placeholder="Ce que les échecs représentent pour moi…">{{ student.chess_meaning if student else '' }}</textarea><textarea class="ta" id="profile-chess-vision" placeholder="Ma vision du jeu, ce que je veux construire à travers les échecs…">{{ student.chess_vision if student else '' }}</textarea></div>
       <button class="btn" onclick="saveProfile()">Sauvegarder mon profil</button><span class="msg" id="profile-msg"></span>
       <div class="muted" style="margin-top:12px">Ces informations aident le coach à mieux adapter les séances, devoirs et feedbacks.</div>
     </div>
   </section>
+
+  <section id="tab-elo" class="panel">
+    <div class="card full"><div class="ttl">📈 ELO & progression</div><div class="elo-grid">
+      <div class="elo-platform"><b>🟢 Lichess</b><div class="muted">{{ student.lichess or 'Pseudo non renseigné' }}</div><div class="elo-modes">{% for key,label in [('bullet','Bullet'),('blitz','Blitz'),('rapid','Rapid'),('classical','Classique')] %}<div class="elo-mode"><span class="muted small">{{ label }}</span><b>{{ student.elo.lichess[key] or '—' }}</b></div>{% endfor %}</div></div>
+      <div class="elo-platform"><b>🟡 Chess.com</b><div class="muted">{{ student.chesscom or 'Pseudo non renseigné' }}</div><div class="elo-modes">{% for key,label in [('bullet','Bullet'),('blitz','Blitz'),('rapid','Rapid')] %}<div class="elo-mode"><span class="muted small">{{ label }}</span><b>{{ student.elo.chesscom[key] or '—' }}</b></div>{% endfor %}</div></div>
+    </div><div style="margin-top:14px"><button class="btn secondary" onclick="syncElo('all')">⚡ Synchroniser mes profils</button><span class="msg" id="elo-tab-msg"></span></div><div style="margin-top:16px"><canvas class="elo-canvas" id="elo-chart"></canvas></div></div>
+  </section>
+
+  <section id="tab-squad" class="panel"><div class="card full"><div class="ttl">🛡️ Ma Squad</div>{% if client_squad.name %}<h2>{{ client_squad.name }}</h2><div class="muted" style="margin-bottom:14px">Ton équipe d'entraînement et de compétition.</div><div class="squad-grid">{% for m in client_squad.members %}<div class="squad-member {{ 'me' if m.is_me else '' }}"><img class="member-avatar" src="{{ m.avatar or '/static/favicon.svg' }}"><div><b>{{ m.name }}{{ ' · Moi' if m.is_me else '' }}</b><div class="muted small">{{ m.rank or 'Ghost' }} · {{ m.avg_elo or '—' }} ELO</div></div></div>{% endfor %}</div>{% else %}<div class="empty">Tu n'es pas encore affecté à une Squad. Le coach pourra bientôt te placer dans ton équipe.</div>{% endif %}</div></section>
 
   <section id="tab-send" class="panel">
     <div class="card {{ 'locked' if payment.restricted }}"><div class="ttl">♟ Ajouter une partie / image</div><input class="fi" id="game-url" placeholder="URL Lichess / Chess.com"><textarea class="ta" id="game-note" placeholder="Ce que tu veux que le coach regarde : ouverture, erreur, moment critique…"></textarea><input class="fi" id="game-fen" placeholder="Position FEN optionnelle"><textarea class="ta" id="game-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea><input class="fi" type="file" id="game-file" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'game-file-count')"><div class="file-count" id="game-file-count"></div><button class="btn" onclick="sendGame()" {% if payment.restricted %}disabled{% endif %}>📤 Envoyer au coach</button><span class="msg" id="game-msg"></span></div>
@@ -197,8 +211,8 @@
 
   <section id="tab-tournois" class="panel">
     <div class="card full"><div class="ttl">🏆 Tournois / événements</div>{% if client_tournaments %}{% for t in client_tournaments %}
-      <div class="item tournament-card {{ 'responded' if t._my_response == 'participe' else 'unavailable' if t._my_response == 'indisponible' else '' }}" id="tour-card-{{ t.id }}">
-        <b>{{ t.title }}</b><div class="date">{{ t.day }} · {{ t.time }}</div><div>{{ t.description }}</div>
+      <div class="item tournament-card {{ 'cash-tournament' if t.cash_prize_enabled else '' }} {{ 'responded' if t._my_response == 'participe' else 'unavailable' if t._my_response == 'indisponible' else '' }}" id="tour-card-{{ t.id }}">
+        <b style="font-size:20px">{{ t.title }}</b>{% if t.cash_prize_enabled %}<div class="cash-prize">💰 Cash prize{% if t.cash_prize_amount %} · {{ t.cash_prize_amount }}{% endif %}</div>{% endif %}<div class="date">📅 {{ t.day }} · {{ t.time }}{% if t.format %} · {{ t.format }}{% endif %}</div>{% if t.target_squads %}<div class="tags">{% for sq in t.target_squads %}<span class="tag">🛡️ {{ sq }}</span>{% endfor %}</div>{% endif %}<div>{{ t.description }}</div>
         {% if t.preparation %}<div class="coach-reply"><b>Préparation conseillée</b><br>{{ t.preparation }}</div>{% endif %}{% if t.link %}<a class="attach" href="{{ t.link }}" target="_blank">Lien</a>{% endif %}
         <div id="tour-status-{{ t.id }}">{% if t._my_response == 'participe' %}<span class="tour-status yes">✅ Participation confirmée</span>{% elif t._my_response == 'indisponible' %}<span class="tour-status no">⛔ Indisponible</span>{% endif %}</div>
         <div class="tour-actions">
@@ -244,7 +258,7 @@ async function postJSON(url,payload){const r=await fetch(url,{method:'POST',head
 function handleRestricted(d,msgEl){if(d.error==='access_restricted'){msgEl.textContent=d.message||'Accès restreint.';return true}return false}
 function showFileCount(input,id){const el=document.getElementById(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadFiles(id){const files=[...(document.getElementById(id)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/client/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Impossible d\u2019envoyer le fichier.');return(d.urls||[d.url]).filter(Boolean)}
-async function syncElo(){const msg=document.getElementById('elo-msg');msg.textContent='Synchronisation…';const d=await postJSON('/api/client/elo/sync',{});if(d.ok){document.getElementById('stat-elo').textContent=d.avg_elo||'—';document.getElementById('stat-rank').textContent=d.rank||'—';document.getElementById('stat-island').textContent=d.island||'—';msg.textContent=(d.messages||[]).join(' · ')||'ELO actualisé.';setTimeout(()=>location.reload(),900)}else msg.textContent=d.error||'Erreur';}
+async function syncElo(){const msg=document.getElementById('elo-tab-msg')||document.getElementById('elo-msg');if(msg)msg.textContent='Synchronisation…';const d=await postJSON('/api/client/elo/sync',{});if(d.ok){document.getElementById('stat-elo').textContent=d.avg_elo||'—';document.getElementById('stat-rank').textContent=d.rank||'—';document.getElementById('stat-island').textContent=d.island||'—';if(msg)msg.textContent=(d.messages||[]).join(' · ')||'ELO actualisé.';setTimeout(()=>location.reload(),900)}else if(msg)msg.textContent=d.error||'Erreur';}
 async function sendGame(){const msg=document.getElementById('game-msg');msg.textContent='Envoi…';const attachments=await uploadFiles('game-file');const d=await postJSON('/api/client/game',{url:document.getElementById('game-url').value,note:document.getElementById('game-note').value,position_fen:document.getElementById('game-fen').value,pgn:document.getElementById('game-pgn').value,attachments,image_url:attachments[0]||''});if(handleRestricted(d,msg))return;msg.textContent=d.ok?'Envoyé. Le coach est notifié.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),700)}
 async function sendNote(){const msg=document.getElementById('note-msg');msg.textContent='Envoi…';const d=await postJSON('/api/client/note',{category:document.getElementById('note-cat').value,text:document.getElementById('note-text').value});if(handleRestricted(d,msg))return;msg.textContent=d.ok?'Note envoyée.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),700)}
 async function sendRdv(){const msg=document.getElementById('rdv-msg');msg.textContent='Envoi…';const d=await postJSON('/api/client/appointment',{day:document.getElementById('rdv-day').value,time:document.getElementById('rdv-time').value,reason:document.getElementById('rdv-reason').value});if(handleRestricted(d,msg))return;msg.textContent=d.ok?'Demande envoyée.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),700)}
@@ -316,16 +330,30 @@ async function saveProfile(){
     lichess:$('profile-lichess')?.value,
     chesscom:$('profile-chesscom')?.value,
     style:$('profile-style')?.value,
+    opening_white:$('profile-opening-white')?.value,
+    opening_black:$('profile-opening-black')?.value,
     goal:$('profile-goal')?.value,
     interests:$('profile-interests')?.value,
     strengths:$('profile-strengths')?.value,
     weaknesses:$('profile-weaknesses')?.value,
-    special_difficulties:$('profile-special-difficulties')?.value
+    special_difficulties:$('profile-special-difficulties')?.value,
+    occupation_status:$('profile-occupation-status')?.value,
+    occupation_title:$('profile-occupation-title')?.value,
+    education_level:$('profile-education-level')?.value,
+    study_field:$('profile-study-field')?.value,
+    chess_meaning:$('profile-chess-meaning')?.value,
+    chess_vision:$('profile-chess-vision')?.value
   };
   const d=await postJSON('/api/client/profile/update',payload);
   $('profile-msg').textContent=d.ok?'Profil mis à jour.':(d.error||'Erreur');
   if(d.ok) setTimeout(()=>location.reload(),600);
 }
+
+async function uploadAvatar(){const input=$('profile-avatar'),msg=$('avatar-msg');if(!input?.files?.length){msg.textContent='Choisis une image.';return}msg.textContent='Envoi…';const form=new FormData();form.append('file',input.files[0]);const r=await fetch('/api/client/avatar',{method:'POST',body:form});const d=await r.json().catch(()=>({ok:false,error:'Erreur serveur'}));msg.textContent=d.ok?'Photo mise à jour.':(d.error||'Erreur');if(d.ok){$('profile-avatar-preview').src=d.avatar;}}
+
+const ELO_HISTORY={{ (student.elo_history if student else [])|tojson }};
+function drawEloChart(){const canvas=$('elo-chart');if(!canvas||!ELO_HISTORY.length)return;const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);const series=[{color:'#4ade80',keys:['elo_li_blitz','elo_li']},{color:'#f472b6',keys:['elo_cc_blitz','elo_cc']}];const vals=[];series.forEach(s=>ELO_HISTORY.forEach(e=>{const v=s.keys.map(k=>Number(e[k])).find(Boolean);if(v)vals.push(v)}));if(!vals.length)return;const min=Math.floor((Math.min(...vals)-50)/50)*50,max=Math.ceil((Math.max(...vals)+50)/50)*50,pad=34;c.strokeStyle='#ffffff18';c.fillStyle='#8a82a6';c.font='11px system-ui';for(let i=0;i<5;i++){const y=pad+(h-pad*2)*i/4;c.beginPath();c.moveTo(pad,y);c.lineTo(w-pad,y);c.stroke();c.fillText(Math.round(max-(max-min)*i/4),3,y+4)}series.forEach(s=>{let started=false;c.strokeStyle=s.color;c.lineWidth=2;c.beginPath();ELO_HISTORY.forEach((e,i)=>{const v=s.keys.map(k=>Number(e[k])).find(Boolean);if(!v)return;const x=pad+(w-pad*2)*(i/Math.max(1,ELO_HISTORY.length-1)),y=pad+(max-v)/(max-min)*(h-pad*2);started?c.lineTo(x,y):c.moveTo(x,y);started=true});if(started)c.stroke()});c.fillStyle='#4ade80';c.fillText('Lichess Blitz',pad,h-8);c.fillStyle='#f472b6';c.fillText('Chess.com Blitz',pad+100,h-8)}
+window.addEventListener('resize',drawEloChart);window.addEventListener('DOMContentLoaded',drawEloChart);
 
 </script>
 </body>
