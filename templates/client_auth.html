@@ -47,7 +47,9 @@ html,body{min-height:100%;overflow:auto!important;background:#03030a;color:#f5f3
     <form class="form" id="register" onsubmit="register(event)">
       <label class="lbl">Nom / pseudo</label><input class="fi" id="re-name" required>
       <label class="lbl">Email</label><input class="fi" id="re-email" type="email" required>
-      <label class="lbl">Mot de passe</label><input class="fi" id="re-pass" type="password" minlength="4" required>
+      <label class="lbl">Mot de passe</label><input class="fi" id="re-pass" type="password" minlength="6" autocomplete="new-password" required>
+      <label class="lbl">Confirmer le mot de passe</label><input class="fi" id="re-pass-confirm" type="password" minlength="6" autocomplete="new-password" required>
+      <label style="display:flex;gap:8px;align-items:center;color:#aaa3c7;font-size:13px"><input type="checkbox" onchange="toggleRegisterPasswords(this.checked)"> Afficher les mots de passe</label>
       <label class="lbl">Code d’inscription</label><input class="fi" id="re-code" placeholder="GHOST-XXXX-XXXX" required>
       <button class="btnx">Créer mon compte</button><div class="msg" id="re-msg"></div>
     </form>
@@ -57,9 +59,10 @@ html,body{min-height:100%;overflow:auto!important;background:#03030a;color:#f5f3
 function showTab(id,btn){document.querySelectorAll('.form').forEach(f=>f.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active')}
 async function post(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({ok:false,error:'Erreur serveur'}));if(!r.ok&&!d.error)d.error='Erreur serveur';return d}
 async function login(e){e.preventDefault();const msg=document.getElementById('li-msg');msg.textContent='Connexion…';const d=await post('/api/client/login',{email:li_email.value,password:li_pass.value});if(d.ok){msg.className='msg ok';msg.textContent='Connecté.';location.href='/client'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
-async function register(e){e.preventDefault();const msg=document.getElementById('re-msg');msg.textContent='Création…';const d=await post('/api/client/register',{name:re_name.value,email:re_email.value,password:re_pass.value,code:re_code.value});if(d.ok){msg.className='msg ok';msg.textContent='Compte créé.';location.href='/client'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
+async function register(e){e.preventDefault();const msg=document.getElementById('re-msg');if(re_pass.value!==re_pass_confirm.value){msg.className='msg';msg.textContent='Les deux mots de passe ne correspondent pas.';return}msg.textContent='Création…';const d=await post('/api/client/register',{name:re_name.value,email:re_email.value,password:re_pass.value,password_confirm:re_pass_confirm.value,code:re_code.value});if(d.ok){msg.className='msg ok';msg.textContent='Compte créé.';location.href='/client'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
 async function requestAccess(e){e.preventDefault();const msg=document.getElementById('ac-msg');msg.textContent='Envoi au coach…';const d=await post('/api/client/registration/request',{name:document.getElementById('ac-name').value,email:document.getElementById('ac-email').value,phone:document.getElementById('ac-phone').value,reference:document.getElementById('ac-ref').value,note:document.getElementById('ac-note').value});if(d.ok){msg.className='msg ok';msg.textContent=d.message||'Demande envoyée.'}else{msg.className='msg';msg.textContent=d.error||'Erreur'}}
-const li_email=document.getElementById('li-email'),li_pass=document.getElementById('li-pass'),re_name=document.getElementById('re-name'),re_email=document.getElementById('re-email'),re_pass=document.getElementById('re-pass'),re_code=document.getElementById('re-code');
+const li_email=document.getElementById('li-email'),li_pass=document.getElementById('li-pass'),re_name=document.getElementById('re-name'),re_email=document.getElementById('re-email'),re_pass=document.getElementById('re-pass'),re_pass_confirm=document.getElementById('re-pass-confirm'),re_code=document.getElementById('re-code');
+function toggleRegisterPasswords(show){re_pass.type=show?'text':'password';re_pass_confirm.type=show?'text':'password'}
 
 async function resetRequest(){const email=document.getElementById('li-email')?.value||prompt('Ton email de compte Ghost'); if(!email)return; const d=await post('/api/client/password/reset_request',{email}); alert(d.message||'Demande envoyée au coach.');}
 </script>
