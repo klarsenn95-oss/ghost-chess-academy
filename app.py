@@ -1388,6 +1388,33 @@ def student_calendar_payload(student):
     rows.sort(key=lambda x: (x.get("day") or "9999-99-99", x.get("time") or "99:99"))
     return rows
 
+def sync_appointment_to_agenda(student, appointment):
+    """Crée ou met à jour l'événement agenda lié à un RDV accepté."""
+    if not student or not appointment or appointment.get("status") != "accepté":
+        return None
+    appointment_id = appointment.get("id")
+    agenda = student.setdefault("agenda", [])
+    event_id = f"appointment:{appointment_id}"
+    event = next((e for e in agenda if e.get("id") == event_id or e.get("appointment_id") == appointment_id), None)
+    payload = {
+        "id": event_id,
+        "appointment_id": appointment_id,
+        "date": appointment.get("day", ""),
+        "day": appointment.get("day", ""),
+        "time": appointment.get("time", ""),
+        "duration": appointment.get("duration", 60),
+        "title": appointment.get("reason") or "Séance avec le coach",
+        "type": "Séance",
+        "source": "appointment",
+        "status": "confirmé",
+    }
+    if event is None:
+        agenda.append(payload)
+        event = payload
+    else:
+        event.update(payload)
+    return event
+
 def is_image_url(url):
     u = (url or "").lower().split("?")[0]
     return u.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"))
@@ -1595,7 +1622,9 @@ def public_student_payload(student):
     all_feedback = student.get("client_feedback", [])[:40]
     pedagogic_kinds = {"feedback", "game", "homework", "analysis", "lesson"}
     coach_feedback = [f for f in all_feedback if (f.get("kind") or "feedback") in pedagogic_kinds]
-    divers = [f for f in all_feedback if (f.get("kind") or "feedback") not in pedagogic_kinds]
+    # Les tournois ont leur propre onglet et restent des notifications : ils ne
+    # doivent pas polluer les échanges liés au coaching.
+    divers = [f for f in all_feedback if (f.get("kind") or "feedback") not in pedagogic_kinds and (f.get("kind") or "") != "tournament"]
     ghost_notifications = []
     for f in all_feedback:
         if not f.get("read_by_student"):
@@ -1606,7 +1635,7 @@ def public_student_payload(student):
                 "text": f.get("text") or "",
                 "date": f.get("date") or "",
                 "kind": k,
-                "target_tab": "feedback" if k in pedagogic_kinds else "divers",
+                "target_tab": "feedback" if k in pedagogic_kinds else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers")),
             })
     return {
         "name": student.get("name", "Ghost"),
@@ -1620,11 +1649,25 @@ def public_student_payload(student):
         "age": calculate_age_from_birthdate(student.get("birthdate")) or student.get("age", ""),
         "goal": student.get("goal", ""),
         "style": student.get("style", ""),
+        "opening_white": student.get("opening_white", ""),
+        "opening_black": student.get("opening_black", ""),
         "interests": student.get("interests", ""),
         "strengths": student.get("strengths", ""),
         "weaknesses": student.get("weaknesses", ""),
         "special_difficulties": student.get("special_difficulties", ""),
+        "occupation_status": student.get("occupation_status", ""),
+        "occupation_title": student.get("occupation_title", ""),
+        "education_level": student.get("education_level", ""),
+        "study_field": student.get("study_field", ""),
+        "chess_meaning": student.get("chess_meaning", ""),
+        "chess_vision": student.get("chess_vision", ""),
+        "squad": student.get("squad", ""),
         "avatar": student.get("avatar", ""),
+        "elo": {
+            "lichess": {"bullet": student.get("elo_li_bullet"), "blitz": student.get("elo_li_blitz"), "rapid": student.get("elo_li_rapid"), "classical": student.get("elo_li_classical"), "games": student.get("li_games")},
+            "chesscom": {"bullet": student.get("elo_cc_bullet"), "blitz": student.get("elo_cc_blitz"), "rapid": student.get("elo_cc_rapid"), "games": student.get("cc_games")},
+        },
+        "elo_history": student.get("elo_history", [])[-90:],
         "avg_elo": get_avg_elo(student),
         "rank": rank,
         "island": island,
@@ -1735,12 +1778,34 @@ def tournament_target_indices(data, tournament):
             out.append(int(x))
         except Exception:
             continue
+    target_squads = {str(x).strip().lower() for x in (tournament.get("target_squads") or []) if str(x).strip()}
+    if target_squads:
+        for i, student in enumerate(data.get("students", [])):
+            if str(student.get("squad") or "").strip().lower() in target_squads:
+                out.append(i)
     # ordre stable, sans doublon
     seen = set(); clean = []
     for i in out:
         if i not in seen:
             seen.add(i); clean.append(i)
     return clean
+
+def available_squads(data):
+    return sorted({str(s.get("squad") or "").strip() for s in data.get("students", []) if str(s.get("squad") or "").strip()}, key=str.lower)
+
+def squad_payload(data, student_index):
+    students = data.get("students", [])
+    if not isinstance(student_index, int) or not (0 <= student_index < len(students)):
+        return {"name": "", "members": []}
+    squad = str(students[student_index].get("squad") or "").strip()
+    if not squad:
+        return {"name": "", "members": []}
+    members = []
+    for i, student in enumerate(students):
+        if str(student.get("squad") or "").strip().lower() == squad.lower():
+            rank = get_rank(student)
+            members.append({"name": student.get("name") or "Ghost", "avatar": student.get("avatar", ""), "avg_elo": get_avg_elo(student), "rank": rank.get("title"), "is_me": i == student_index})
+    return {"name": squad, "members": members}
 
 def enrich_tournament(data, tournament, student_index=None):
     """Ajoute des stats d'affichage sans casser les anciens tournois stockés."""
@@ -2058,15 +2123,11 @@ def save_student():
     clean = {k:v for k,v in student.items() if not k.startswith("_")}
     if idx is not None and 0<=idx<len(data["students"]):
         existing = data["students"][idx]
-        ELO_FIELDS = ["elo_li_blitz","elo_li_bullet","elo_li_rapid","elo_li_classical",
-                      "elo_cc_blitz","elo_cc_bullet","elo_cc_rapid",
-                      "li_games","li_last_online","cc_games","cc_joined","elo_otb","elo_target",
-                      "recurring_errors"]
-        for preserve in ["devoirs","remarques","rappels","elo_history","journal",
-                         "game_analyses","games_analysis","work_plan",
-                         "branch_locked","rank_locked","manual_rank_index","manual_hakis"] + ELO_FIELDS:
-            if preserve in existing and (preserve not in clean or not clean.get(preserve)):
-                clean[preserve] = existing[preserve]
+        # Une fiche coach est un formulaire partiel : fusionner au lieu de
+        # remplacer évite d'effacer photo, RDV, devoirs, feedbacks et ELO.
+        merged = dict(existing)
+        merged.update(clean)
+        clean = merged
         if clean.get("birthdate"):
             age = calculate_age_from_birthdate(clean.get("birthdate"))
             if age != "":
@@ -2784,6 +2845,7 @@ def client_portal():
         grandline_students=grandline_payload(data, idx),
         client_pairs=student_pairs_payload(data, idx),
         client_calendar=student_calendar_payload(student),
+        client_squad=squad_payload(data, idx),
         client_tournaments=visible_tournaments_for_student(data, idx),
         student_messages=visible_messages_for_student(data, idx),
         student_contacts=student_contacts_payload(data, idx),
@@ -2839,6 +2901,7 @@ def admin_clients():
         finance=finance_summary(data),
         payment_logs=payment_logs,
         tournaments=enriched_tournaments(data, 30),
+        squads=available_squads(data),
         exercises=data.get("exercises", [])[:30],
         messages=data.get("student_messages", [])[:30],
         profile_updates=recent_profile_updates(data),
@@ -2931,9 +2994,12 @@ def api_client_register():
     name = (body.get("name") or "").strip()
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
+    password_confirm = body.get("password_confirm") or ""
     code_value = (body.get("code") or "").strip().upper()
-    if not name or not email or len(password) < 4 or not code_value:
-        return jsonify({"ok": False, "error": "Champs incomplets ou mot de passe trop court."}), 400
+    if not name or not email or len(password) < 6 or not code_value:
+        return jsonify({"ok": False, "error": "Champs incomplets ou mot de passe trop court (6 caractères minimum)."}), 400
+    if password != password_confirm:
+        return jsonify({"ok": False, "error": "Les deux mots de passe ne correspondent pas."}), 400
     data = load_data()
     if any((u.get("email") or "").lower() == email for u in data.get("users", [])):
         return jsonify({"ok": False, "error": "Un compte existe déjà avec cet email."}), 400
@@ -3074,6 +3140,21 @@ def api_client_upload():
     if not urls:
         return jsonify({"ok": False, "error": "Aucun fichier valide. Formats acceptés : image, PDF, PGN, TXT."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
+
+@app.route("/api/client/avatar", methods=["POST"])
+def api_client_avatar():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Profil introuvable."}), 404
+    urls = upload_many_from_request(f"avatar_{user.get('id', 'ghost')}")
+    if not urls or not is_image_url(urls[0]):
+        return jsonify({"ok": False, "error": "Choisis une image PNG, JPG, GIF ou WebP."}), 400
+    data["students"][idx]["avatar"] = urls[0]
+    user["avatar"] = urls[0]
+    save_data(data)
+    return jsonify({"ok": True, "avatar": urls[0]})
 
 @app.route("/api/client/plan/select", methods=["POST"])
 def api_client_plan_select():
@@ -3227,6 +3308,7 @@ def api_admin_appointment_action():
         appt["coach_reply"] = message or "RDV validé. Prépare une partie ou une position à analyser."
         title = "RDV accepté"
         text = f"Ta séance du {appt.get('day')} à {appt.get('time')} est validée. {appt['coach_reply']}"
+        sync_appointment_to_agenda(data["students"][idx], appt)
     elif action == "reject":
         appt["status"] = "refusé"
         appt["coach_reply"] = message or "Ce créneau n'est pas possible. Propose un autre horaire depuis ton espace."
@@ -3265,6 +3347,7 @@ def api_client_appointment_respond():
         appt["time"] = appt.get("proposed_time") or appt.get("time")
         appt["status"] = "accepté"
         appt["student_response"] = "proposition acceptée"
+        sync_appointment_to_agenda(data["students"][idx], appt)
         add_client_notification(data, "Créneau accepté", f"{user.get('name')} accepte le RDV du {appt.get('day')} à {appt.get('time')}.", "appointment", user.get("id"), idx)
     elif response == "decline_proposal":
         appt["status"] = "à revoir"
@@ -3351,8 +3434,8 @@ def api_admin_game_status():
         return jsonify({"ok": False, "error": "Partie introuvable."}), 404
     g["status"] = status
     g["updated_at"] = now_fr()
-    if status == "corrigé":
-        add_student_feedback(data, idx, "Partie corrigée", "Ta partie a été corrigée par le coach.", "game", "game", game_id)
+    # Le commentaire d'analyse envoyé par le coach constitue déjà le feedback.
+    # Le statut ne doit pas créer une seconde carte générique « Partie corrigée ».
     save_data(data)
     return jsonify({"ok": True, "game": g})
 
@@ -3984,19 +4067,13 @@ def api_admin_tournament_create():
         return jsonify({"ok": False, "error": "Titre obligatoire."}), 400
     target_all = bool(body.get("target_all", True))
     targets = body.get("targets") or []
-    entry = {"id": str(uuid.uuid4()), "date": now_fr(), "title": title, "day": (body.get("day") or "").strip(), "time": (body.get("time") or "").strip(), "link": (body.get("link") or "").strip(), "description": (body.get("description") or "").strip(), "preparation": (body.get("preparation") or "").strip(), "target_all": target_all, "targets": targets, "responses": {}}
+    target_squads = [str(x).strip()[:80] for x in (body.get("target_squads") or []) if str(x).strip()]
+    cash_prize_enabled = bool(body.get("cash_prize_enabled"))
+    entry = {"id": str(uuid.uuid4()), "date": now_fr(), "title": title, "day": (body.get("day") or "").strip(), "time": (body.get("time") or "").strip(), "link": (body.get("link") or "").strip(), "description": (body.get("description") or "").strip(), "preparation": (body.get("preparation") or "").strip(), "format": (body.get("format") or "").strip()[:80], "target_all": target_all, "targets": targets, "target_squads": target_squads, "cash_prize_enabled": cash_prize_enabled, "cash_prize_amount": (body.get("cash_prize_amount") or "").strip()[:80] if cash_prize_enabled else "", "responses": {}}
     data.setdefault("tournaments", []).insert(0, entry)
     data["tournaments"] = data.get("tournaments", [])[:80]
-    if target_all:
-        for u in data.get("users", []):
-            idx = u.get("student_index")
-            if isinstance(idx, int):
-                add_student_feedback(data, idx, "Tournoi planifié", f"{title} — {entry.get('day')} {entry.get('time')}. Consulte l’onglet Tournois.", "tournament", "tournament", entry["id"])
-    else:
-        for idx in targets:
-            try: idx = int(idx)
-            except Exception: continue
-            add_student_feedback(data, idx, "Tournoi planifié", f"{title} — {entry.get('day')} {entry.get('time')}. Consulte l’onglet Tournois.", "tournament", "tournament", entry["id"])
+    for idx in tournament_target_indices(data, entry):
+        add_student_feedback(data, idx, "Tournoi planifié", f"{title} — {entry.get('day')} {entry.get('time')}. Consulte l’onglet Tournois.", "tournament", "tournament", entry["id"])
     save_data(data)
     return jsonify({"ok": True, "tournament": entry})
 
@@ -4011,6 +4088,8 @@ def api_admin_tournament_delete():
     data["tournaments"] = [t for t in data.get("tournaments", []) if t.get("id") != tid]
     if len(data.get("tournaments", [])) == before:
         return jsonify({"ok": False, "error": "Tournoi introuvable."}), 404
+    for student in data.get("students", []):
+        student["client_feedback"] = [f for f in student.get("client_feedback", []) if not (f.get("linked_type") == "tournament" and f.get("linked_id") == tid)]
     save_data(data)
     return jsonify({"ok": True})
 
@@ -4128,7 +4207,10 @@ def api_client_profile_update():
     allowed = {
         "name": 60, "email": 120, "phone": 40, "telegram_chat_id": 60, "city": 60, "birthdate": 10,
         "lichess": 60, "chesscom": 60, "goal": 240, "style": 120,
-        "interests": 300, "strengths": 300, "weaknesses": 300, "special_difficulties": 400
+        "opening_white": 120, "opening_black": 120,
+        "interests": 300, "strengths": 300, "weaknesses": 300, "special_difficulties": 400,
+        "occupation_status": 60, "occupation_title": 120, "education_level": 100, "study_field": 160,
+        "chess_meaning": 800, "chess_vision": 800
     }
     stu = data["students"][idx]
     changed = []
@@ -4163,7 +4245,7 @@ def api_client_profile_update():
     user["profile_updated_at"] = now_fr()
     stu["profile_updated_at"] = now_fr()
     data["students"][idx] = stu
-    interesting = {"goal", "style", "interests", "strengths", "weaknesses", "special_difficulties", "birthdate", "telegram_chat_id"}
+    interesting = {"goal", "style", "opening_white", "opening_black", "interests", "strengths", "weaknesses", "special_difficulties", "birthdate", "telegram_chat_id", "occupation_status", "occupation_title", "education_level", "study_field", "chess_meaning", "chess_vision"}
     changed_interesting = [k for k in changed if k in interesting]
     if changed_interesting:
         labels = {
@@ -4171,6 +4253,10 @@ def api_client_profile_update():
             "strengths": "points forts", "weaknesses": "faiblesses",
             "special_difficulties": "difficultés", "birthdate": "date de naissance",
             "telegram_chat_id": "Telegram",
+            "opening_white": "ouverture avec les Blancs", "opening_black": "ouverture avec les Noirs",
+            "occupation_status": "situation", "occupation_title": "métier",
+            "education_level": "niveau scolaire", "study_field": "domaine d'étude",
+            "chess_meaning": "ce que représentent les échecs", "chess_vision": "vision des échecs",
         }
         summary = ", ".join(labels.get(k, k) for k in changed_interesting[:5])
         add_client_notification(data, "Profil Ghost mis à jour", f"{user.get('name')} a modifié : {summary}.", "profile", user.get("id"), idx, target_url=f"/student/{idx}#fiche")
@@ -4208,6 +4294,30 @@ def api_admin_exercise_create():
         add_student_feedback(data, idx, "Nouvel exercice tactique", f"{title} — réponds dans l’onglet Devoirs avec les coups par écrit.", "homework", "exercise", exercise["id"])
     save_data(data)
     return jsonify({"ok": True, "exercise": exercise})
+
+@app.route("/api/admin/exercise/delete", methods=["POST"])
+def api_admin_exercise_delete():
+    body = request.get_json(force=True, silent=True) or {}
+    exercise_id = body.get("exercise_id")
+    if not exercise_id:
+        return jsonify({"ok": False, "error": "ID exercice manquant."}), 400
+    data = load_data()
+    before = len(data.get("exercises", []))
+    data["exercises"] = [e for e in data.get("exercises", []) if e.get("id") != exercise_id]
+    if len(data["exercises"]) == before:
+        return jsonify({"ok": False, "error": "Exercice introuvable."}), 404
+    devoirs_removed = feedback_removed = 0
+    for student in data.get("students", []):
+        devoirs = student.get("devoirs", [])
+        kept_devoirs = [d for d in devoirs if d.get("exercise_id") != exercise_id]
+        devoirs_removed += len(devoirs) - len(kept_devoirs)
+        student["devoirs"] = kept_devoirs
+        feedbacks = student.get("client_feedback", [])
+        kept_feedbacks = [f for f in feedbacks if not (f.get("linked_type") == "exercise" and f.get("linked_id") == exercise_id)]
+        feedback_removed += len(feedbacks) - len(kept_feedbacks)
+        student["client_feedback"] = kept_feedbacks
+    save_data(data)
+    return jsonify({"ok": True, "devoirs_removed": devoirs_removed, "feedback_removed": feedback_removed})
 
 @app.route("/api/admin/backup/export")
 def api_admin_backup_export():
