@@ -620,14 +620,31 @@ def normalize_data(d):
         pass
     return d
 
+def cleanup_legacy_zugzwang(data):
+    """Migration unique demandée par le coach : retire l'envoi global Zugzwang."""
+    migrations = data.setdefault("migrations", {})
+    marker = "remove_global_zugzwang_20260619"
+    if migrations.get(marker):
+        return False
+    def mentions_zugzwang(row):
+        return "zugzwang" in f"{row.get('title', '')} {row.get('text', '')}".lower()
+    exercise_ids = {e.get("id") for e in data.get("exercises", []) if mentions_zugzwang(e)}
+    data["exercises"] = [e for e in data.get("exercises", []) if e.get("id") not in exercise_ids and not mentions_zugzwang(e)]
+    for student in data.get("students", []):
+        student["devoirs"] = [d for d in student.get("devoirs", []) if d.get("exercise_id") not in exercise_ids and not mentions_zugzwang(d)]
+        student["client_feedback"] = [f for f in student.get("client_feedback", []) if not ((f.get("linked_type") == "exercise" and f.get("linked_id") in exercise_ids) or mentions_zugzwang(f))]
+    migrations[marker] = now_fr() if "now_fr" in globals() else datetime.now().isoformat()
+    return True
+
 def load_data():
     remote = load_state()
     if remote is None:
         remote = bootstrap_from_local_json(DATA_FILE)
     if remote is not None:
         d = normalize_data(remote)
+        cleanup_changed = cleanup_legacy_zugzwang(d)
         changed = assign_branches_50_50(d["students"])
-        if any(s.get("branch") != d["students"][i].get("branch") for i, s in enumerate(changed)):
+        if cleanup_changed or any(s.get("branch") != d["students"][i].get("branch") for i, s in enumerate(changed)):
             d["students"] = changed
             save_data(d)
         return d
@@ -636,8 +653,9 @@ def load_data():
         with open(DATA_FILE,"r",encoding="utf-8") as f:
             d = json.load(f)
         d = normalize_data(d)
+        cleanup_changed = cleanup_legacy_zugzwang(d)
         changed = assign_branches_50_50(d["students"])
-        if any(s.get("branch") != d["students"][i].get("branch") for i, s in enumerate(changed)):
+        if cleanup_changed or any(s.get("branch") != d["students"][i].get("branch") for i, s in enumerate(changed)):
             d["students"] = changed
             save_data(d)
         return d
