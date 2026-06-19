@@ -349,6 +349,16 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Difficultés particulières</label><textarea class="fta" id="f-special-difficulties" rows="2">{{ s.special_difficulties or '' }}</textarea></div>
   </div>
   <div class="s-section">
+    <div class="s-section-title" style="color:#60a5fa">🧭 Parcours & vision</div>
+    <div class="field-row"><label class="field-label">Squad</label><input class="fi" id="f-squad" value="{{ s.squad or '' }}" placeholder="Ex. Squad Tactique"></div>
+    <div class="field-row"><label class="field-label">Situation</label><input class="fi" id="f-occupation-status" value="{{ s.occupation_status or '' }}" placeholder="Scolaire, étudiant, activité…"></div>
+    <div class="field-row"><label class="field-label">Métier / activité</label><input class="fi" id="f-occupation-title" value="{{ s.occupation_title or '' }}"></div>
+    <div class="field-row"><label class="field-label">Niveau scolaire</label><input class="fi" id="f-education-level" value="{{ s.education_level or '' }}"></div>
+    <div class="field-row"><label class="field-label">Domaine d'étude</label><input class="fi" id="f-study-field" value="{{ s.study_field or '' }}"></div>
+    <div><label style="font-size:12px;color:#444;display:block;margin-bottom:4px">Ce que les échecs représentent pour ce Ghost</label><textarea class="fta" id="f-chess-meaning" rows="3">{{ s.chess_meaning or '' }}</textarea></div>
+    <div><label style="font-size:12px;color:#444;display:block;margin:8px 0 4px">Sa vision des échecs</label><textarea class="fta" id="f-chess-vision" rows="3">{{ s.chess_vision or '' }}</textarea></div>
+  </div>
+  <div class="s-section">
     <div class="s-section-title" style="color:#f472b6">📖 Histoire & personnalité</div>
     <div class="field-row"><label class="field-label">Début aux échecs</label><input class="fi" id="f-chess-start" value="{{ s.chess_start or '' }}"></div>
     <div class="field-row"><label class="field-label">Comportement</label>
@@ -1355,6 +1365,8 @@ function saveFiche(){
     style:v('f-style'),opening_white:v('f-opening-white'),opening_black:v('f-opening-black'),
     strengths:v('f-strengths'),weaknesses:v('f-weaknesses'),chess_start:v('f-chess-start'),
     interests:v('f-interests'),special_difficulties:document.getElementById('f-special-difficulties').value.trim(),
+    squad:v('f-squad'),occupation_status:v('f-occupation-status'),occupation_title:v('f-occupation-title'),education_level:v('f-education-level'),study_field:v('f-study-field'),
+    chess_meaning:document.getElementById('f-chess-meaning').value.trim(),chess_vision:document.getElementById('f-chess-vision').value.trim(),
     behavior:document.getElementById('f-behavior').value,
     personality:document.getElementById('f-personality').value.trim(),
     misc:document.getElementById('f-misc').value.trim()};
