@@ -66,6 +66,7 @@
 /* V35 — profil Ghost + lisibilité */
 .profile-field-label{display:block;color:#8a82a6;font-size:12px;font-weight:900}.profile-field-label .fi{margin-top:6px}
 .profile-avatar{width:92px;height:92px;border-radius:24px;object-fit:cover;border:2px solid #a78bfa66;background:#11112a}.profile-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}.elo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.elo-platform{border:1px solid #ffffff12;border-radius:18px;padding:15px;background:#070718}.elo-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.elo-mode{background:#0d0d24;border-radius:12px;padding:10px}.elo-mode b{display:block;font-size:20px;color:#fbbf24}.elo-canvas{width:100%;height:280px;background:linear-gradient(180deg,#0b1025,#060612);border-radius:16px}.squad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.squad-member{display:flex;align-items:center;gap:10px;border:1px solid #ffffff12;border-radius:16px;padding:12px;background:#09091a}.squad-member.me{border-color:#fbbf2466;background:#fbbf240b}.member-avatar{width:42px;height:42px;border-radius:13px;object-fit:cover;background:#151528}.cash-tournament{border-color:#fbbf2488!important;background:radial-gradient(circle at 95% 0,#fbbf2430,transparent 36%),linear-gradient(135deg,#211305,#09091a)!important;box-shadow:0 16px 50px #fbbf2410}.cash-prize{display:inline-flex;gap:7px;align-items:center;background:#fbbf2418;border:1px solid #fbbf2466;color:#fbbf24;border-radius:999px;padding:6px 10px;font-weight:950;margin:7px 0}@media(max-width:760px){.elo-grid,.squad-grid{grid-template-columns:1fr}.elo-modes{grid-template-columns:repeat(2,1fr)}}
+.video-attachment{width:min(620px,100%);margin-top:10px;padding:10px;border:1px solid #a78bfa44;border-radius:16px;background:#03030d}.video-attachment video{display:block;width:100%;max-height:420px;border-radius:11px;background:#000}.video-attachment .attach{display:inline-flex;margin-top:8px}
 </style>
 </head>
 <body>
@@ -355,6 +356,20 @@ const ELO_HISTORY={{ (student.elo_history if student else [])|tojson }};
 function drawEloChart(){const canvas=$('elo-chart');if(!canvas||!ELO_HISTORY.length)return;const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);const series=[{color:'#4ade80',keys:['elo_li_blitz','elo_li']},{color:'#f472b6',keys:['elo_cc_blitz','elo_cc']}];const vals=[];series.forEach(s=>ELO_HISTORY.forEach(e=>{const v=s.keys.map(k=>Number(e[k])).find(Boolean);if(v)vals.push(v)}));if(!vals.length)return;const min=Math.floor((Math.min(...vals)-50)/50)*50,max=Math.ceil((Math.max(...vals)+50)/50)*50,pad=34;c.strokeStyle='#ffffff18';c.fillStyle='#8a82a6';c.font='11px system-ui';for(let i=0;i<5;i++){const y=pad+(h-pad*2)*i/4;c.beginPath();c.moveTo(pad,y);c.lineTo(w-pad,y);c.stroke();c.fillText(Math.round(max-(max-min)*i/4),3,y+4)}series.forEach(s=>{let started=false;c.strokeStyle=s.color;c.lineWidth=2;c.beginPath();ELO_HISTORY.forEach((e,i)=>{const v=s.keys.map(k=>Number(e[k])).find(Boolean);if(!v)return;const x=pad+(w-pad*2)*(i/Math.max(1,ELO_HISTORY.length-1)),y=pad+(max-v)/(max-min)*(h-pad*2);started?c.lineTo(x,y):c.moveTo(x,y);started=true});if(started)c.stroke()});c.fillStyle='#4ade80';c.fillText('Lichess Blitz',pad,h-8);c.fillStyle='#f472b6';c.fillText('Chess.com Blitz',pad+100,h-8)}
 window.addEventListener('resize',drawEloChart);window.addEventListener('DOMContentLoaded',drawEloChart);
 
+</script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const formats='image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt';
+  document.querySelectorAll('input[type="file"]:not(#profile-avatar)').forEach(input=>input.setAttribute('accept',formats));
+  document.querySelectorAll('a.attach[href]').forEach(link=>{
+    const clean=(link.href||'').split('?')[0].toLowerCase();
+    if(!/\.(mp4|webm|m4v)$/.test(clean)||link.closest('.video-attachment'))return;
+    const box=document.createElement('div');box.className='video-attachment';
+    const video=document.createElement('video');video.controls=true;video.playsInline=true;video.preload='metadata';video.src=link.href;
+    link.textContent='Ouvrir la vidéo dans un nouvel onglet';link.rel='noopener';
+    link.replaceWith(box);box.append(video,link);
+  });
+});
 </script>
 </body>
 </html>

@@ -396,7 +396,7 @@ body{padding:8px 8px 72px!important}
     <input class="fi" id="fb-fen" placeholder="FEN / position optionnelle">
     <textarea class="ta" id="fb-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea>
     <input class="fi" id="fb-tags" placeholder="Tags : tactique, finales, ouverture…">
-    <input class="fi" type="file" id="fb-file" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'fb-file-count')">
+    <input class="fi" type="file" id="fb-file" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'fb-file-count')">
     <div class="file-count" id="fb-file-count"></div><label class="muted" style="font-size:12px"><input type="checkbox" id="fb-action"> Action demandée à l’élève</label>
     <input type="hidden" id="fb-linked-game-id"><div class="actions"><button class="btn" onclick="sendFeedback()">Envoyer à l'élève</button><span class="muted" id="fb-msg"></span></div>
   </div>
@@ -442,7 +442,7 @@ body{padding:8px 8px 72px!important}
         <textarea class="ta" id="hw-text-{{ s._index }}-{{ loop.index0 }}" placeholder="Correction / commentaire visible par l’élève…"></textarea>
         <input class="fi" id="hw-fen-{{ s._index }}-{{ loop.index0 }}" placeholder="FEN / position optionnelle">
         <select class="fi" id="hw-status-{{ s._index }}-{{ loop.index0 }}"><option value="✅ Corrigé">✅ Corrigé</option><option value="🔄 En cours">🔄 À reprendre</option><option value="📋 À faire">📋 À refaire</option></select>
-        <input class="fi" type="file" id="hw-review-file-{{ s._index }}-{{ loop.index0 }}" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'hw-review-file-count-{{ s._index }}-{{ loop.index0 }}')"><div class="file-count" id="hw-review-file-count-{{ s._index }}-{{ loop.index0 }}"></div><div class="actions"><button class="btn good" onclick="reviewHomework({{ s._index }},{{ loop.index0 }})">Envoyer correction</button></div>
+        <input class="fi" type="file" id="hw-review-file-{{ s._index }}-{{ loop.index0 }}" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'hw-review-file-count-{{ s._index }}-{{ loop.index0 }}')"><div class="file-count" id="hw-review-file-count-{{ s._index }}-{{ loop.index0 }}"></div><div class="actions"><button class="btn good" onclick="reviewHomework({{ s._index }},{{ loop.index0 }})">Envoyer correction</button></div>
       </div>
     {% endif %}{% endfor %}{% endfor %}
     {% if not hw_found %}<div class="muted">Aucun devoir rendu en attente.</div>{% endif %}
@@ -499,7 +499,7 @@ body{padding:8px 8px 72px!important}
       <input class="fi" id="ex-title" placeholder="Titre de l'exercice">
       <textarea class="ta" id="ex-text" placeholder="Consigne, objectif, position, lien utile..."></textarea>
       <div class="mini-grid"><select class="fi" id="ex-level"><option value="standard">Standard</option><option value="débutant">Débutant</option><option value="intermédiaire">Intermédiaire</option><option value="avancé">Avancé</option></select><input class="fi" id="ex-solution" placeholder="Solution / correction optionnelle"></div>
-      <input class="fi" type="file" id="ex-files" accept="image/*,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'ex-file-count')"><div class="file-count" id="ex-file-count"></div>
+      <input class="fi" type="file" id="ex-files" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'ex-file-count')"><div class="file-count" id="ex-file-count"></div>
       <label class="muted"><input type="checkbox" id="ex-all" checked> Envoyer à tous les élèves</label>
       <div class="target-list" id="ex-targets">{% for s in students %}<label><input type="checkbox" value="{{ loop.index0 }}"> {{ s.name or '?' }}</label>{% endfor %}</div>
       <button class="btn" onclick="createExercise()">Envoyer l'exercice</button><span class="muted" id="ex-msg"></span>

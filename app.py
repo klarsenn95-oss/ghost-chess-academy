@@ -16,6 +16,7 @@ import urllib.parse
 from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import RequestEntityTooLarge
 
 try:
     from dotenv import load_dotenv
@@ -43,6 +44,7 @@ from flask_apscheduler import APScheduler
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("GHOST_SECRET_KEY", "ghost-dev-secret-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 110 * 1024 * 1024
 DATA_FILE = os.path.join(os.path.expanduser("~"), ".ghost_chess_data.json")
 
 ADMIN_USERNAME = os.environ.get("GHOST_ADMIN_USERNAME", "coach")
@@ -140,7 +142,9 @@ REPORTS_FOLDER = os.path.join(os.path.dirname(__file__), "static", "reports")
 os.makedirs(UPLOAD_FOLDER,  exist_ok=True)
 os.makedirs(CLIENT_UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(REPORTS_FOLDER, exist_ok=True)
-ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp", "pdf", "pgn", "txt"}
+VIDEO_EXT = {"mp4", "webm", "m4v"}
+ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp", "pdf", "pgn", "txt", *VIDEO_EXT}
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 def allowed_file(fn):
     return "." in fn and fn.rsplit(".", 1)[1].lower() in ALLOWED_EXT
@@ -1437,7 +1441,18 @@ def is_image_url(url):
     u = (url or "").lower().split("?")[0]
     return u.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"))
 
-app.jinja_env.globals.update(is_image_url=is_image_url)
+def is_video_url(url):
+    u = (url or "").lower().split("?")[0]
+    return u.endswith(tuple(f".{ext}" for ext in VIDEO_EXT))
+
+app.jinja_env.globals.update(is_image_url=is_image_url, is_video_url=is_video_url)
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(_error):
+    message = "Fichier trop volumineux. La taille maximale est de 100 Mo."
+    if wants_json_response():
+        return jsonify({"ok": False, "error": message}), 413
+    return message, 413
 
 def upload_many_from_request(prefix="file"):
     files = request.files.getlist("files") or request.files.getlist("file")
@@ -1448,7 +1463,9 @@ def upload_many_from_request(prefix="file"):
         if not allowed_file(f.filename):
             continue
         filename = secure_filename(f"{prefix}_{uuid.uuid4().hex[:10]}_{f.filename}")
-        content = f.read()
+        content = f.read(MAX_UPLOAD_BYTES + 1)
+        if len(content) > MAX_UPLOAD_BYTES:
+            raise RequestEntityTooLarge()
         remote_url = upload_bytes(filename, content, prefix=prefix) if storage_configured() else None
         if remote_url:
             urls.append(remote_url)
@@ -3156,7 +3173,7 @@ def api_client_upload():
     if client_is_restricted(user): return restricted_response(user)
     urls = upload_many_from_request(user.get("id", "student"))
     if not urls:
-        return jsonify({"ok": False, "error": "Aucun fichier valide. Formats acceptés : image, PDF, PGN, TXT."}), 400
+        return jsonify({"ok": False, "error": "Aucun fichier valide. Formats acceptés : image, vidéo MP4/WebM, PDF, PGN, TXT."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
 
 @app.route("/api/client/avatar", methods=["POST"])
@@ -3525,7 +3542,7 @@ def api_admin_payment_update():
 def api_admin_upload():
     urls = upload_many_from_request("coach")
     if not urls:
-        return jsonify({"ok": False, "error": "Aucun fichier valide."}), 400
+        return jsonify({"ok": False, "error": "Aucun fichier valide. Utilise une vidéo MP4/WebM de 100 Mo maximum."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
 
 @app.route("/api/admin/telegram/chats", methods=["POST"])
