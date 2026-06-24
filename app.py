@@ -341,20 +341,13 @@ def get_rank(student):
     vals = list(elos.values())
     spread = max(vals)-min(vals) if len(vals)>1 else 999
     dom_cad = "balanced" if spread<50 and len(vals)>=3 else best_cad
-    suf_label, suf_emoji = CADENCE_SUFFIX.get(dom_cad,("des Mers","🌊"))
+    suf_label, suf_emoji = CADENCE_SUFFIX.get(dom_cad, ("des Mers", "🌊"))
     flame = get_flame_status(student)
-    rank_locked = student.get("rank_locked", False)
-    manual_rank_index = student.get("manual_rank_index")
-    if rank_locked and manual_rank_index is not None:
-        try:
-            r = ranks[int(manual_rank_index)]
-            return {"emoji": r[1], "title": r[2], "color": r[3],
-                    "best_elo": best_elo, "avg_elo": avg, "peak_elo": peak,
-                    "branch": branch, "suf_label": suf_label, "suf_emoji": suf_emoji,
-                    "flame": flame, "qg": flame["active"],
-                    "rank_locked": True, "manual_rank_index": int(manual_rank_index)}
-        except (IndexError, ValueError):
-            pass
+
+    # Rang toujours calculé automatiquement par l'ELO moyen
+    rank_locked = False
+    manual_rank_index = None
+
     # Aucun elo enregistré → rang débutant
     if not avg:
         r = ranks[-1]
