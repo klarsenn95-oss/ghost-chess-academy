@@ -167,6 +167,63 @@ DEVOIR_STATUS = ["📋 À faire","🔄 En cours","📤 Rendu","🧑‍🏫 À co
 COMPORTEMENT  = ["😊 Motivé","😐 Régulier","😴 Passif","🔥 Très investi","😤 Têtu","🤔 Curieux"]
 WORK_THEMES   = ["Tactique","Finales","Ouvertures","Milieu de jeu","Calcul","Stratégie",
                  "Endgame technique","Attaque du roi","Structure de pions","Timing"]
+BLIND_TACTICS = [
+    {
+        "id": "bt-queen-net-001",
+        "title": "Tactique à l'aveugle 001",
+        "fen": "7k/6pp/8/8/8/5Q2/6PP/6K1 w - - 0 1",
+        "side": "white",
+        "goal": "Blanc joue et gagne.",
+        "line": ["32... Kg8", "33. h3 h6", "34. Qf3 Kh8"],
+        "solution": {"from": "f3", "to": "f8", "san": "Qf8#"},
+        "xp_base": 10,
+    },
+    {
+        "id": "bt-file-mate-002",
+        "title": "Tactique à l'aveugle 002",
+        "fen": "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1",
+        "side": "white",
+        "goal": "Blanc joue et gagne.",
+        "line": ["27... g6", "28. h3 Kg8", "29. Re1"],
+        "solution": {"from": "e1", "to": "e8", "san": "Re8#"},
+        "xp_base": 10,
+    },
+    {
+        "id": "bt-back-rank-003",
+        "title": "Tactique à l'aveugle 003",
+        "fen": "6k1/5ppp/8/8/8/8/5PPP/4R1Kq b - - 0 1",
+        "side": "black",
+        "goal": "Noir joue et gagne.",
+        "line": ["41. Re1 Kg8", "42. Kh2 Qh1+"],
+        "solution": {"from": "h1", "to": "e1", "san": "Qxe1#"},
+        "xp_base": 12,
+    },
+    {
+        "id": "bt-rook-swing-004",
+        "title": "Tactique à l'aveugle 004",
+        "fen": "6k1/6pp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+        "side": "white",
+        "goal": "Blanc joue et gagne.",
+        "line": ["19... Kh8", "20. Ra1 g6", "21. Ra8"],
+        "solution": {"from": "a1", "to": "a8", "san": "Ra8#"},
+        "xp_base": 9,
+    },
+]
+
+def blind_tactics_public():
+    return [
+        {k: p[k] for k in ("id", "title", "fen", "side", "goal", "line", "solution", "xp_base")}
+        for p in BLIND_TACTICS
+    ]
+
+def blind_tactics_summary(user):
+    solved = user.get("blind_tactics_solved") or []
+    return {
+        "xp": safe_int(user.get("ghost_xp"), 0),
+        "solved": len(solved),
+        "total": len(BLIND_TACTICS),
+        "attempts": safe_int(user.get("blind_tactics_attempts"), 0),
+    }
 
 RECURRING_ERRORS = [
     "Blunder en zeitnot","Mauvaise gestion du temps","Perd le fil en position complexe",
@@ -2879,6 +2936,8 @@ def client_portal():
         client_tournaments=visible_tournaments_for_student(data, idx),
         student_messages=visible_messages_for_student(data, idx),
         student_contacts=student_contacts_payload(data, idx),
+        blind_tactics=blind_tactics_public(),
+        training_summary=blind_tactics_summary(user),
         theme=plan_theme(selected_plan.get("key")),
     )
 
@@ -3359,6 +3418,56 @@ def api_admin_appointment_action():
     feedback = add_student_feedback(data, idx, title, text, "appointment", "appointment", appointment_id)
     save_data(data)
     return jsonify({"ok": True, "appointment": appt, "feedback": feedback})
+
+@app.route("/api/client/blind-tactics/solve", methods=["POST"])
+def api_client_blind_tactics_solve():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Profil Ghost introuvable."}), 404
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = (body.get("puzzle_id") or "").strip()
+    move_from = (body.get("from") or "").strip().lower()
+    move_to = (body.get("to") or "").strip().lower()
+    hidden_plies = max(1, min(20, safe_int(body.get("hidden_plies"), 4)))
+    puzzle = next((p for p in BLIND_TACTICS if p.get("id") == puzzle_id), None)
+    if not puzzle:
+        return jsonify({"ok": False, "error": "Tactique introuvable."}), 404
+    solution = puzzle.get("solution") or {}
+    user["blind_tactics_attempts"] = safe_int(user.get("blind_tactics_attempts"), 0) + 1
+    if move_from != solution.get("from") or move_to != solution.get("to"):
+        save_data(data)
+        return jsonify({"ok": False, "correct": False, "error": "Ce n'est pas le coup gagnant. Recalcule la position cachée."}), 200
+    solved = user.setdefault("blind_tactics_solved", [])
+    already_solved = puzzle_id in solved
+    xp_awarded = 0
+    if not already_solved:
+        xp_awarded = safe_int(puzzle.get("xp_base"), 10) + min(hidden_plies, 12) * 2
+        solved.append(puzzle_id)
+        user["ghost_xp"] = safe_int(user.get("ghost_xp"), 0) + xp_awarded
+        student = data["students"][idx]
+        student["ghost_xp"] = safe_int(student.get("ghost_xp"), 0) + xp_awarded
+        student.setdefault("training_log", []).insert(0, {
+            "id": str(uuid.uuid4()),
+            "date": now_fr(),
+            "type": "blind_tactic",
+            "title": puzzle.get("title"),
+            "hidden_plies": hidden_plies,
+            "move": solution.get("san"),
+            "xp": xp_awarded,
+        })
+        student["training_log"] = student.get("training_log", [])[:80]
+    save_data(data)
+    return jsonify({
+        "ok": True,
+        "correct": True,
+        "already_solved": already_solved,
+        "xp_awarded": xp_awarded,
+        "total_xp": safe_int(user.get("ghost_xp"), 0),
+        "solved": len(user.get("blind_tactics_solved") or []),
+        "solution": solution.get("san"),
+    })
 
 @app.route("/api/client/appointment/respond", methods=["POST"])
 def api_client_appointment_respond():
