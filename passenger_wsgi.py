@@ -1,4 +1,4 @@
-"""Point d'entrée WSGI pour l'hébergement Python cPanel/LWS."""
+"""Point d'entree WSGI pour un hebergement Python cPanel legacy."""
 
 from app import app as application
 

@@ -1,6 +1,6 @@
 # GHOST Chess Platform — V18 Tournois & Déploiement
 
-Port local : **5023**
+Port local : **5031**
 
 Version orientée test élèves : Supabase/PostgreSQL, espace coach sécurisé, portail élève enrichi, offres FCFA, paiements, tournois, échanges, onboarding, responsive et persistance d’onglets.
 
@@ -14,7 +14,7 @@ python app.py
 Puis ouvrir :
 
 ```text
-http://127.0.0.1:5023
+http://127.0.0.1:5031
 ```
 
 Copie ton fichier `.env` de la version précédente dans ce dossier.
@@ -30,6 +30,10 @@ GHOST_STORAGE_BUCKET=ghost-client-files
 GHOST_SECRET_KEY=une-longue-cle-aleatoire
 GHOST_ADMIN_USERNAME=coach
 GHOST_ADMIN_PASSWORD=mot-de-passe-coach
+PUBLIC_BASE_URL=https://ghostchessacademy.fr
+GHOST_PUBLIC_URL=https://ghostchessacademy.fr
+BACKEND_URL=https://ghostchessacademy.fr
+LOCAL_DEV_URL=http://127.0.0.1:5031
 ```
 
 ## Supabase
@@ -70,6 +74,59 @@ gunicorn app:app
 
 Le fichier `render.yaml` est inclus pour faciliter Render. Netlify seul est plus adapté aux sites statiques/frontends et aux fonctions serverless JS/TS/Go ; pour cette version Flask complète, Render/Railway est plus simple et fiable.
 
+
+## Deploiement domaine personnalise
+
+Domaine officiel :
+
+```text
+https://ghostchessacademy.fr
+```
+
+Service Render :
+
+```text
+https://ghost-srbt.onrender.com
+```
+
+Variables d'environnement a verifier dans Render :
+
+```env
+PUBLIC_BASE_URL=https://ghostchessacademy.fr
+GHOST_PUBLIC_URL=https://ghostchessacademy.fr
+BACKEND_URL=https://ghostchessacademy.fr
+```
+
+Les liens internes de l'application doivent rester en chemins relatifs quand c'est possible :
+
+```text
+/login
+/client
+/api/...
+```
+
+DNS attendu cote LWS :
+
+```text
+ghostchessacademy.fr      A      216.24.57.1
+www.ghostchessacademy.fr  CNAME  ghost-srbt.onrender.com
+```
+
+Commandes de test :
+
+```powershell
+nslookup ghostchessacademy.fr
+nslookup www.ghostchessacademy.fr
+```
+
+Resultat attendu :
+
+```text
+ghostchessacademy.fr -> 216.24.57.1
+www.ghostchessacademy.fr -> ghost-srbt.onrender.com
+```
+
+Si le domaine affiche encore la page LWS "Votre domaine a bien ete cree chez LWS", le probleme est DNS/LWS : supprimer les anciens records `A`/`AAAA` LWS, le parking domaine et les redirections web LWS. Ne pas supprimer les records `NS`, `MX` ou `TXT` lies aux mails/verifications. Voir `DEPLOYMENT_DOMAIN_CHECKLIST.md`.
 
 ### V18
 - Réponses aux tournois plus fluides côté élève avec état visuel et possibilité de se rétracter.

@@ -45,6 +45,14 @@ from flask_apscheduler import APScheduler
 app = Flask(__name__)
 app.secret_key = os.environ.get("GHOST_SECRET_KEY", "ghost-dev-secret-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 110 * 1024 * 1024
+PUBLIC_BASE_URL = (
+    os.environ.get("PUBLIC_BASE_URL")
+    or os.environ.get("GHOST_PUBLIC_URL")
+    or "https://ghostchessacademy.fr"
+).rstrip("/")
+BACKEND_URL = (os.environ.get("BACKEND_URL") or PUBLIC_BASE_URL).rstrip("/")
+LOCAL_DEV_URL = os.environ.get("LOCAL_DEV_URL", "http://127.0.0.1:5031")
+app.config["PREFERRED_URL_SCHEME"] = "https" if PUBLIC_BASE_URL.startswith("https://") else "http"
 DATA_FILE = os.path.join(os.path.expanduser("~"), ".ghost_chess_data.json")
 
 ADMIN_USERNAME = os.environ.get("GHOST_ADMIN_USERNAME", "coach")
@@ -58,6 +66,14 @@ def admin_logged_in():
 
 def wants_json_response():
     return request.path.startswith("/api/") or "application/json" in (request.headers.get("Accept") or "")
+
+@app.context_processor
+def inject_public_urls():
+    return {
+        "public_base_url": PUBLIC_BASE_URL,
+        "ghost_public_url": PUBLIC_BASE_URL,
+        "backend_url": BACKEND_URL,
+    }
 
 @app.before_request
 def protect_coach_space():
@@ -4489,6 +4505,6 @@ def api_admin_plans_save():
 if __name__ == "__main__":
     import webbrowser, time
     scheduler.start()
-    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open("http://127.0.0.1:5031")),daemon=True).start()
-    print("\n♟ GHOST Chess Manager v34 Stabilisation → http://127.0.0.1:5031\n")
+    threading.Thread(target=lambda:(time.sleep(0.8),webbrowser.open(LOCAL_DEV_URL)),daemon=True).start()
+    print(f"\n♟ GHOST Chess Manager v34 Stabilisation → {LOCAL_DEV_URL}\n")
     app.run(debug=False, port=5031)

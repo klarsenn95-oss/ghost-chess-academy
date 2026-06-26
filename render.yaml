@@ -12,6 +12,12 @@ services:
         value: "1"
       - key: GHOST_STORAGE_BUCKET
         value: ghost-client-files
+      - key: PUBLIC_BASE_URL
+        value: https://ghostchessacademy.fr
+      - key: GHOST_PUBLIC_URL
+        value: https://ghostchessacademy.fr
+      - key: BACKEND_URL
+        value: https://ghostchessacademy.fr
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
