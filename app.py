@@ -171,48 +171,48 @@ BLIND_TACTICS = [
     {
         "id": "bt-queen-net-001",
         "title": "Tactique à l'aveugle 001",
-        "fen": "7k/6pp/8/8/8/5Q2/6PP/6K1 w - - 0 1",
+        "start_fen": "7k/6pp/8/8/8/8/6PP/5Q1K b - - 0 32",
         "side": "white",
         "goal": "Blanc joue et gagne.",
-        "line": ["32... Kg8", "33. h3 h6", "34. Qf3 Kh8"],
-        "solution": {"from": "f3", "to": "f8", "san": "Qf8#"},
+        "history": ["Kg8", "h3", "h6", "Qf3", "Kh8"],
+        "solution_moves": [{"from": "f3", "to": "f8", "san": "Qf8#"}],
         "xp_base": 10,
     },
     {
         "id": "bt-file-mate-002",
         "title": "Tactique à l'aveugle 002",
-        "fen": "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1",
+        "start_fen": "7k/5ppp/8/8/8/8/5PPP/R5K1 b - - 0 27",
         "side": "white",
         "goal": "Blanc joue et gagne.",
-        "line": ["27... g6", "28. h3 Kg8", "29. Re1"],
-        "solution": {"from": "e1", "to": "e8", "san": "Re8#"},
+        "history": ["g6", "h3", "Kg8", "Re1", "h6"],
+        "solution_moves": [{"from": "e1", "to": "e8", "san": "Re8#"}],
         "xp_base": 10,
     },
     {
         "id": "bt-back-rank-003",
         "title": "Tactique à l'aveugle 003",
-        "fen": "6k1/5ppp/8/8/8/8/5PPP/4R1Kq b - - 0 1",
+        "start_fen": "6k1/5ppp/8/8/8/8/5PKP/7q b - - 0 41",
         "side": "black",
         "goal": "Noir joue et gagne.",
-        "line": ["41. Re1 Kg8", "42. Kh2 Qh1+"],
-        "solution": {"from": "h1", "to": "e1", "san": "Qxe1#"},
+        "history": [],
+        "solution_moves": [{"from": "h1", "to": "e1", "san": "Qxe1#"}],
         "xp_base": 12,
     },
     {
         "id": "bt-rook-swing-004",
         "title": "Tactique à l'aveugle 004",
-        "fen": "6k1/6pp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+        "start_fen": "6k1/6pp/8/8/8/8/R4PPP/6K1 b - - 0 19",
         "side": "white",
         "goal": "Blanc joue et gagne.",
-        "line": ["19... Kh8", "20. Ra1 g6", "21. Ra8"],
-        "solution": {"from": "a1", "to": "a8", "san": "Ra8#"},
+        "history": ["Kh8", "Ra1", "g6"],
+        "solution_moves": [{"from": "a1", "to": "a8", "san": "Ra8#"}],
         "xp_base": 9,
     },
 ]
 
 def blind_tactics_public():
     return [
-        {k: p[k] for k in ("id", "title", "fen", "side", "goal", "line", "solution", "xp_base")}
+        {k: p[k] for k in ("id", "title", "start_fen", "side", "goal", "history", "solution_moves", "xp_base")}
         for p in BLIND_TACTICS
     ]
 
@@ -3434,7 +3434,8 @@ def api_client_blind_tactics_solve():
     puzzle = next((p for p in BLIND_TACTICS if p.get("id") == puzzle_id), None)
     if not puzzle:
         return jsonify({"ok": False, "error": "Tactique introuvable."}), 404
-    solution = puzzle.get("solution") or {}
+    solution_moves = puzzle.get("solution_moves") or []
+    solution = solution_moves[0] if solution_moves else (puzzle.get("solution") or {})
     user["blind_tactics_attempts"] = safe_int(user.get("blind_tactics_attempts"), 0) + 1
     if move_from != solution.get("from") or move_to != solution.get("to"):
         save_data(data)
