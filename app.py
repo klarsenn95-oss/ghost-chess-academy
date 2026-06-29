@@ -226,9 +226,39 @@ BLIND_TACTICS = [
     },
 ]
 
+BLIND_TACTICS = [
+    {
+        "id": "blind-001",
+        "title": "Tactique a l'aveugle 001",
+        "pgn": "1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# 1-0",
+        "ply": 10,
+        "color": "white",
+        "description": "Blanc joue et gagne.",
+        "xp": 20,
+    },
+    {
+        "id": "blind-002",
+        "title": "Tactique a l'aveugle 002",
+        "pgn": "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7# 1-0",
+        "ply": 6,
+        "color": "white",
+        "description": "Blanc joue et gagne.",
+        "xp": 15,
+    },
+    {
+        "id": "blind-003",
+        "title": "Tactique a l'aveugle 003",
+        "pgn": "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0",
+        "ply": 6,
+        "color": "white",
+        "description": "Blanc joue et gagne.",
+        "xp": 15,
+    },
+]
+
 def blind_tactics_public():
     return [
-        {k: p[k] for k in ("id", "title", "start_fen", "side", "goal", "history", "solution_moves", "xp_base")}
+        {k: p[k] for k in ("id", "title", "pgn", "ply", "color", "description", "xp")}
         for p in BLIND_TACTICS
     ]
 
