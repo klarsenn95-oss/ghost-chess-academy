@@ -294,6 +294,7 @@ async function postJSON(url,payload){const r=await fetch(url,{method:'POST',head
 
 const BLIND_TACTICS={{ blind_tactics|tojson }};
 let blindIndex=0;
+let blindOrder=[];
 let blindOrientation='white';
 let blindRevealed=false;
 let selectedSquare=null;
@@ -306,7 +307,8 @@ let basePly=0;
 let currentMove=0;
 let fullHistory=[];
 const PIECES={wp:'&#9817;',wn:'&#9816;',wb:'&#9815;',wr:'&#9814;',wq:'&#9813;',wk:'&#9812;',bp:'&#9823;',bn:'&#9822;',bb:'&#9821;',br:'&#9820;',bq:'&#9819;',bk:'&#9818;'};
-function blindPuzzle(){return BLIND_TACTICS[blindIndex%Math.max(1,BLIND_TACTICS.length)]||null}
+function setupBlindOrder(){const total=BLIND_TACTICS.length;if(blindOrder.length===total)return;blindOrder=[...Array(total).keys()];for(let i=blindOrder.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[blindOrder[i],blindOrder[j]]=[blindOrder[j],blindOrder[i]];}blindIndex=0;}
+function blindPuzzle(){setupBlindOrder();return BLIND_TACTICS[blindOrder[blindIndex%Math.max(1,blindOrder.length)]]||null}
 function blindSquares(){const files=blindOrientation==='white'?'abcdefgh':'hgfedcba';const ranks=blindOrientation==='white'?[8,7,6,5,4,3,2,1]:[1,2,3,4,5,6,7,8];const out=[];ranks.forEach(r=>[...files].forEach(f=>out.push(f+r)));return out}
 function blindHiddenInput(){const raw=$('blind-hidden')?.value??localStorage.getItem('ghost_blind_hidden')??'4';const parsed=parseInt(raw);return Math.max(0,Math.min(10,Number.isNaN(parsed)?4:parsed))}
 function resetBlindState(){selectedSquare=null;highlightedSquares=[];blindRevealed=false;solutionChess=null;displayChess=null;currentChess=null;baseFen='';basePly=0;currentMove=0;fullHistory=[];const board=$('blind-board');if(board)board.innerHTML='';$('blind-next')?.classList.remove('show');}
@@ -328,7 +330,7 @@ function solveBlindMove(from,to){const expected=fullHistory[currentMove];if(!exp
 function revealBlindSolution(message){blindRevealed=true;selectedSquare=null;highlightedSquares=[];displayChess=new Chess(solutionChess.fen());currentChess=new Chess(solutionChess.fen());currentMove=fullHistory.length;setupMoveText();setBlindStatus(message==='Give up'?'bad':'good',message==='Give up'?'Solution révélée.':message);$('blind-next')?.classList.add('show');renderBlindBoard();}
 function giveUpBlindTactic(){revealBlindSolution('Give up');}
 function flipBlindBoard(){blindOrientation=blindOrientation==='white'?'black':'white';renderBlindBoard();}
-function nextBlindTactic(){blindIndex=(blindIndex+1)%Math.max(1,BLIND_TACTICS.length);renderBlindTactic();}
+function nextBlindTactic(){blindIndex+=1;if(blindIndex>=blindOrder.length){blindOrder=[];setupBlindOrder();}renderBlindTactic();}
 window.addEventListener('DOMContentLoaded',()=>{const h=localStorage.getItem('ghost_blind_hidden')??'4';const parsed=parseInt(h);if($('blind-hidden'))$('blind-hidden').value=Math.max(0,Math.min(10,Number.isNaN(parsed)?4:parsed));renderBlindTactic();});
 
 function handleRestricted(d,msgEl){if(d.error==='access_restricted'){msgEl.textContent=d.message||'Accès restreint.';return true}return false}
