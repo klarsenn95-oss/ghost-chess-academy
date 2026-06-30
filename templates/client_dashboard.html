@@ -177,7 +177,7 @@
 
   <section id="tab-elo" class="panel">
     <div class="card full"><div class="ttl">📈 ELO & progression</div><div class="elo-grid">
-      <div class="elo-platform"><b>🟢 Lichess</b><div class="muted">{{ student.lichess or 'Pseudo non renseigné' }}</div><div class="elo-modes">{% for key,label in [('bullet','Bullet'),('blitz','Blitz'),('rapid','Rapid'),('classical','Classique')] %}<div class="elo-mode"><span class="muted small">{{ label }}</span><b>{{ student.elo.lichess[key] or '—' }}</b></div>{% endfor %}</div></div>
+      <div class="elo-platform"><b>🟢 Lichess</b><div class="muted">{{ student.lichess or 'Pseudo non renseigné' }}</div><div class="elo-modes">{% for key,label in [('bullet','Bullet'),('blitz','Blitz'),('rapid','Rapid'),('classical','Classique'),('koth','KoTH'),('threecheck','3-Check'),('chess960','960')] %}<div class="elo-mode"><span class="muted small">{{ label }}</span><b>{{ student.elo.lichess[key] or '—' }}</b></div>{% endfor %}</div></div>
       <div class="elo-platform"><b>🟡 Chess.com</b><div class="muted">{{ student.chesscom or 'Pseudo non renseigné' }}</div><div class="elo-modes">{% for key,label in [('bullet','Bullet'),('blitz','Blitz'),('rapid','Rapid')] %}<div class="elo-mode"><span class="muted small">{{ label }}</span><b>{{ student.elo.chesscom[key] or '—' }}</b></div>{% endfor %}</div></div>
     </div>
     <div class="ghost-card-grid">

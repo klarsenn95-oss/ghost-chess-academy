@@ -232,6 +232,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
       <div class="student-meta">{{ [s.age~' ans' if s.age, s.city]|select|join(' · ') }}</div>
       {% if s.lichess %}<div class="student-lichess">@ {{ s.lichess }}</div>{% endif %}
       {% if s.style %}<div class="student-style">🎯 {{ s.style }}</div>{% endif %}
+      <canvas class="student-mini-radar" width="112" height="112" data-color="{{ s._rank.color }}" data-card="{{ s._card_stats|tojson|forceescape }}"></canvas>
       {% if s._pending_devoirs or s._pending_rappels %}
       <div style="display:flex;gap:8px;padding:4px 14px">
         {% if s._pending_devoirs %}<span style="font-size:11px;color:var(--orange)">📚 {{ s._pending_devoirs }} devoir(s)</span>{% endif %}
@@ -723,6 +724,32 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
 <script>
 const STUDENTS_DATA = {{ students|tojson }};
 const SESSIONS_DATA = {{ sessions|tojson }};
+
+function drawMiniGhostRadar(canvas){
+  let card={};
+  try{card=JSON.parse(canvas.dataset.card||'{}');}catch(e){return;}
+  const axes=card.axes||[];
+  if(!axes.length) return;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=38,color=canvas.dataset.color||'#a78bfa',n=axes.length;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#24243b';ctx.fillStyle='#ffffff04';ctx.lineWidth=1;
+  for(let ring=4;ring>=1;ring--){
+    ctx.beginPath();
+    axes.forEach((axis,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,rr=r*ring/4,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  ctx.strokeStyle='#1f1f35';
+  axes.forEach((axis,i)=>{const a=-Math.PI/2+i*2*Math.PI/n;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);ctx.stroke();});
+  ctx.beginPath();
+  axes.forEach((axis,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,rr=r*(Number(axis.value)||0)/100,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.closePath();ctx.fillStyle=color+'88';ctx.strokeStyle=color;ctx.lineWidth=2;ctx.fill();ctx.stroke();
+}
+
+function drawAllMiniGhostRadars(){
+  document.querySelectorAll('.student-mini-radar').forEach(drawMiniGhostRadar);
+}
+
+window.addEventListener('DOMContentLoaded',drawAllMiniGhostRadars);
 
 // ── Filtres branch ────────────────────────────────────────
 var currentBranchFilter = 'all';

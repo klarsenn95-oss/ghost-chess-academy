@@ -264,6 +264,7 @@ body{display:flex;height:100vh;overflow:hidden;}
 .student-card{
   background:var(--bg2);border:1px solid var(--border);border-radius:14px;
   overflow:hidden;transition:border-color .2s,transform .2s,box-shadow .2s;
+  position:relative;min-height:205px;padding-right:128px;
 }
 .student-card:hover{
   border-color:var(--border2);
@@ -288,6 +289,8 @@ body{display:flex;height:100vh;overflow:hidden;}
 .student-lichess{font-size:11px;color:#22223a;padding:0 13px;font-family:var(--font-mono);}
 .student-style{font-size:12px;color:#55558a;padding:3px 13px 0;}
 .student-actions{display:flex;gap:7px;padding:8px 13px 12px;}
+.student-mini-radar{position:absolute;right:12px;top:76px;width:108px;height:108px;border:1px solid var(--border);border-radius:12px;background:#05050e;}
+@media(max-width:720px){.student-card{padding-right:0}.student-mini-radar{position:static;margin:8px 13px 10px;width:150px;height:150px;display:block}}
 .search-input{
   background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
   color:var(--text);font-size:13px;padding:7px 12px;

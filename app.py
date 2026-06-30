@@ -452,6 +452,11 @@ def get_best_elos(student):
         "classical": ["elo_li_classical"],
         "koth":      ["elo_li_koth"],
         "threecheck":["elo_li_threecheck"],
+        "chess960":  ["elo_li_chess960"],
+        "atomic":    ["elo_li_atomic"],
+        "horde":     ["elo_li_horde"],
+        "racingkings":["elo_li_racingkings"],
+        "crazyhouse":["elo_li_crazyhouse"],
     }
     result = {}
     for cad, keys in mapping.items():
@@ -461,30 +466,42 @@ def get_best_elos(student):
                 result[cad] = max(result.get(cad,0), int(v))
     return result
 
-def normalize_rating_score(value, floor=800, ceiling=2600):
+def normalize_rating_score(value, floor=0, ceiling=3000):
     v = safe_int(value, 0)
     if v <= 0:
         return 0
     return max(0, min(100, int((v - floor) / max(1, ceiling - floor) * 100)))
 
 def estimated_play_hours(student):
+    li_seconds = sum(safe_int(student.get(k), 0) for k in [
+        "li_seconds_bullet", "li_seconds_blitz", "li_seconds_rapid", "li_seconds_classical",
+        "li_seconds_koth", "li_seconds_threecheck", "li_seconds_chess960",
+        "li_seconds_atomic", "li_seconds_horde", "li_seconds_racingkings", "li_seconds_crazyhouse",
+    ])
+    if li_seconds:
+        cc_games = safe_int(student.get("cc_games"), 0)
+        return round((li_seconds / 3600) + (cc_games * 8 / 60), 1)
     li_games = safe_int(student.get("li_games"), 0)
     cc_games = safe_int(student.get("cc_games"), 0)
     # Estimation prudente : les APIs donnent surtout le volume de parties, pas le temps exact.
     return round((li_games + cc_games) * 8 / 60, 1)
+
+def card_axis_score(student, key, rating):
+    pct = safe_int(student.get(f"li_percentile_{key}"), 0)
+    return max(0, min(100, pct))
 
 def ghost_card_stats(student):
     elos = get_best_elos(student)
     hours = estimated_play_hours(student)
     experience_score = max(0, min(100, int(hours / 200 * 100)))
     axes = [
-        {"key": "bullet", "label": "Bullet", "value": normalize_rating_score(elos.get("bullet")), "raw": elos.get("bullet", 0)},
-        {"key": "blitz", "label": "Blitz", "value": normalize_rating_score(elos.get("blitz")), "raw": elos.get("blitz", 0)},
-        {"key": "rapid", "label": "Rapid", "value": normalize_rating_score(elos.get("rapid")), "raw": elos.get("rapid", 0)},
-        {"key": "classical", "label": "Classique", "value": normalize_rating_score(elos.get("classical")), "raw": elos.get("classical", 0)},
+        {"key": "bullet", "label": "Bullet", "value": card_axis_score(student, "bullet", elos.get("bullet")), "raw": elos.get("bullet", 0), "percentile": safe_int(student.get("li_percentile_bullet"), 0)},
+        {"key": "blitz", "label": "Blitz", "value": card_axis_score(student, "blitz", elos.get("blitz")), "raw": elos.get("blitz", 0), "percentile": safe_int(student.get("li_percentile_blitz"), 0)},
+        {"key": "rapid", "label": "Rapid", "value": card_axis_score(student, "rapid", elos.get("rapid")), "raw": elos.get("rapid", 0), "percentile": safe_int(student.get("li_percentile_rapid"), 0)},
+        {"key": "classical", "label": "Classique", "value": card_axis_score(student, "classical", elos.get("classical")), "raw": elos.get("classical", 0), "percentile": safe_int(student.get("li_percentile_classical"), 0)},
         {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours},
-        {"key": "koth", "label": "KoTH", "value": normalize_rating_score(elos.get("koth")), "raw": elos.get("koth", 0)},
-        {"key": "threecheck", "label": "3-Check", "value": normalize_rating_score(elos.get("threecheck")), "raw": elos.get("threecheck", 0)},
+        {"key": "koth", "label": "KoTH", "value": card_axis_score(student, "koth", elos.get("koth")), "raw": elos.get("koth", 0), "percentile": safe_int(student.get("li_percentile_koth"), 0)},
+        {"key": "threecheck", "label": "3-Check", "value": card_axis_score(student, "threecheck", elos.get("threecheck")), "raw": elos.get("threecheck", 0), "percentile": safe_int(student.get("li_percentile_threecheck"), 0)},
     ]
     return {"axes": axes, "hours": hours}
 
@@ -646,23 +663,69 @@ def _api_get(url):
     with urlopen(req,timeout=8) as r:
         return json.loads(r.read().decode())
 
+LICHESS_PERF_MAP = {
+    "bullet": ("elo_bullet", "elo_li_bullet", "bullet"),
+    "blitz": ("elo_blitz", "elo_li_blitz", "blitz"),
+    "rapid": ("elo_rapid", "elo_li_rapid", "rapid"),
+    "classical": ("elo_classical", "elo_li_classical", "classical"),
+    "kingOfTheHill": ("elo_koth", "elo_li_koth", "koth"),
+    "threeCheck": ("elo_threecheck", "elo_li_threecheck", "threecheck"),
+    "chess960": ("elo_chess960", "elo_li_chess960", "chess960"),
+    "atomic": ("elo_atomic", "elo_li_atomic", "atomic"),
+    "horde": ("elo_horde", "elo_li_horde", "horde"),
+    "racingKings": ("elo_racingkings", "elo_li_racingkings", "racingkings"),
+    "crazyhouse": ("elo_crazyhouse", "elo_li_crazyhouse", "crazyhouse"),
+}
+
+LICHESS_DETAIL_PERFS = ["bullet", "blitz", "rapid", "classical", "kingOfTheHill", "threeCheck", "chess960"]
+
+def _lichess_perf_details(username, perf):
+    try:
+        return _api_get(f"https://lichess.org/api/user/{urllib.parse.quote(username)}/perf/{perf}")
+    except Exception:
+        return {}
+
 def fetch_lichess(username):
     username = username.strip()
     data = _api_get(f"https://lichess.org/api/user/{urllib.parse.quote(username)}")
     perfs = data.get("perfs",{})
+    result = {}
+    field_values = {}
     def elo(cat):
         r = perfs.get(cat,{}).get("rating","")
         return str(r) if r and str(r).lstrip("-").isdigit() else ""
     def games(cat): return perfs.get(cat,{}).get("games",0)
-    total = sum(games(c) for c in ["bullet","blitz","rapid","classical","correspondence","kingOfTheHill","threeCheck"])
+    total = sum(games(c) for c in LICHESS_PERF_MAP.keys()) + games("correspondence")
+    for perf, (short_key, field_key, axis_key) in LICHESS_PERF_MAP.items():
+        value = elo(perf)
+        result[short_key] = value
+        field_values[field_key] = value
+        field_values[f"li_games_{axis_key}"] = str(games(perf) or "")
+    for perf in LICHESS_DETAIL_PERFS:
+        details = _lichess_perf_details(username, perf)
+        axis_key = LICHESS_PERF_MAP[perf][2]
+        percentile = details.get("percentile")
+        if percentile is not None:
+            field_values[f"li_percentile_{axis_key}"] = str(round(float(percentile), 1))
+        seconds = (((details.get("stat") or {}).get("count") or {}).get("seconds"))
+        if seconds is not None:
+            field_values[f"li_seconds_{axis_key}"] = str(seconds)
     ts = data.get("seenAt",0)
     last = datetime.fromtimestamp(ts/1000).strftime("%d/%m/%Y") if ts else "—"
-    return {"elo_bullet":elo("bullet"),"elo_blitz":elo("blitz"),"elo_rapid":elo("rapid"),
-            "elo_classical":elo("classical"),"elo_koth":elo("kingOfTheHill"),
-            "elo_threecheck":elo("threeCheck"),"games_total":str(total),
-            "title":data.get("title",""),"last_online":last,
-            "url":f"https://lichess.org/@/{username}",
-            "name":data.get("profile",{}).get("realName","")}
+    result.update({"games_total":str(total),
+                   "title":data.get("title",""),"last_online":last,
+                   "url":f"https://lichess.org/@/{username}",
+                   "name":data.get("profile",{}).get("realName",""),
+                   "field_values":field_values})
+    return result
+
+def apply_lichess_result(student, result):
+    for field, value in (result.get("field_values") or {}).items():
+        if value not in (None, ""):
+            student[field] = value
+    student["li_games"] = result.get("games_total", student.get("li_games", ""))
+    student["li_last_online"] = result.get("last_online", student.get("li_last_online", ""))
+    return {field: value for field, value in (result.get("field_values") or {}).items() if field.startswith("elo_li_")}
 
 def fetch_chesscom(username):
     username = username.strip()
@@ -1933,9 +1996,10 @@ def public_student_payload(student):
         "squad": student.get("squad", ""),
         "avatar": student.get("avatar", ""),
         "elo": {
-            "lichess": {"bullet": student.get("elo_li_bullet"), "blitz": student.get("elo_li_blitz"), "rapid": student.get("elo_li_rapid"), "classical": student.get("elo_li_classical"), "koth": student.get("elo_li_koth"), "threecheck": student.get("elo_li_threecheck"), "games": student.get("li_games")},
+            "lichess": {"bullet": student.get("elo_li_bullet"), "blitz": student.get("elo_li_blitz"), "rapid": student.get("elo_li_rapid"), "classical": student.get("elo_li_classical"), "koth": student.get("elo_li_koth"), "threecheck": student.get("elo_li_threecheck"), "chess960": student.get("elo_li_chess960"), "atomic": student.get("elo_li_atomic"), "horde": student.get("elo_li_horde"), "racingkings": student.get("elo_li_racingkings"), "crazyhouse": student.get("elo_li_crazyhouse"), "games": student.get("li_games")},
             "chesscom": {"bullet": student.get("elo_cc_bullet"), "blitz": student.get("elo_cc_blitz"), "rapid": student.get("elo_cc_rapid"), "games": student.get("cc_games")},
         },
+        "lichess_percentiles": {k.replace("li_percentile_", ""): v for k, v in student.items() if str(k).startswith("li_percentile_")},
         "card_stats": ghost_card_stats(student),
         "rank_events": student.get("rank_events", [])[:12],
         "elo_history": student.get("elo_history", [])[-90:],
@@ -2587,19 +2651,11 @@ def sync_lichess():
         d = fetch_lichess(username)
         s = data["students"][idx]
         before_rank = snapshot_rank(s)
-        if d["elo_bullet"]: s["elo_li_bullet"]=d["elo_bullet"]
-        if d["elo_blitz"]:  s["elo_li_blitz"]=d["elo_blitz"]
-        if d["elo_rapid"]:  s["elo_li_rapid"]=d["elo_rapid"]
-        if d["elo_classical"]: s["elo_li_classical"]=d["elo_classical"]
-        if d["elo_koth"]: s["elo_li_koth"]=d["elo_koth"]
-        if d["elo_threecheck"]: s["elo_li_threecheck"]=d["elo_threecheck"]
-        s["li_games"]=d["games_total"]; s["li_last_online"]=d["last_online"]
+        li_fields = apply_lichess_result(s, d)
         today = datetime.now().strftime("%d/%m/%Y")
         hist = s.setdefault("elo_history",[])
-        li_update = {"date":today,"elo_li":d["elo_blitz"],"elo_li_blitz":d["elo_blitz"],
-                     "elo_li_bullet":d["elo_bullet"],"elo_li_rapid":d["elo_rapid"],
-                     "elo_li_classical":d["elo_classical"],"elo_li_koth":d["elo_koth"],
-                     "elo_li_threecheck":d["elo_threecheck"],"note":"Sync auto"}
+        li_update = {"date":today,"elo_li":d.get("elo_blitz",""),"note":"Sync auto"}
+        li_update.update(li_fields)
         existing = next((e for e in hist if e.get("date")==today), None)
         if existing is None: hist.append(li_update)
         else: existing.update(li_update)
@@ -2661,17 +2717,9 @@ def sync_all():
         if s.get("lichess","").strip():
             try:
                 d = fetch_lichess(s["lichess"].strip())
-                if d["elo_bullet"]: s["elo_li_bullet"]=d["elo_bullet"]
-                if d["elo_blitz"]:  s["elo_li_blitz"]=d["elo_blitz"]
-                if d["elo_rapid"]:  s["elo_li_rapid"]=d["elo_rapid"]
-                if d["elo_classical"]: s["elo_li_classical"]=d["elo_classical"]
-                if d["elo_koth"]: s["elo_li_koth"]=d["elo_koth"]
-                if d["elo_threecheck"]: s["elo_li_threecheck"]=d["elo_threecheck"]
-                s["li_games"]=d["games_total"]; s["li_last_online"]=d["last_online"]
-                today_entry.update({"elo_li":d["elo_blitz"],"elo_li_blitz":d["elo_blitz"],
-                    "elo_li_bullet":d["elo_bullet"],"elo_li_rapid":d["elo_rapid"],
-                    "elo_li_classical":d["elo_classical"],"elo_li_koth":d["elo_koth"],
-                    "elo_li_threecheck":d["elo_threecheck"]})
+                li_fields = apply_lichess_result(s, d)
+                today_entry.update({"elo_li":d.get("elo_blitz","")})
+                today_entry.update(li_fields)
                 results["ok"]+=1; results["details"].append(f"✅ {name} (Li)")
             except Exception as e:
                 results["err"]+=1; results["details"].append(f"❌ {name} Li: {e}")
@@ -4156,14 +4204,9 @@ def api_client_elo_sync():
     if (s.get("lichess") or "").strip():
         try:
             d = fetch_lichess(s["lichess"].strip())
-            if d["elo_bullet"]: s["elo_li_bullet"] = d["elo_bullet"]
-            if d["elo_blitz"]: s["elo_li_blitz"] = d["elo_blitz"]
-            if d["elo_rapid"]: s["elo_li_rapid"] = d["elo_rapid"]
-            if d["elo_classical"]: s["elo_li_classical"] = d["elo_classical"]
-            if d["elo_koth"]: s["elo_li_koth"] = d["elo_koth"]
-            if d["elo_threecheck"]: s["elo_li_threecheck"] = d["elo_threecheck"]
-            s["li_games"] = d["games_total"]; s["li_last_online"] = d["last_online"]
-            today_entry.update({"elo_li": d["elo_blitz"], "elo_li_blitz": d["elo_blitz"], "elo_li_bullet": d["elo_bullet"], "elo_li_rapid": d["elo_rapid"], "elo_li_classical": d["elo_classical"], "elo_li_koth": d["elo_koth"], "elo_li_threecheck": d["elo_threecheck"]})
+            li_fields = apply_lichess_result(s, d)
+            today_entry.update({"elo_li": d.get("elo_blitz", "")})
+            today_entry.update(li_fields)
             results.append("Lichess synchronisé")
         except Exception as e:
             results.append(f"Lichess non synchronisé : {e}")

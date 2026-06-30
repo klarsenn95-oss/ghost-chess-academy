@@ -401,6 +401,11 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div class="elo-sub">FIDE/OTB: {{ s.elo_otb or '—' }}</div>
       </div>
       <div class="elo-card">
+        <div class="elo-card-ttl">Variantes Lichess</div>
+        <div class="elo-num" style="font-size:14px;color:#a78bfa">KoTH {{ s.elo_li_koth or '-' }} - 3-Check {{ s.elo_li_threecheck or '-' }}</div>
+        <div class="elo-sub">960 {{ s.elo_li_chess960 or '-' }} - Atomic {{ s.elo_li_atomic or '-' }} - Horde {{ s.elo_li_horde or '-' }}</div>
+      </div>
+      <div class="elo-card">
         <div class="elo-card-ttl">Parties jouées</div>
         <div class="elo-num" style="font-size:16px">{{ s.li_games or '—' }}</div>
         <div class="elo-sub">Dernière co. {{ s.li_last_online or '—' }}</div>
