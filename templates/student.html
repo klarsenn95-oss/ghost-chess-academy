@@ -728,6 +728,15 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 <!-- JOURNAL -->
 <div id="tab-journal" class="s-tab-content">
   <div class="s-section">
+    <div class="s-section-title">Resultats de tournois</div>
+    {% for r in s.get('tournament_results', []) %}
+    <div class="je">
+      <div class="je-meta"><span>{{ r.date }}</span><span>{{ r.day }} {{ r.time }}</span></div>
+      <div class="je-content"><b>{{ r.tournament_title }}</b><br>{{ r.rank }} {{ r.score }}{% if r.note %}<br>{{ r.note }}{% endif %}</div>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:14px">Aucun resultat de tournoi enregistre.</div>{% endfor %}
+  </div>
+  <div class="s-section">
     <div class="s-section-title">✍️ Nouvelle entrée</div>
     <div class="mood-row">{% for m in ['😊','🔥','😤','💡','⚡','🎯','📈','😴','🏆','🤔','♟','🧠'] %}<button class="mood-btn" onclick="selectMood(this,'{{ m }}')">{{ m }}</button>{% endfor %}</div>
     <textarea class="fta" id="journal-text" rows="4" placeholder="Notes de séance, observations, impressions…"></textarea>

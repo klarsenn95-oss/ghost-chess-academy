@@ -482,10 +482,18 @@ body{padding:8px 8px 72px!important}
     <div class="target-list" id="tour-targets">{% for s in students %}<label><input type="checkbox" value="{{ loop.index0 }}"> {{ s.name or '?' }}</label>{% endfor %}</div>
     <button class="btn" onclick="createTournament()">Planifier et notifier</button><span class="muted" id="tour-msg"></span>
     {% if tournaments %}<div class="mini-list">{% for t in tournaments[:12] %}<div class="tournament-admin">
-      <div class="tournament-admin-top"><span><b>{{ t.title }}</b> · {{ t.day }} {{ t.time }}</span><button class="btn danger tiny" onclick="deleteTournament('{{ t.id }}')">Supprimer</button></div>
+      <div class="tournament-admin-top"><span><b>{{ t.title }}</b> · {{ t.day }} {{ t.time }} <span class="badge {{ 'warn' if t._is_past else 'ok' }}">{{ t._status }}</span></span><button class="btn danger tiny" onclick="deleteTournament('{{ t.id }}')">Supprimer</button></div>
       <div class="muted" style="margin-top:4px">{{ 'Envoyé à tous' if t.target_all else (t._invited ~ ' élève(s) invité(s)') }}</div>
       <div class="tournament-stats"><span>✅ {{ t._accepted }}/{{ t._invited }} participent</span><span>⛔ {{ t._unavailable }} indisponible(s)</span><span>… {{ t._pending }} sans réponse</span></div>
       <div class="tournament-meter"><span style="width:{{ (t._accepted / t._invited * 100)|int if t._invited else 0 }}%"></span></div>
+      <div class="mini-grid" style="margin-top:10px">
+        <select class="fi" id="tour-result-student-{{ t.id }}">{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }}</option>{% endfor %}</select>
+        <input class="fi" id="tour-result-rank-{{ t.id }}" placeholder="Place / rang">
+        <input class="fi" id="tour-result-score-{{ t.id }}" placeholder="Score">
+        <input class="fi" id="tour-result-note-{{ t.id }}" placeholder="Note courte">
+      </div>
+      <button class="btn secondary tiny" onclick="saveTournamentResult('{{ t.id }}')">Enregistrer resultat</button><span class="muted" id="tour-result-msg-{{ t.id }}"></span>
+      {% if t.results %}<div class="mini-list">{% for r in t.results[:5] %}<div class="mini-item"><span><b>{{ r.student_name }}</b><br><span class="muted">{{ r.rank }} {{ r.score }} {% if r.note %}· {{ r.note }}{% endif %}</span></span><span class="pill">resultat</span></div>{% endfor %}</div>{% endif %}
     </div>{% endfor %}</div>{% endif %}
   </div>
 
@@ -545,6 +553,7 @@ async function createTournament(){const all=$('tour-all').checked;const targets=
 async function createExercise(){const all=$('ex-all').checked;const targets=[...document.querySelectorAll('#ex-targets input:checked')].map(x=>x.value);$('ex-msg').textContent='Envoi...';const attachments=await uploadAdminFiles('ex-files');const d=await postJSON('/api/admin/exercise/create',{title:$('ex-title').value,text:$('ex-text').value,level:$('ex-level').value,solution:$('ex-solution').value,target_all:all,targets,attachments});$('ex-msg').textContent=d.ok?'Exercice envoyé.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}
 async function deleteExercise(id,title){if(!confirm(`Annuler « ${title} » et le retirer des devoirs de tous les Ghosts ?`))return;const d=await postJSON('/api/admin/exercise/delete',{exercise_id:id});alert(d.ok?`${d.devoirs_removed||0} devoir(s) retiré(s).`:(d.error||'Erreur'));if(d.ok)location.reload()}
 async function deleteTournament(id){if(!confirm('Supprimer ce tournoi ?'))return; const d=await postJSON('/api/admin/tournaments/delete',{tournament_id:id}); if(d.ok)location.reload(); else alert(d.error||'Erreur suppression');}
+async function saveTournamentResult(id){const msg=$('tour-result-msg-'+id);if(msg)msg.textContent='Enregistrement...';const d=await postJSON('/api/admin/tournaments/result',{tournament_id:id,student_index:$('tour-result-student-'+id)?.value,rank:$('tour-result-rank-'+id)?.value,score:$('tour-result-score-'+id)?.value,note:$('tour-result-note-'+id)?.value});if(d.ok){if(msg)msg.textContent='Resultat enregistre dans le profil Ghost.';setTimeout(()=>location.reload(),800)}else if(msg)msg.textContent=d.error||'Erreur';}
 async function approveRegistration(id){const d=await postJSON('/api/admin/registration/approve',{request_id:id,student_index:$('reg-student-'+id)?.value||'',access_kind:$('reg-access-'+id)?.value||'paid_registration'}); if(d.ok){alert('Code généré : '+d.code.code); location.reload();} else alert(d.error||'Erreur');}
 async function rejectRegistration(id){const note=prompt('Motif optionnel du refus')||'';const d=await postJSON('/api/admin/registration/reject',{request_id:id,note}); if(d.ok)location.reload(); else alert(d.error||'Erreur');}
 function copyText(txt){navigator.clipboard?.writeText(txt); alert('Copié : '+txt);}

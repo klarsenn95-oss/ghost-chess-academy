@@ -208,7 +208,7 @@ BLIND_TACTICS = [
         "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5 Qg5 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3#",
         "ply": 12,
         "color": "white",
-        "description": "Blanc joue et tente de survivre au piege.",
+        "description": "Blanc doit trouver la seule defense, puis Noir mate.",
         "xp": 26,
     },
     {
@@ -224,15 +224,6 @@ BLIND_TACTICS = [
         "id": "blind-005",
         "title": "Tactique a l'aveugle 005",
         "pgn": "1. d4 e5 2. dxe5 Nc6 3. Nf3 Qe7 4. Bf4 Qb4+ 5. Bd2 Qxb2 6. Bc3 Bb4 7. Qd2 Bxc3 8. Qxc3 Qc1#",
-        "ply": 15,
-        "color": "black",
-        "description": "Noir joue et gagne.",
-        "xp": 26,
-    },
-    {
-        "id": "blind-006",
-        "title": "Tactique a l'aveugle 006",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Ng4 5. h3 h5 6. hxg4 hxg4 7. Nh2 Qh4 8. Re1 Qxf2#",
         "ply": 15,
         "color": "black",
         "description": "Noir joue et gagne.",
@@ -280,98 +271,8 @@ BLIND_TACTICS = [
         "pgn": "1. e4 e5 2. Nf3 Nf6 3. Nxe5 Nc6 4. Nxc6 dxc6 5. d3 Bc5 6. Bg5 Nxe4 7. Bxd8 Bxf2+ 8. Ke2 Bg4#",
         "ply": 12,
         "color": "white",
-        "description": "Blanc joue dans une ligne tactique piegee.",
+        "description": "Blanc entre dans une ligne tactique piegee, puis Noir mate.",
         "xp": 28,
-    },
-    {
-        "id": "blind-012",
-        "title": "Tactique a l'aveugle 012",
-        "pgn": "1. e4 e5 2. Nf3 f5 3. Nxe5 Qf6 4. d4 d6 5. Nc4 fxe4 6. Nc3 Qg6 7. f3 exf3 8. Qxf3 Nc6 9. Be3 Bg4 10. Qf2 O-O-O 11. d5 Nb4",
-        "ply": 18,
-        "color": "white",
-        "description": "Blanc joue et cherche le meilleur calcul.",
-        "xp": 30,
-    },
-    {
-        "id": "blind-013",
-        "title": "Tactique a l'aveugle 013",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 h6 4. Nc3 Nf6 5. d4 exd4 6. Nxd4 Bb4 7. O-O O-O 8. Nd5 Nxd5 9. exd5 Ne5 10. Bb3 d6 11. c3 Bc5 12. Bc2 Bg4 13. f3 Bh5 14. Kh1 Qh4 15. Nf5 Qf6 16. g4 Bg6 17. f4 Bxf5 18. fxe5 Qxe5 19. Rxf5 Qe7 20. Bxh6 gxh6 21. Qd3",
-        "ply": 34,
-        "color": "white",
-        "description": "Blanc joue et gagne.",
-        "xp": 34,
-    },
-    {
-        "id": "blind-014",
-        "title": "Tactique a l'aveugle 014",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d4 exd4 6. e5 d5 7. exf6 dxc4 8. Re1+ Be6 9. Ng5 Qd5 10. Nc3 Qf5 11. Nce4 O-O-O 12. fxg7 Rhg8 13. Nxe6 fxe6 14. Bg5 Rd7 15. Nf6 Rdxg7 16. Nxg8 Qxg5 17. Qf3 Rxg8 18. Rxe6",
-        "ply": 24,
-        "color": "white",
-        "description": "Blanc joue et gagne du materiel.",
-        "xp": 32,
-    },
-    {
-        "id": "blind-015",
-        "title": "Tactique a l'aveugle 015",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 Kxf7 7. Qf3+ Ke6 8. Nc3 Nce7 9. d4 c6 10. Bg5 h6 11. Bxe7 Bxe7 12. O-O-O Rf8 13. Rhe1 Rxf3 14. Rxe5+ Kf6 15. Ne4+ Kg6 16. gxf3",
-        "ply": 12,
-        "color": "white",
-        "description": "Blanc joue et continue l'attaque.",
-        "xp": 30,
-    },
-    {
-        "id": "blind-016",
-        "title": "Tactique a l'aveugle 016",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. O-O dxc3 8. Qb3 Qf6 9. e5 Qg6 10. Nxc3 Nge7 11. Ba3 O-O 12. Nd5 Re8 13. Rad1 Bb6 14. Nf4 Qf5 15. Nd5",
-        "ply": 16,
-        "color": "white",
-        "description": "Blanc joue et maintient l'initiative.",
-        "xp": 30,
-    },
-    {
-        "id": "blind-017",
-        "title": "Tactique a l'aveugle 017",
-        "pgn": "1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Be3 Bg7 7. f3 O-O 8. Qd2 Nc6 9. O-O-O Nxd4 10. Bxd4 Be6 11. Kb1 Qa5 12. Nd5 Qxd2 13. Nxe7+ Kh8 14. Rxd2",
-        "ply": 22,
-        "color": "white",
-        "description": "Blanc joue et gagne du materiel.",
-        "xp": 30,
-    },
-    {
-        "id": "blind-018",
-        "title": "Tactique a l'aveugle 018",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Re8 10. d4 Bf8 11. Ng5 Re7 12. d5 Nb8 13. c4 h6 14. Nf3 Nbd7 15. Nc3 b4 16. Na4 a5 17. a3 bxa3 18. Rxa3 Ba6 19. Nh4 g6 20. Bc2 Bxc4 21. Rg3 Kh7 22. f4 exf4 23. Bxf4 Nh5 24. Qxh5",
-        "ply": 44,
-        "color": "white",
-        "description": "Blanc joue et gagne.",
-        "xp": 34,
-    },
-    {
-        "id": "blind-019",
-        "title": "Tactique a l'aveugle 019",
-        "pgn": "1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. Bg5 Be7 5. e5 Nfd7 6. h4 Bxg5 7. hxg5 Qxg5 8. Nh3 Qe7 9. Qg4 O-O 10. Bd3 f5 11. exf6 Nxf6 12. Qh4 h6 13. O-O-O c5 14. dxc5 Qxc5 15. Nf4 Nc6 16. g4",
-        "ply": 18,
-        "color": "white",
-        "description": "Blanc joue et attaque le roi.",
-        "xp": 32,
-    },
-    {
-        "id": "blind-020",
-        "title": "Tactique a l'aveugle 020",
-        "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 O-O 8. c3 d5 9. exd5 Nxd5 10. Nxe5 Nxe5 11. Rxe5 c6 12. d4 Bd6 13. Re1 Qh4 14. g3 Qh3 15. Be3 Bg4 16. Qd3 Rae8 17. Nd2 Re6 18. Qf1 Qh5",
-        "ply": 24,
-        "color": "white",
-        "description": "Blanc joue et defend sous pression tactique.",
-        "xp": 32,
-    },
-    {
-        "id": "blind-021",
-        "title": "Tactique a l'aveugle 021",
-        "pgn": "1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Bg5 e6 7. f4 Qb6 8. Qd2 Qxb2 9. Rb1 Qa3 10. e5 dxe5 11. fxe5 Nfd7 12. Ne4 Qxa2 13. Rd1 Qd5 14. Qe3 Qxe5 15. Be2 Bc5 16. O-O O-O 17. Kh1 Nc6 18. c3",
-        "ply": 12,
-        "color": "white",
-        "description": "Blanc joue et calcule dans la Sicilienne.",
-        "xp": 34,
     },
 ]
 
@@ -388,6 +289,9 @@ def blind_tactics_summary(user):
         "solved": len(solved),
         "total": len(BLIND_TACTICS),
         "attempts": safe_int(user.get("blind_tactics_attempts"), 0),
+        "daily_streak": safe_int(user.get("blind_tactics_daily_streak"), 0),
+        "best_streak": safe_int(user.get("blind_tactics_best_streak"), 0),
+        "solved_ids": solved,
     }
 
 RECURRING_ERRORS = [
@@ -402,7 +306,8 @@ RANKS_PIRATES = [
     (3000, "☀️", "Joy Boy",                    "#ffe066"),
     (2800, "👑", "Roi des Pirates",            "#facc15"),
     (2600, "💠", "Yonko",                      "#f472b6"),
-    (2400, "🔥", "Commandant d'élite",        "#fb923c"),
+    (2400, "🔥", "Bras droit Yonko",           "#fb923c"),
+    (2300, "💢", "Commandant d'élite",        "#f97316"),
     (2200, "⚔️", "Commandant",        "#a78bfa"),
     (2000, "🩸", "Shichibukai",                "#c084fc"),
     (1800, "🌟", "Supernova",                  "#fbbf24"),
@@ -417,7 +322,9 @@ RANKS_MARINE = [
     (3000, "👁️", "Imu Sama",                   "#fde68a"),
     (2800, "🌟", "Grand Amiral",               "#c084fc"),
     (2600, "🌑", "Amiral en Chef",             "#60a5fa"),
-    (2400, "🎖️", "Amiral",                    "#38bdf8"),
+    (2500, "🎖️", "Amiral III",                "#38bdf8"),
+    (2400, "🎖️", "Amiral II",                 "#22d3ee"),
+    (2300, "🎖️", "Amiral I",                  "#67e8f9"),
     (2200, "⚓", "Unité secrète : SWORD",        "#22d3ee"),
     (2000, "🛡️", "Vice-Amiral",                "#7dd3fc"),
     (1800, "🪖", "Contre-Amiral",              "#a5f3fc"),
@@ -1238,6 +1145,21 @@ def now_iso():
 
 def now_fr():
     return now_paris().strftime("%d/%m/%Y %H:%M")
+
+def today_paris_iso():
+    return now_paris().date().isoformat()
+
+def tournament_datetime(t):
+    day = (t.get("day") or "").strip()
+    hour = (t.get("time") or "23:59").strip() or "23:59"
+    try:
+        return datetime.strptime(f"{day} {hour}", "%Y-%m-%d %H:%M").replace(tzinfo=PARIS_TZ)
+    except Exception:
+        return None
+
+def tournament_is_past(t):
+    dt = tournament_datetime(t)
+    return bool(dt and dt < now_paris())
 
 def student_name_from_index(data, student_index, fallback="Ghost non lié"):
     if isinstance(student_index, int) and 0 <= student_index < len(data.get("students", [])):
@@ -2083,14 +2005,29 @@ def enrich_tournament(data, tournament, student_index=None):
     if student_index is not None:
         rr = responses.get(str(student_index)) or responses.get(student_index) or {}
         t["_my_response"] = (rr.get("response") if isinstance(rr, dict) else rr) or ""
+    t["_is_past"] = tournament_is_past(t)
+    t["_status"] = "passé" if t["_is_past"] else "à venir"
+    t["_results_count"] = len(t.get("results") or [])
+    for result in t.get("results") or []:
+        if isinstance(result, dict):
+            result["student_name"] = student_name_from_index(data, safe_int(result.get("student_index"), -1), "Ghost")
     return t
 
-def enriched_tournaments(data, limit=30, student_index=None):
-    return [enrich_tournament(data, t, student_index) for t in data.get("tournaments", [])[:limit]]
+def enriched_tournaments(data, limit=30, student_index=None, upcoming_only=False):
+    out = []
+    for t in data.get("tournaments", []):
+        if upcoming_only and tournament_is_past(t):
+            continue
+        out.append(enrich_tournament(data, t, student_index))
+        if len(out) >= limit:
+            break
+    return out
 
 def visible_tournaments_for_student(data, student_index):
     out=[]
     for t in data.get("tournaments", []):
+        if tournament_is_past(t):
+            continue
         targets=t.get("targets") or []
         if t.get("target_all") or str(student_index) in [str(x) for x in targets] or student_index in targets:
             out.append(enrich_tournament(data, t, student_index))
@@ -2164,7 +2101,7 @@ def index():
         ranks_pirates=ranks_pirates_data, ranks_marine=ranks_marine_data,
         haki_thresholds=HAKI_THRESHOLDS,
         pairs=data.get("pairs",[]),
-        dashboard_tournaments=enriched_tournaments(data, 3),
+        dashboard_tournaments=enriched_tournaments(data, 3, upcoming_only=True),
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         visit_stats=data.get("visit_stats", {}))
@@ -3102,7 +3039,7 @@ def client_portal():
         student_messages=visible_messages_for_student(data, idx),
         student_contacts=student_contacts_payload(data, idx),
         blind_tactics=blind_tactics_public(),
-        training_summary=blind_tactics_summary(user),
+        blind_summary=blind_tactics_summary(user),
         theme=plan_theme(selected_plan.get("key")),
     )
 
@@ -3593,35 +3530,50 @@ def api_client_blind_tactics_solve():
         return jsonify({"ok": False, "error": "Profil Ghost introuvable."}), 404
     body = request.get_json(force=True, silent=True) or {}
     puzzle_id = (body.get("puzzle_id") or "").strip()
-    move_from = (body.get("from") or "").strip().lower()
-    move_to = (body.get("to") or "").strip().lower()
     hidden_plies = max(1, min(20, safe_int(body.get("hidden_plies"), 4)))
     puzzle = next((p for p in BLIND_TACTICS if p.get("id") == puzzle_id), None)
     if not puzzle:
         return jsonify({"ok": False, "error": "Tactique introuvable."}), 404
-    solution_moves = puzzle.get("solution_moves") or []
-    solution = solution_moves[0] if solution_moves else (puzzle.get("solution") or {})
+
     user["blind_tactics_attempts"] = safe_int(user.get("blind_tactics_attempts"), 0) + 1
-    if move_from != solution.get("from") or move_to != solution.get("to"):
-        save_data(data)
-        return jsonify({"ok": False, "correct": False, "error": "Ce n'est pas le coup gagnant. Recalcule la position cachée."}), 200
     solved = user.setdefault("blind_tactics_solved", [])
     already_solved = puzzle_id in solved
+
+    today = today_paris_iso()
+    yesterday = (now_paris().date() - timedelta(days=1)).isoformat()
+    last_day = user.get("blind_tactics_last_day") or ""
+    daily_streak = safe_int(user.get("blind_tactics_daily_streak"), 0)
+    if last_day == today:
+        pass
+    elif last_day == yesterday:
+        daily_streak += 1
+        user["blind_tactics_last_day"] = today
+    else:
+        daily_streak = 1
+        user["blind_tactics_last_day"] = today
+    user["blind_tactics_daily_streak"] = daily_streak
+    user["blind_tactics_best_streak"] = max(safe_int(user.get("blind_tactics_best_streak"), 0), daily_streak)
+
     xp_awarded = 0
     if not already_solved:
-        xp_awarded = safe_int(puzzle.get("xp_base"), 10) + min(hidden_plies, 12) * 2
+        streak_bonus = min(daily_streak, 7)
+        xp_awarded = safe_int(puzzle.get("xp"), 10) + min(hidden_plies, 12) * 2 + streak_bonus
         solved.append(puzzle_id)
         user["ghost_xp"] = safe_int(user.get("ghost_xp"), 0) + xp_awarded
         student = data["students"][idx]
         student["ghost_xp"] = safe_int(student.get("ghost_xp"), 0) + xp_awarded
+        student["training_streak"] = daily_streak
+        student["training_best_streak"] = max(safe_int(student.get("training_best_streak"), 0), daily_streak)
+        student["training_last_day"] = today
         student.setdefault("training_log", []).insert(0, {
             "id": str(uuid.uuid4()),
             "date": now_fr(),
             "type": "blind_tactic",
             "title": puzzle.get("title"),
             "hidden_plies": hidden_plies,
-            "move": solution.get("san"),
+            "move": body.get("final_san") or "",
             "xp": xp_awarded,
+            "streak": daily_streak,
         })
         student["training_log"] = student.get("training_log", [])[:80]
     save_data(data)
@@ -3632,7 +3584,8 @@ def api_client_blind_tactics_solve():
         "xp_awarded": xp_awarded,
         "total_xp": safe_int(user.get("ghost_xp"), 0),
         "solved": len(user.get("blind_tactics_solved") or []),
-        "solution": solution.get("san"),
+        "daily_streak": daily_streak,
+        "best_streak": safe_int(user.get("blind_tactics_best_streak"), 0),
     })
 
 @app.route("/api/client/appointment/respond", methods=["POST"])
@@ -4397,6 +4350,47 @@ def api_admin_tournament_delete():
         student["client_feedback"] = [f for f in student.get("client_feedback", []) if not (f.get("linked_type") == "tournament" and f.get("linked_id") == tid)]
     save_data(data)
     return jsonify({"ok": True})
+
+@app.route("/api/admin/tournaments/result", methods=["POST"])
+def api_admin_tournament_result():
+    body = request.get_json(force=True, silent=True) or {}
+    tid = body.get("tournament_id")
+    student_index = safe_int(body.get("student_index"), -1)
+    data = load_data()
+    tournament = next((x for x in data.get("tournaments", []) if x.get("id") == tid), None)
+    if not tournament:
+        return jsonify({"ok": False, "error": "Tournoi introuvable."}), 404
+    if student_index < 0 or student_index >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Ghost introuvable."}), 404
+    result = {
+        "id": str(uuid.uuid4()),
+        "date": now_fr(),
+        "student_index": student_index,
+        "student_name": student_name_from_index(data, student_index, "Ghost"),
+        "rank": (body.get("rank") or "").strip()[:40],
+        "score": (body.get("score") or "").strip()[:80],
+        "note": (body.get("note") or "").strip()[:240],
+    }
+    results = tournament.setdefault("results", [])
+    results[:] = [r for r in results if safe_int((r or {}).get("student_index"), -1) != student_index]
+    results.insert(0, result)
+    tournament["completed"] = True
+    student = data["students"][student_index]
+    profile_result = {
+        **result,
+        "tournament_id": tournament.get("id"),
+        "tournament_title": tournament.get("title") or "Tournoi",
+        "day": tournament.get("day") or "",
+        "time": tournament.get("time") or "",
+        "format": tournament.get("format") or "",
+    }
+    profile_results = student.setdefault("tournament_results", [])
+    profile_results[:] = [r for r in profile_results if r.get("tournament_id") != tournament.get("id")]
+    profile_results.insert(0, profile_result)
+    student["tournament_results"] = profile_results[:80]
+    add_student_feedback(data, student_index, "Resultat tournoi enregistre", f"{profile_result['tournament_title']} : {result.get('rank') or 'resultat'} {result.get('score') or ''}.", "tournament", "tournament", tournament.get("id"))
+    save_data(data)
+    return jsonify({"ok": True, "result": profile_result})
 
 @app.route("/api/client/tournament/respond", methods=["POST"])
 def api_client_tournament_respond():
