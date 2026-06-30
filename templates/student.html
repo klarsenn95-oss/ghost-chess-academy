@@ -759,6 +759,24 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 <!-- PASSAGE DE GRADE -->
 <div id="tab-grade" class="s-tab-content">
   <div class="s-section">
+    <div class="s-section-title">Carte Ghost</div>
+    <div style="display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;align-items:center">
+      <canvas id="ghost-radar" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
+        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · Bullet / Blitz / Rapid / Classique / Expérience / KoTH / 3-Check</div>
+        {% for axis in s.get('_card_stats', {}).get('axes', []) %}
+        <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
+          <span style="width:82px;color:#ccc">{{ axis.label }}</span>
+          <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value }}%;background:{{ rank.color }}"></span></span>
+          <b style="width:48px;text-align:right;color:#aaa">{{ axis.raw or '—' }}</b>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="s-section">
     <div class="s-section-title">🎖️ Statut actuel</div>
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="font-size:32px">{{ rank.emoji }}</div>
@@ -779,6 +797,16 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       </div>
       {% endif %}
     </div>
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">Historique de grade</div>
+    {% for e in s.get('rank_events', [])[:8] %}
+    <div class="je">
+      <div class="je-meta"><span>{{ e.date }}</span><span>{% if e.type == 'promotion' %}↗ Promotion{% else %}↘ Rétrogradation{% endif %}</span></div>
+      <div class="je-content">{{ e.get('from', {}).get('title') or '—' }} → <b>{{ e.get('to', {}).get('emoji') }} {{ e.get('to', {}).get('title') }}</b></div>
+    </div>
+    {% else %}<div style="color:#333;text-align:center;padding:14px">Aucun changement de grade enregistré.</div>{% endfor %}
   </div>
 
   <!-- Passer un examen — nouveau système interactif -->
@@ -1093,6 +1121,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 <script>
 var STUDENT_IDX = {{ idx }};
 var CHART_DATA = {{ chart_data|tojson }};
+var GHOST_CARD_STATS = {{ s.get('_card_stats', {})|tojson }};
+var GHOST_RANK_COLOR = {{ rank.color|tojson }};
 var CAD_COLORS = {blitz_li:'#cc1a1a',blitz_cc:'#fbbf24',bullet_li:'#ff3a1a',bullet_cc:'#f59e0b',rapid_li:'#f472b6',classical_li:'#a78bfa',rapid_cc:'#fb923c'};
 var CAD_LABELS = {blitz_li:'🟢 Blitz',blitz_cc:'🟡 Blitz',bullet_li:'🟢 Bullet',bullet_cc:'🟡 Bullet',rapid_li:'🟢 Rapid',classical_li:'🟢 Classical',rapid_cc:'🟡 Rapid'};
 var selectedMood='';
@@ -1333,6 +1363,27 @@ function renderEloChart(){
     scales:{x:{ticks:{color:'#333',maxTicksLimit:10},grid:{color:'#0f0f0f'}},
             y:{ticks:{color:'#333'},grid:{color:'#0f0f0f'}}}
   }});
+}
+
+function drawGhostRadar(){
+  var canvas=document.getElementById('ghost-radar');
+  if(!canvas||!GHOST_CARD_STATS.axes) return;
+  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=125,axes=GHOST_CARD_STATS.axes,n=axes.length;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#2a2a2a';ctx.fillStyle='#1a120022';ctx.lineWidth=1;
+  for(var ring=5;ring>=1;ring--){
+    ctx.beginPath();
+    for(var i=0;i<n;i++){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*ring/5,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  axes.forEach(function(axis,i){
+    var a=-Math.PI/2+i*2*Math.PI/n,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+    ctx.fillStyle='#aaa';ctx.font='12px system-ui';ctx.textAlign=x<cx-8?'right':x>cx+8?'left':'center';ctx.fillText(axis.label,x+(x<cx?-8:8),y+4);
+  });
+  ctx.beginPath();
+  axes.forEach(function(axis,i){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*(axis.value||0)/100,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.closePath();ctx.fillStyle=GHOST_RANK_COLOR+'99';ctx.strokeStyle=GHOST_RANK_COLOR;ctx.lineWidth=2;ctx.fill();ctx.stroke();
 }
 
 function post(url,data,cb){
@@ -1625,6 +1676,7 @@ function openStudentHash(){
 }
 window.addEventListener('hashchange',openStudentHash);
 openStudentHash();
+drawGhostRadar();
 
 // ── EXAM ────────────────────────────────────────────────────
 var EXAM_BANK = {{ exam_bank|tojson }};

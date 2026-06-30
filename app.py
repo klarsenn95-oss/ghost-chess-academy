@@ -450,6 +450,8 @@ def get_best_elos(student):
         "blitz":     ["elo_li_blitz","elo_cc_blitz"],
         "rapid":     ["elo_li_rapid","elo_cc_rapid"],
         "classical": ["elo_li_classical"],
+        "koth":      ["elo_li_koth"],
+        "threecheck":["elo_li_threecheck"],
     }
     result = {}
     for cad, keys in mapping.items():
@@ -458,6 +460,49 @@ def get_best_elos(student):
             if v and str(v).lstrip("-").isdigit():
                 result[cad] = max(result.get(cad,0), int(v))
     return result
+
+def normalize_rating_score(value, floor=800, ceiling=2600):
+    v = safe_int(value, 0)
+    if v <= 0:
+        return 0
+    return max(0, min(100, int((v - floor) / max(1, ceiling - floor) * 100)))
+
+def estimated_play_hours(student):
+    li_games = safe_int(student.get("li_games"), 0)
+    cc_games = safe_int(student.get("cc_games"), 0)
+    # Estimation prudente : les APIs donnent surtout le volume de parties, pas le temps exact.
+    return round((li_games + cc_games) * 8 / 60, 1)
+
+def ghost_card_stats(student):
+    elos = get_best_elos(student)
+    hours = estimated_play_hours(student)
+    experience_score = max(0, min(100, int(hours / 200 * 100)))
+    axes = [
+        {"key": "bullet", "label": "Bullet", "value": normalize_rating_score(elos.get("bullet")), "raw": elos.get("bullet", 0)},
+        {"key": "blitz", "label": "Blitz", "value": normalize_rating_score(elos.get("blitz")), "raw": elos.get("blitz", 0)},
+        {"key": "rapid", "label": "Rapid", "value": normalize_rating_score(elos.get("rapid")), "raw": elos.get("rapid", 0)},
+        {"key": "classical", "label": "Classique", "value": normalize_rating_score(elos.get("classical")), "raw": elos.get("classical", 0)},
+        {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours},
+        {"key": "koth", "label": "KoTH", "value": normalize_rating_score(elos.get("koth")), "raw": elos.get("koth", 0)},
+        {"key": "threecheck", "label": "3-Check", "value": normalize_rating_score(elos.get("threecheck")), "raw": elos.get("threecheck", 0)},
+    ]
+    return {"axes": axes, "hours": hours}
+
+def rank_sort_value(rank):
+    ranks = RANKS_MARINE if rank.get("branch") == "marine" else RANKS_PIRATES
+    return len(ranks) - safe_int(rank.get("manual_rank_index"), len(ranks) - 1)
+
+def snapshot_rank(student):
+    rank = get_rank(student)
+    return {
+        "title": rank.get("title"),
+        "branch": rank.get("branch"),
+        "emoji": rank.get("emoji"),
+        "color": rank.get("color"),
+        "avg_elo": rank.get("avg_elo"),
+        "index": rank.get("manual_rank_index"),
+        "sort": rank_sort_value(rank),
+    }
 
 def get_rank(student):
     branch = detect_branch(student)
@@ -609,11 +654,12 @@ def fetch_lichess(username):
         r = perfs.get(cat,{}).get("rating","")
         return str(r) if r and str(r).lstrip("-").isdigit() else ""
     def games(cat): return perfs.get(cat,{}).get("games",0)
-    total = sum(games(c) for c in ["bullet","blitz","rapid","classical","correspondence"])
+    total = sum(games(c) for c in ["bullet","blitz","rapid","classical","correspondence","kingOfTheHill","threeCheck"])
     ts = data.get("seenAt",0)
     last = datetime.fromtimestamp(ts/1000).strftime("%d/%m/%Y") if ts else "—"
     return {"elo_bullet":elo("bullet"),"elo_blitz":elo("blitz"),"elo_rapid":elo("rapid"),
-            "elo_classical":elo("classical"),"games_total":str(total),
+            "elo_classical":elo("classical"),"elo_koth":elo("kingOfTheHill"),
+            "elo_threecheck":elo("threeCheck"),"games_total":str(total),
             "title":data.get("title",""),"last_online":last,
             "url":f"https://lichess.org/@/{username}",
             "name":data.get("profile",{}).get("realName","")}
@@ -822,6 +868,9 @@ def enrich_students(students):
         s["_avg_elo"]    = get_avg_elo(s)
         s["_sort_elo"]   = s["_avg_elo"]
         s["_island"]     = get_island(s)
+        s["_card_stats"] = ghost_card_stats(s)
+        event = s.get("last_rank_event") or {}
+        s["_rank_move"] = event.get("type", "")
         # Calcul % objectif ELO
         elo_target = s.get("elo_target","")
         elo_target_pct = 0
@@ -1739,6 +1788,8 @@ def notification_target_url(kind="info", student_index=None, item_id=None):
             return student_base + "#finances"
         if kind == "tournament":
             return student_base + "#agenda"
+        if kind == "rank":
+            return student_base + "#grade"
         if kind in ("feedback", "feedback_reply", "message", "note", "elo", "account", "info"):
             return student_base + "#echanges"
     base = "/admin/clients"
@@ -1773,6 +1824,50 @@ def add_client_notification(data, title, text, kind="info", user_id=None, studen
         who = student_name_from_index(data, student_index, "")
         suffix = f" - {who}" if who else ""
         telegram_send(admin_chat_id, f"GHOST Academy\n{title}{suffix}\n{text}\n{target}".strip())
+
+def record_rank_change_if_needed(data, student_index, before_snapshot=None):
+    if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
+        return None
+    student = data["students"][student_index]
+    current = snapshot_rank(student)
+    previous = before_snapshot or student.get("last_rank_snapshot") or {}
+    if not previous:
+        student["last_rank_snapshot"] = current
+        return None
+    if previous.get("title") == current.get("title") and previous.get("branch") == current.get("branch"):
+        student["last_rank_snapshot"] = current
+        return None
+    old_sort = safe_int(previous.get("sort"), rank_sort_value({"branch": current.get("branch"), "manual_rank_index": current.get("index")}))
+    movement = "promotion" if current.get("sort", 0) > old_sort else "demotion"
+    title = "Promotion de grade" if movement == "promotion" else "Rétrogradation de grade"
+    ghost_text = (
+        f"Félicitations, vous avez été promu au grade de {current.get('emoji','')} {current.get('title')}."
+        if movement == "promotion"
+        else f"Vous avez été rétrogradé au grade de {current.get('emoji','')} {current.get('title')}. Continuez le travail, le prochain palier est accessible."
+    )
+    event = {
+        "id": str(uuid.uuid4()),
+        "date": now_fr(),
+        "type": movement,
+        "from": previous,
+        "to": current,
+    }
+    student.setdefault("rank_events", []).insert(0, event)
+    student["rank_events"] = student.get("rank_events", [])[:40]
+    student["last_rank_event"] = event
+    student["last_rank_snapshot"] = current
+    add_student_feedback(data, student_index, title, ghost_text, "rank", "rank", event["id"], priority="high")
+    add_client_notification(
+        data,
+        title,
+        f"{student.get('name') or 'Ghost'} : {previous.get('title') or 'ancien grade'} -> {current.get('title')}.",
+        "rank",
+        None,
+        student_index,
+        target_url=f"/student/{student_index}#grade",
+        item_id=event["id"],
+    )
+    return event
 
 
 def calculate_age_from_birthdate(birthdate):
@@ -1809,7 +1904,7 @@ def public_student_payload(student):
                 "text": f.get("text") or "",
                 "date": f.get("date") or "",
                 "kind": k,
-                "target_tab": "feedback" if k in pedagogic_kinds else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers")),
+                "target_tab": "feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers"))),
             })
     return {
         "name": student.get("name", "Ghost"),
@@ -1838,9 +1933,11 @@ def public_student_payload(student):
         "squad": student.get("squad", ""),
         "avatar": student.get("avatar", ""),
         "elo": {
-            "lichess": {"bullet": student.get("elo_li_bullet"), "blitz": student.get("elo_li_blitz"), "rapid": student.get("elo_li_rapid"), "classical": student.get("elo_li_classical"), "games": student.get("li_games")},
+            "lichess": {"bullet": student.get("elo_li_bullet"), "blitz": student.get("elo_li_blitz"), "rapid": student.get("elo_li_rapid"), "classical": student.get("elo_li_classical"), "koth": student.get("elo_li_koth"), "threecheck": student.get("elo_li_threecheck"), "games": student.get("li_games")},
             "chesscom": {"bullet": student.get("elo_cc_bullet"), "blitz": student.get("elo_cc_blitz"), "rapid": student.get("elo_cc_rapid"), "games": student.get("cc_games")},
         },
+        "card_stats": ghost_card_stats(student),
+        "rank_events": student.get("rank_events", [])[:12],
         "elo_history": student.get("elo_history", [])[-90:],
         "avg_elo": get_avg_elo(student),
         "rank": rank,
@@ -2312,6 +2409,7 @@ def save_student():
     clean = {k:v for k,v in student.items() if not k.startswith("_")}
     if idx is not None and 0<=idx<len(data["students"]):
         existing = data["students"][idx]
+        before_rank = snapshot_rank(existing)
         # Une fiche coach est un formulaire partiel : fusionner au lieu de
         # remplacer évite d'effacer photo, RDV, devoirs, feedbacks et ELO.
         merged = dict(existing)
@@ -2322,6 +2420,7 @@ def save_student():
             if age != "":
                 clean["age"] = age
         data["students"][idx] = clean
+        record_rank_change_if_needed(data, idx, before_rank)
     else:
         data["students"].append(clean)
     save_data(data)
@@ -2335,6 +2434,7 @@ def set_student_rank():
     if idx is None or idx >= len(data["students"]):
         return jsonify({"ok":False,"error":"invalid index"})
     s = data["students"][idx]
+    before_rank = snapshot_rank(s)
     if "branch_locked" in body:
         s["branch_locked"] = bool(body["branch_locked"])
         if body["branch_locked"] and body.get("branch"):
@@ -2348,6 +2448,7 @@ def set_student_rank():
     if "manual_hakis" in body:
         s["manual_hakis"] = body["manual_hakis"]
     data["students"][idx] = s
+    record_rank_change_if_needed(data, idx, before_rank)
     save_data(data)
     return jsonify({"ok":True})
 
@@ -2485,21 +2586,27 @@ def sync_lichess():
     try:
         d = fetch_lichess(username)
         s = data["students"][idx]
+        before_rank = snapshot_rank(s)
         if d["elo_bullet"]: s["elo_li_bullet"]=d["elo_bullet"]
         if d["elo_blitz"]:  s["elo_li_blitz"]=d["elo_blitz"]
         if d["elo_rapid"]:  s["elo_li_rapid"]=d["elo_rapid"]
         if d["elo_classical"]: s["elo_li_classical"]=d["elo_classical"]
+        if d["elo_koth"]: s["elo_li_koth"]=d["elo_koth"]
+        if d["elo_threecheck"]: s["elo_li_threecheck"]=d["elo_threecheck"]
         s["li_games"]=d["games_total"]; s["li_last_online"]=d["last_online"]
         today = datetime.now().strftime("%d/%m/%Y")
         hist = s.setdefault("elo_history",[])
         li_update = {"date":today,"elo_li":d["elo_blitz"],"elo_li_blitz":d["elo_blitz"],
                      "elo_li_bullet":d["elo_bullet"],"elo_li_rapid":d["elo_rapid"],
-                     "elo_li_classical":d["elo_classical"],"note":"Sync auto"}
+                     "elo_li_classical":d["elo_classical"],"elo_li_koth":d["elo_koth"],
+                     "elo_li_threecheck":d["elo_threecheck"],"note":"Sync auto"}
         existing = next((e for e in hist if e.get("date")==today), None)
         if existing is None: hist.append(li_update)
         else: existing.update(li_update)
         s["updated"]=datetime.now().strftime("%d/%m/%Y %H:%M")
-        data["students"][idx]=s; save_data(data)
+        data["students"][idx]=s
+        record_rank_change_if_needed(data, idx, before_rank)
+        save_data(data)
         return jsonify({"ok":True,"data":d})
     except HTTPError as e:
         return jsonify({"ok":False,"error":"Joueur introuvable" if e.code==404 else f"Erreur {e.code}"})
@@ -2516,6 +2623,7 @@ def sync_chesscom():
     try:
         d = fetch_chesscom(username)
         s = data["students"][idx]
+        before_rank = snapshot_rank(s)
         if d["elo_bullet"]: s["elo_cc_bullet"]=d["elo_bullet"]
         if d["elo_blitz"]:  s["elo_cc_blitz"]=d["elo_blitz"]
         if d["elo_rapid"]:  s["elo_cc_rapid"]=d["elo_rapid"]
@@ -2528,7 +2636,9 @@ def sync_chesscom():
         if existing is None: hist.append(cc_update)
         else: existing.update(cc_update)
         s["updated"]=datetime.now().strftime("%d/%m/%Y %H:%M")
-        data["students"][idx]=s; save_data(data)
+        data["students"][idx]=s
+        record_rank_change_if_needed(data, idx, before_rank)
+        save_data(data)
         return jsonify({"ok":True,"data":d})
     except HTTPError as e:
         return jsonify({"ok":False,"error":"Joueur introuvable" if e.code==404 else f"Erreur {e.code}"})
@@ -2542,6 +2652,7 @@ def sync_all():
     today = datetime.now().strftime("%d/%m/%Y")
     for i,s in enumerate(data["students"]):
         name = s.get("name","?")
+        before_rank = snapshot_rank(s)
         hist = s.setdefault("elo_history",[])
         today_entry = next((e for e in hist if e.get("date")==today), None)
         if today_entry is None:
@@ -2554,10 +2665,13 @@ def sync_all():
                 if d["elo_blitz"]:  s["elo_li_blitz"]=d["elo_blitz"]
                 if d["elo_rapid"]:  s["elo_li_rapid"]=d["elo_rapid"]
                 if d["elo_classical"]: s["elo_li_classical"]=d["elo_classical"]
+                if d["elo_koth"]: s["elo_li_koth"]=d["elo_koth"]
+                if d["elo_threecheck"]: s["elo_li_threecheck"]=d["elo_threecheck"]
                 s["li_games"]=d["games_total"]; s["li_last_online"]=d["last_online"]
                 today_entry.update({"elo_li":d["elo_blitz"],"elo_li_blitz":d["elo_blitz"],
                     "elo_li_bullet":d["elo_bullet"],"elo_li_rapid":d["elo_rapid"],
-                    "elo_li_classical":d["elo_classical"]})
+                    "elo_li_classical":d["elo_classical"],"elo_li_koth":d["elo_koth"],
+                    "elo_li_threecheck":d["elo_threecheck"]})
                 results["ok"]+=1; results["details"].append(f"✅ {name} (Li)")
             except Exception as e:
                 results["err"]+=1; results["details"].append(f"❌ {name} Li: {e}")
@@ -2575,6 +2689,7 @@ def sync_all():
                 results["err"]+=1; results["details"].append(f"❌ {name} CC: {e}")
         s["updated"]=datetime.now().strftime("%d/%m/%Y %H:%M")
         data["students"][i]=s
+        record_rank_change_if_needed(data, i, before_rank)
     save_data(data)
     return jsonify({"ok":True,"results":results})
 
@@ -4030,6 +4145,7 @@ def api_client_elo_sync():
     if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
         return jsonify({"ok": False, "error": "Profil élève introuvable."}), 404
     s = data["students"][idx]
+    before_rank = snapshot_rank(s)
     results = []
     today = datetime.now().strftime("%d/%m/%Y")
     hist = s.setdefault("elo_history", [])
@@ -4044,8 +4160,10 @@ def api_client_elo_sync():
             if d["elo_blitz"]: s["elo_li_blitz"] = d["elo_blitz"]
             if d["elo_rapid"]: s["elo_li_rapid"] = d["elo_rapid"]
             if d["elo_classical"]: s["elo_li_classical"] = d["elo_classical"]
+            if d["elo_koth"]: s["elo_li_koth"] = d["elo_koth"]
+            if d["elo_threecheck"]: s["elo_li_threecheck"] = d["elo_threecheck"]
             s["li_games"] = d["games_total"]; s["li_last_online"] = d["last_online"]
-            today_entry.update({"elo_li": d["elo_blitz"], "elo_li_blitz": d["elo_blitz"], "elo_li_bullet": d["elo_bullet"], "elo_li_rapid": d["elo_rapid"], "elo_li_classical": d["elo_classical"]})
+            today_entry.update({"elo_li": d["elo_blitz"], "elo_li_blitz": d["elo_blitz"], "elo_li_bullet": d["elo_bullet"], "elo_li_rapid": d["elo_rapid"], "elo_li_classical": d["elo_classical"], "elo_li_koth": d["elo_koth"], "elo_li_threecheck": d["elo_threecheck"]})
             results.append("Lichess synchronisé")
         except Exception as e:
             results.append(f"Lichess non synchronisé : {e}")
@@ -4064,6 +4182,7 @@ def api_client_elo_sync():
         return jsonify({"ok": False, "error": "Aucun pseudo Lichess ou Chess.com n'est renseigné dans ton profil."}), 400
     s["updated"] = now_fr()
     data["students"][idx] = s
+    record_rank_change_if_needed(data, idx, before_rank)
     add_client_notification(data, "ELO actualisé", f"{user.get('name')} a actualisé son ELO depuis l'espace Ghost.", "elo", user.get("id"), idx)
     save_data(data)
     fresh = public_student_payload(s)

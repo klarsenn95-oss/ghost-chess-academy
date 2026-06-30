@@ -281,6 +281,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
         <thead>
           <tr>
             <th>Ghost</th>
+            <th>Mvt</th>
             <th>Corps</th>
             <th>Rang</th>
             <th>Statut</th>
@@ -298,6 +299,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
               data-bullet="{{ s._bullet_elo }}" data-blitz="{{ s._blitz_elo }}"
               data-rapid="{{ s._rapid_elo }}" data-avg="{{ s._avg_elo }}">
             <td><strong>{{ s.name or '?' }}</strong></td>
+            <td>{% if s._rank_move == 'promotion' %}<span title="Promotion" style="color:#22c55e;font-size:18px;font-weight:900">↗</span>{% elif s._rank_move == 'demotion' %}<span title="Rétrogradation" style="color:#ef4444;font-size:18px;font-weight:900">↘</span>{% else %}<span style="color:#333">•</span>{% endif %}</td>
             <td style="font-size:11px;color:{% if s._rank.branch=='marine' %}#60a5fa{% else %}#f472b6{% endif %}">
               {% if s._rank.branch=='marine' %}🎖️ Marine{% else %}🏴‍☠️ Pirates{% endif %}
               {% if s.branch_locked or s.rank_locked %}<span style="opacity:.5;font-size:10px"> 🔒</span>{% endif %}
