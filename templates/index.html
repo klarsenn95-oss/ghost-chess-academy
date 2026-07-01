@@ -728,10 +728,16 @@ const SESSIONS_DATA = {{ sessions|tojson }};
 function drawMiniGhostRadar(canvas){
   let card={};
   try{card=JSON.parse(canvas.dataset.card||'{}');}catch(e){return;}
-  const axes=(card.rows&&card.rows.length?card.rows:card.axes)||[];
-  if(!axes.length) return;
+  const axes=((card.axes&&card.axes.length?card.axes:card.rows)||[]).filter(axis=>axis.available||Number(axis.value)>0||Number(axis.raw)>0);
   const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=38,color=canvas.dataset.color||'#a78bfa',n=axes.length;
   ctx.clearRect(0,0,w,h);
+  if(!axes.length){ctx.fillStyle='#3f3f5d';ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText('Sync',cx,cy+3);return;}
+  if(n<3){
+    const hasValue=axes.some(axis=>Number(axis.value)>0||Number(axis.raw)>0);
+    if(!hasValue){ctx.fillStyle='#3f3f5d';ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText('Sync',cx,cy+3);return;}
+    axes.forEach((axis,i)=>{const y=cy-10+i*22,val=Math.max(0,Math.min(100,Number(axis.value)||0));ctx.fillStyle='#202033';ctx.fillRect(18,y,76,6);ctx.fillStyle=color;ctx.fillRect(18,y,76*val/100,6);ctx.fillStyle='#777';ctx.font='9px system-ui';ctx.textAlign='center';ctx.fillText(axis.label,cx,y-4);});
+    return;
+  }
   ctx.strokeStyle='#24243b';ctx.fillStyle='#ffffff04';ctx.lineWidth=1;
   for(let ring=4;ring>=1;ring--){
     ctx.beginPath();

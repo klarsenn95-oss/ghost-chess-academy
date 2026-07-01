@@ -458,13 +458,13 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
         <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · percentile si disponible, sinon estimation ELO</div>
-        {% for axis in s.get('_card_stats', {}).get('rows', s.get('_card_stats', {}).get('axes', [])) %}
+        {% for axis in s.get('_card_stats', {}).get('axes', []) %}
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
           <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
           <b style="width:112px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · estimé{% else %}—{% endif %}</b>
         </div>
-        {% endfor %}
+        {% else %}<div style="color:#555;font-size:12px">Aucune donnée ELO exploitable. Lance une synchronisation Lichess / Chess.com.</div>{% endfor %}
       </div>
     </div>
   </div>
@@ -788,13 +788,13 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
         <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar basé sur les données disponibles</div>
-        {% for axis in s.get('_card_stats', {}).get('rows', s.get('_card_stats', {}).get('axes', [])) %}
+        {% for axis in s.get('_card_stats', {}).get('axes', []) %}
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
           <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
           <b style="width:96px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · NC{% else %}—{% endif %}</b>
         </div>
-        {% endfor %}
+        {% else %}<div style="color:#333;font-size:12px">Aucune donnée ELO exploitable. Lance une synchronisation Lichess / Chess.com.</div>{% endfor %}
       </div>
     </div>
   </div>
@@ -1394,10 +1394,24 @@ function drawGhostRadar(){
 
 function drawGhostRadarCanvas(canvas,stats,color){
   if(!canvas||!stats) return;
-  var axes=(stats.rows&&stats.rows.length?stats.rows:stats.axes)||[];
-  if(!axes.length) return;
+  var axes=(stats.axes&&stats.axes.length?stats.axes:stats.rows)||[];
+  axes=axes.filter(function(axis){return axis.available||Number(axis.value)>0||Number(axis.raw)>0;});
   var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.35,n=axes.length;
   ctx.clearRect(0,0,w,h);
+  if(!axes.length){ctx.fillStyle='#555';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('Sync ELO',cx,cy+4);return;}
+  if(n<3){
+    ctx.fillStyle='#555';ctx.font='13px system-ui';ctx.textAlign='center';
+    var hasAny=axes.some(function(axis){return Number(axis.value)>0||Number(axis.raw)>0;});
+    if(!hasAny){ctx.fillText('Sync ELO',cx,cy+4);return;}
+    axes.forEach(function(axis,i){
+      var y=cy-18+i*34,val=Math.max(0,Math.min(100,Number(axis.value)||0));
+      ctx.fillStyle='#aaa';ctx.textAlign='left';ctx.fillText(axis.label,42,y-8);
+      ctx.fillStyle='#151515';ctx.fillRect(42,y,276,8);
+      ctx.fillStyle=color;ctx.fillRect(42,y,276*val/100,8);
+      ctx.fillStyle='#777';ctx.textAlign='right';ctx.fillText((axis.raw||axis.value||'—'),318,y-8);
+    });
+    return;
+  }
   ctx.strokeStyle='#2a2a2a';ctx.fillStyle='#1a120022';ctx.lineWidth=1;
   for(var ring=5;ring>=1;ring--){
     ctx.beginPath();

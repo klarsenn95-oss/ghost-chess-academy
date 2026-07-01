@@ -523,8 +523,13 @@ def ghost_card_stats(student):
         {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours, "source": "time", "available": bool(hours)},
         ghost_axis(student, elos, "koth", "KoTH"),
         ghost_axis(student, elos, "threecheck", "3-Check"),
+        ghost_axis(student, elos, "chess960", "Chess960"),
+        ghost_axis(student, elos, "atomic", "Atomic"),
+        ghost_axis(student, elos, "horde", "Horde"),
+        ghost_axis(student, elos, "racingkings", "Racing Kings"),
+        ghost_axis(student, elos, "crazyhouse", "Crazyhouse"),
     ]
-    axes = rows
+    axes = [axis for axis in rows if axis.get("available")]
     return {"axes": axes, "rows": rows, "hours": hours}
 
 def rank_sort_value(rank):
