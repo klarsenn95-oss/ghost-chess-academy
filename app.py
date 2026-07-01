@@ -473,6 +473,10 @@ def normalize_rating_score(value, floor=0, ceiling=3000):
     return max(0, min(100, int((v - floor) / max(1, ceiling - floor) * 100)))
 
 def estimated_play_hours(student):
+    li_total_seconds = safe_int(student.get("li_playtime_total"), 0)
+    if li_total_seconds:
+        cc_games = safe_int(student.get("cc_games"), 0)
+        return round((li_total_seconds / 3600) + (cc_games * 8 / 60), 1)
     li_seconds = sum(safe_int(student.get(k), 0) for k in [
         "li_seconds_bullet", "li_seconds_blitz", "li_seconds_rapid", "li_seconds_classical",
         "li_seconds_koth", "li_seconds_threecheck", "li_seconds_chess960",
@@ -494,7 +498,7 @@ def ghost_card_stats(student):
     elos = get_best_elos(student)
     hours = estimated_play_hours(student)
     experience_score = max(0, min(100, int(hours / 200 * 100)))
-    axes = [
+    rows = [
         {"key": "bullet", "label": "Bullet", "value": card_axis_score(student, "bullet", elos.get("bullet")), "raw": elos.get("bullet", 0), "percentile": safe_int(student.get("li_percentile_bullet"), 0)},
         {"key": "blitz", "label": "Blitz", "value": card_axis_score(student, "blitz", elos.get("blitz")), "raw": elos.get("blitz", 0), "percentile": safe_int(student.get("li_percentile_blitz"), 0)},
         {"key": "rapid", "label": "Rapid", "value": card_axis_score(student, "rapid", elos.get("rapid")), "raw": elos.get("rapid", 0), "percentile": safe_int(student.get("li_percentile_rapid"), 0)},
@@ -503,7 +507,8 @@ def ghost_card_stats(student):
         {"key": "koth", "label": "KoTH", "value": card_axis_score(student, "koth", elos.get("koth")), "raw": elos.get("koth", 0), "percentile": safe_int(student.get("li_percentile_koth"), 0)},
         {"key": "threecheck", "label": "3-Check", "value": card_axis_score(student, "threecheck", elos.get("threecheck")), "raw": elos.get("threecheck", 0), "percentile": safe_int(student.get("li_percentile_threecheck"), 0)},
     ]
-    return {"axes": axes, "hours": hours}
+    axes = [axis for axis in rows if safe_int(axis.get("value"), 0) > 0]
+    return {"axes": axes, "rows": rows, "hours": hours}
 
 def rank_sort_value(rank):
     ranks = RANKS_MARINE if rank.get("branch") == "marine" else RANKS_PIRATES
@@ -685,7 +690,7 @@ def _lichess_perf_details(username, perf):
     except Exception:
         return {}
 
-def fetch_lichess(username):
+def fetch_lichess(username, include_details=True):
     username = username.strip()
     data = _api_get(f"https://lichess.org/api/user/{urllib.parse.quote(username)}")
     perfs = data.get("perfs",{})
@@ -701,21 +706,28 @@ def fetch_lichess(username):
         result[short_key] = value
         field_values[field_key] = value
         field_values[f"li_games_{axis_key}"] = str(games(perf) or "")
-    for perf in LICHESS_DETAIL_PERFS:
-        details = _lichess_perf_details(username, perf)
-        axis_key = LICHESS_PERF_MAP[perf][2]
-        percentile = details.get("percentile")
-        if percentile is not None:
-            field_values[f"li_percentile_{axis_key}"] = str(round(float(percentile), 1))
-        seconds = (((details.get("stat") or {}).get("count") or {}).get("seconds"))
-        if seconds is not None:
-            field_values[f"li_seconds_{axis_key}"] = str(seconds)
+    play_time = data.get("playTime") or {}
+    if play_time.get("total") is not None:
+        field_values["li_playtime_total"] = str(play_time.get("total") or 0)
+    if play_time.get("tv") is not None:
+        field_values["li_playtime_tv"] = str(play_time.get("tv") or 0)
+    if include_details:
+        for perf in LICHESS_DETAIL_PERFS:
+            details = _lichess_perf_details(username, perf)
+            axis_key = LICHESS_PERF_MAP[perf][2]
+            percentile = details.get("percentile")
+            if percentile is not None:
+                field_values[f"li_percentile_{axis_key}"] = str(round(float(percentile), 1))
+            seconds = (((details.get("stat") or {}).get("count") or {}).get("seconds"))
+            if seconds is not None:
+                field_values[f"li_seconds_{axis_key}"] = str(seconds)
     ts = data.get("seenAt",0)
     last = datetime.fromtimestamp(ts/1000).strftime("%d/%m/%Y") if ts else "—"
     result.update({"games_total":str(total),
                    "title":data.get("title",""),"last_online":last,
                    "url":f"https://lichess.org/@/{username}",
                    "name":data.get("profile",{}).get("realName",""),
+                   "details_included": include_details,
                    "field_values":field_values})
     return result
 
@@ -2716,7 +2728,7 @@ def sync_all():
             hist.append(today_entry)
         if s.get("lichess","").strip():
             try:
-                d = fetch_lichess(s["lichess"].strip())
+                d = fetch_lichess(s["lichess"].strip(), include_details=False)
                 li_fields = apply_lichess_result(s, d)
                 today_entry.update({"elo_li":d.get("elo_blitz","")})
                 today_entry.update(li_fields)

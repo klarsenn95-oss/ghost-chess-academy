@@ -823,14 +823,15 @@ async function syncAll() {
   document.getElementById('sync-status').textContent='Sync en cours…';
   try {
     const r = await fetch('/api/sync/all',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    const d = await r.json();
+    const d = await r.json().catch(()=>({ok:false,error:'Réponse serveur illisible'}));
+    if(!r.ok || !d.ok) throw new Error(d.error||('Erreur serveur '+r.status));
     document.getElementById('sync-fill').style.width='100%';
     document.getElementById('sync-status').textContent=`✅ ${d.results.ok} OK${d.results.err?' ⚠️ '+d.results.err+' erreurs':''}`;
     btn.textContent='🔄 Sync tous'; btn.disabled=false;
     toast('Sync terminé');
     setTimeout(()=>location.reload(),1500);
   } catch(e) {
-    document.getElementById('sync-status').textContent='❌ Erreur réseau';
+    document.getElementById('sync-status').textContent='Erreur: '+(e.message||'réseau');
     btn.textContent='🔄 Sync tous'; btn.disabled=false;
   }
 }

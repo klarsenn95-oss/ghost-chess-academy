@@ -769,12 +769,12 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <canvas id="ghost-radar" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
-        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · Bullet / Blitz / Rapid / Classique / Expérience / KoTH / 3-Check</div>
-        {% for axis in s.get('_card_stats', {}).get('axes', []) %}
+        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar basé sur les données disponibles</div>
+        {% for axis in s.get('_card_stats', {}).get('rows', s.get('_card_stats', {}).get('axes', [])) %}
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
-          <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value }}%;background:{{ rank.color }}"></span></span>
-          <b style="width:48px;text-align:right;color:#aaa">{{ axis.raw or '—' }}</b>
+          <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
+          <b style="width:96px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · NC{% else %}—{% endif %}</b>
         </div>
         {% endfor %}
       </div>
