@@ -492,22 +492,39 @@ def estimated_play_hours(student):
 
 def card_axis_score(student, key, rating):
     pct = safe_int(student.get(f"li_percentile_{key}"), 0)
-    return max(0, min(100, pct))
+    if pct:
+        return max(0, min(100, pct)), "percentile"
+    score = normalize_rating_score(rating)
+    if score:
+        return score, "rating"
+    return 0, ""
+
+def ghost_axis(student, elos, key, label):
+    value, source = card_axis_score(student, key, elos.get(key))
+    return {
+        "key": key,
+        "label": label,
+        "value": value,
+        "raw": elos.get(key, 0),
+        "percentile": safe_int(student.get(f"li_percentile_{key}"), 0),
+        "source": source,
+        "available": bool(value or elos.get(key)),
+    }
 
 def ghost_card_stats(student):
     elos = get_best_elos(student)
     hours = estimated_play_hours(student)
     experience_score = max(0, min(100, int(hours / 200 * 100)))
     rows = [
-        {"key": "bullet", "label": "Bullet", "value": card_axis_score(student, "bullet", elos.get("bullet")), "raw": elos.get("bullet", 0), "percentile": safe_int(student.get("li_percentile_bullet"), 0)},
-        {"key": "blitz", "label": "Blitz", "value": card_axis_score(student, "blitz", elos.get("blitz")), "raw": elos.get("blitz", 0), "percentile": safe_int(student.get("li_percentile_blitz"), 0)},
-        {"key": "rapid", "label": "Rapid", "value": card_axis_score(student, "rapid", elos.get("rapid")), "raw": elos.get("rapid", 0), "percentile": safe_int(student.get("li_percentile_rapid"), 0)},
-        {"key": "classical", "label": "Classique", "value": card_axis_score(student, "classical", elos.get("classical")), "raw": elos.get("classical", 0), "percentile": safe_int(student.get("li_percentile_classical"), 0)},
-        {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours},
-        {"key": "koth", "label": "KoTH", "value": card_axis_score(student, "koth", elos.get("koth")), "raw": elos.get("koth", 0), "percentile": safe_int(student.get("li_percentile_koth"), 0)},
-        {"key": "threecheck", "label": "3-Check", "value": card_axis_score(student, "threecheck", elos.get("threecheck")), "raw": elos.get("threecheck", 0), "percentile": safe_int(student.get("li_percentile_threecheck"), 0)},
+        ghost_axis(student, elos, "bullet", "Bullet"),
+        ghost_axis(student, elos, "blitz", "Blitz"),
+        ghost_axis(student, elos, "rapid", "Rapid"),
+        ghost_axis(student, elos, "classical", "Classique"),
+        {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours, "source": "time", "available": bool(hours)},
+        ghost_axis(student, elos, "koth", "KoTH"),
+        ghost_axis(student, elos, "threecheck", "3-Check"),
     ]
-    axes = [axis for axis in rows if safe_int(axis.get("value"), 0) > 0]
+    axes = rows
     return {"axes": axes, "rows": rows, "hours": hours}
 
 def rank_sort_value(rank):

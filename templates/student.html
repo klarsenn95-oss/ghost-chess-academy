@@ -452,6 +452,24 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   </div>
 
   <div class="s-section">
+    <div class="s-section-title">Carte Ghost détaillée</div>
+    <div style="display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;align-items:center">
+      <canvas class="student-ghost-radar" id="ghost-radar-elo" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
+        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · percentile si disponible, sinon estimation ELO</div>
+        {% for axis in s.get('_card_stats', {}).get('rows', s.get('_card_stats', {}).get('axes', [])) %}
+        <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
+          <span style="width:82px;color:#ccc">{{ axis.label }}</span>
+          <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
+          <b style="width:112px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · estimé{% else %}—{% endif %}</b>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="s-section">
     <div class="s-section-title">📈 Courbe ELO</div>
     <div class="chart-filters">
       <button class="cf-btn active" onclick="filterChart(7,this)">7j</button>
@@ -766,7 +784,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   <div class="s-section">
     <div class="s-section-title">Carte Ghost</div>
     <div style="display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:14px;align-items:center">
-      <canvas id="ghost-radar" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
+      <canvas class="student-ghost-radar" id="ghost-radar" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
         <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar basé sur les données disponibles</div>
@@ -1371,14 +1389,19 @@ function renderEloChart(){
 }
 
 function drawGhostRadar(){
-  var canvas=document.getElementById('ghost-radar');
-  if(!canvas||!GHOST_CARD_STATS.axes) return;
-  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=125,axes=GHOST_CARD_STATS.axes,n=axes.length;
+  document.querySelectorAll('.student-ghost-radar').forEach(function(canvas){drawGhostRadarCanvas(canvas,GHOST_CARD_STATS,GHOST_RANK_COLOR);});
+}
+
+function drawGhostRadarCanvas(canvas,stats,color){
+  if(!canvas||!stats) return;
+  var axes=(stats.rows&&stats.rows.length?stats.rows:stats.axes)||[];
+  if(!axes.length) return;
+  var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.35,n=axes.length;
   ctx.clearRect(0,0,w,h);
   ctx.strokeStyle='#2a2a2a';ctx.fillStyle='#1a120022';ctx.lineWidth=1;
   for(var ring=5;ring>=1;ring--){
     ctx.beginPath();
-    for(var i=0;i<n;i++){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*ring/5,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    axes.forEach(function(axis,i){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*ring/5,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
     ctx.closePath();ctx.fill();ctx.stroke();
   }
   axes.forEach(function(axis,i){
@@ -1386,9 +1409,11 @@ function drawGhostRadar(){
     ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
     ctx.fillStyle='#aaa';ctx.font='12px system-ui';ctx.textAlign=x<cx-8?'right':x>cx+8?'left':'center';ctx.fillText(axis.label,x+(x<cx?-8:8),y+4);
   });
+  var hasValue=axes.some(function(axis){return Number(axis.value)>0;});
+  if(!hasValue){ctx.fillStyle='#555';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('Sync ELO',cx,cy+4);return;}
   ctx.beginPath();
-  axes.forEach(function(axis,i){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*(axis.value||0)/100,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-  ctx.closePath();ctx.fillStyle=GHOST_RANK_COLOR+'99';ctx.strokeStyle=GHOST_RANK_COLOR;ctx.lineWidth=2;ctx.fill();ctx.stroke();
+  axes.forEach(function(axis,i){var a=-Math.PI/2+i*2*Math.PI/n,rr=r*(Number(axis.value)||0)/100,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.closePath();ctx.fillStyle=color+'99';ctx.strokeStyle=color;ctx.lineWidth=2;ctx.fill();ctx.stroke();
 }
 
 function post(url,data,cb){
