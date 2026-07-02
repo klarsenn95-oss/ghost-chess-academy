@@ -462,7 +462,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
           <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
-          <b style="width:112px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · estimé{% else %}—{% endif %}</b>
+          <b style="width:112px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.raw %}{{ axis.raw }}{% else %}—{% endif %}</b>
         </div>
         {% else %}<div style="color:#555;font-size:12px">Aucune donnée ELO exploitable. Lance une synchronisation Lichess / Chess.com.</div>{% endfor %}
       </div>
@@ -792,7 +792,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
           <span style="flex:1;height:6px;background:#111;border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:{{ axis.value or 0 }}%;background:{{ rank.color }}"></span></span>
-          <b style="width:96px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · NC{% else %}—{% endif %}</b>
+          <b style="width:96px;text-align:right;color:#aaa">{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.raw %}{{ axis.raw }}{% else %}—{% endif %}</b>
         </div>
         {% else %}<div style="color:#333;font-size:12px">Aucune donnée ELO exploitable. Lance une synchronisation Lichess / Chess.com.</div>{% endfor %}
       </div>

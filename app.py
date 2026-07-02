@@ -491,9 +491,6 @@ def estimated_play_hours(student):
     return round((li_games + cc_games) * 8 / 60, 1)
 
 def card_axis_score(student, key, rating):
-    pct = safe_int(student.get(f"li_percentile_{key}"), 0)
-    if pct:
-        return max(0, min(100, pct)), "percentile"
     score = normalize_rating_score(rating)
     if score:
         return score, "rating"

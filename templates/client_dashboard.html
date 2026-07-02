@@ -185,7 +185,7 @@
       <div>
         <h3 style="margin:0 0 6px">{{ student.rank.emoji if student else '' }} Carte Ghost</h3>
         <div class="muted small">{{ student.card_stats.hours if student else 0 }} h estimées · radar fixe sur 5 axes</div>
-        {% if student %}{% for axis in student.card_stats.axes %}<div class="radar-row"><span>{{ axis.label }}</span><span class="radar-bar"><b style="width:{{ axis.value or 0 }}%"></b></span><b>{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.percentile %}{{ axis.percentile }}% · {{ axis.raw or '—' }}{% elif axis.raw %}{{ axis.raw }} · estimé{% else %}—{% endif %}</b></div>{% else %}<div class="muted small">Aucune donnée ELO exploitable. Lance une synchronisation.</div>{% endfor %}{% endif %}
+        {% if student %}{% for axis in student.card_stats.axes %}<div class="radar-row"><span>{{ axis.label }}</span><span class="radar-bar"><b style="width:{{ axis.value or 0 }}%"></b></span><b>{% if axis.key == 'experience' %}{{ axis.raw or '—' }} h{% elif axis.raw %}{{ axis.raw }}{% else %}—{% endif %}</b></div>{% else %}<div class="muted small">Aucune donnée ELO exploitable. Lance une synchronisation.</div>{% endfor %}{% endif %}
       </div>
     </div>
     <div style="margin-top:14px"><button class="btn secondary" onclick="syncElo('all')">⚡ Synchroniser mes profils</button><span class="msg" id="elo-tab-msg"></span></div><div style="margin-top:16px"><canvas class="elo-canvas" id="elo-chart"></canvas></div></div>
