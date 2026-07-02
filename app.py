@@ -514,22 +514,17 @@ def ghost_axis(student, elos, key, label):
 def ghost_card_stats(student):
     elos = get_best_elos(student)
     hours = estimated_play_hours(student)
-    experience_score = max(0, min(100, int(hours / 200 * 100)))
+    experience_score = max(0, min(100, int(hours / 5000 * 100)))
     rows = [
         ghost_axis(student, elos, "bullet", "Bullet"),
         ghost_axis(student, elos, "blitz", "Blitz"),
         ghost_axis(student, elos, "rapid", "Rapid"),
         ghost_axis(student, elos, "classical", "Classique"),
         {"key": "experience", "label": "Experience", "value": experience_score, "raw": hours, "source": "time", "available": bool(hours)},
-        ghost_axis(student, elos, "koth", "KoTH"),
-        ghost_axis(student, elos, "threecheck", "3-Check"),
-        ghost_axis(student, elos, "chess960", "Chess960"),
-        ghost_axis(student, elos, "atomic", "Atomic"),
-        ghost_axis(student, elos, "horde", "Horde"),
-        ghost_axis(student, elos, "racingkings", "Racing Kings"),
-        ghost_axis(student, elos, "crazyhouse", "Crazyhouse"),
     ]
-    axes = [axis for axis in rows if axis.get("available")]
+    for axis in rows:
+        axis["available"] = True
+    axes = rows
     return {"axes": axes, "rows": rows, "hours": hours}
 
 def rank_sort_value(rank):

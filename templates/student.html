@@ -457,7 +457,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <canvas class="student-ghost-radar" id="ghost-radar-elo" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
-        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · percentile si disponible, sinon estimation ELO</div>
+        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar fixe sur 5 axes</div>
         {% for axis in s.get('_card_stats', {}).get('axes', []) %}
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
@@ -787,7 +787,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <canvas class="student-ghost-radar" id="ghost-radar" width="360" height="360" style="width:100%;max-width:360px;background:#060606;border:1px solid #1a1a1a;border-radius:16px"></canvas>
       <div>
         <div style="font-size:18px;font-weight:700;color:{{ rank.color }}">{{ s.name or 'Ghost' }} · {{ rank.emoji }} {{ rank.title }}</div>
-        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar basé sur les données disponibles</div>
+        <div style="font-size:12px;color:#555;margin:4px 0 12px">{{ s.get('_card_stats', {}).get('hours', 0) }} h estimées · radar fixe sur 5 axes</div>
         {% for axis in s.get('_card_stats', {}).get('axes', []) %}
         <div style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#777">
           <span style="width:82px;color:#ccc">{{ axis.label }}</span>
