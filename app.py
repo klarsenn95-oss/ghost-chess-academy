@@ -2305,7 +2305,8 @@ def index():
 def student_page(idx):
     data = load_data()
     if idx >= len(data["students"]): return redirect("/")
-    s = data["students"][idx]
+    s = dict(data["students"][idx])
+    s["_card_stats"] = ghost_card_stats(s)
     rank = get_rank(s)
     hakis = get_hakis(s)
     vel,badge_color,badge_label,delta = get_progression_velocity(s)
@@ -2685,6 +2686,7 @@ def sync_lichess():
         d = fetch_lichess(username)
         s = data["students"][idx]
         before_rank = snapshot_rank(s)
+        s["lichess"] = username
         li_fields = apply_lichess_result(s, d)
         today = datetime.now().strftime("%d/%m/%Y")
         hist = s.setdefault("elo_history",[])
@@ -2714,6 +2716,7 @@ def sync_chesscom():
         d = fetch_chesscom(username)
         s = data["students"][idx]
         before_rank = snapshot_rank(s)
+        s["chesscom"] = username
         if d["elo_bullet"]: s["elo_cc_bullet"]=d["elo_bullet"]
         if d["elo_blitz"]:  s["elo_cc_blitz"]=d["elo_blitz"]
         if d["elo_rapid"]:  s["elo_cc_rapid"]=d["elo_rapid"]
