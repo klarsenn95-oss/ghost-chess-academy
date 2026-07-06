@@ -1403,7 +1403,7 @@ def default_price_grid():
         "registration_fee": 5000,
         "registration_fee_label": "5 000 FCFA",
         "registration_monthly_games": 15,
-        "registration_monthly_coaching": "1h/mois de suivi standard",
+        "registration_monthly_coaching": "2h/mois de suivi standard",
         "session_30": 2000,
         "session_60": 3500,
         "pack_progression": 9000,
@@ -1465,7 +1465,7 @@ def merge_default_plans(existing=None):
 
 def find_client_plan(data, plan_key):
     if (plan_key or "") in ("no_plan", "app_access", "registration_only", ""): 
-        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois et 1h/mois de suivi standard. Les séances individuelles restent des options supplémentaires."}
+        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois, 2h/mois de suivi standard et outils de travail comme Listudy, études Lichess, PGN/FEN et suivi ELO. Les séances individuelles restent des options supplémentaires."}
     plans = data.get("client_price_plans") or default_client_price_plans()
     return next((p for p in plans if p.get("key") == plan_key), plans[0] if plans else {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","desc":""})
 
@@ -3224,7 +3224,7 @@ def client_portal():
         payment=get_user_payment_state(user),
         registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
         registration_monthly_games=price_grid.get("registration_monthly_games", 15),
-        registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "1h/mois de suivi standard"),
+        registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "2h/mois de suivi standard"),
         price_plans=plans,
         selected_plan=selected_plan,
         plan_theme=plan_theme(user.get("plan")),
