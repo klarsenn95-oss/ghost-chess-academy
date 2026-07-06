@@ -1402,6 +1402,8 @@ def default_price_grid():
     return {
         "registration_fee": 5000,
         "registration_fee_label": "5 000 FCFA",
+        "registration_monthly_games": 15,
+        "registration_monthly_coaching": "4h/mois",
         "session_30": 2000,
         "session_60": 3500,
         "pack_progression": 9000,
@@ -1414,7 +1416,7 @@ def default_client_price_plans():
     return [
         {"key":"session_30","name":"Séance découverte","price":"2 000 FCFA","period":"30 minutes","sessions_total":1,"featured":"starter","desc":"Diagnostic rapide, analyse de quelques parties, discussion et conseils ciblés pour débloquer un problème précis."},
         {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","sessions_total":1,"featured":"standard","desc":"Offre découverte + suivi ponctuel : analyse, exercices rapides, conseil d’ouverture/tactique et prochaine étape claire."},
-        {"key":"pack_progression","name":"Pack progression","price":"9 000 FCFA","period":"suivi mensuel","sessions_total":5,"featured":"progress","desc":"5 séances personnalisées par mois, suivi de la progression, entraînement tactique, devoirs et corrections structurées."},
+        {"key":"pack_progression","name":"Pack progression","price":"9 000 FCFA","period":"suivi mensuel","sessions_total":5,"featured":"progress","desc":"5 séances personnalisées par mois, suivi de la progression, devoirs, corrections structurées et plan de travail."},
         {"key":"tournament_prep","name":"Préparation tournoi","price":"10 000 FCFA","period":"4 séances ciblées","sessions_total":4,"featured":"tournament","desc":"Parties contre le coach, analyse de parties, préparation d’ouvertures, gestion du temps, préparation mentale et stratégie de tournoi."},
         {"key":"ghost_premium","name":"Offre Ghost","price":"20 000 FCFA","period":"accompagnement premium mensuel","sessions_total":8,"featured":"ghost","desc":"Accompagnement sur mesure et à la demande : priorité de réponse < 24h, meilleurs joueurs camerounais au choix, assistance aux parties, analyses personnalisées, corrections intensives et préparation aux tournois."},
     ]
@@ -1463,7 +1465,7 @@ def merge_default_plans(existing=None):
 
 def find_client_plan(data, plan_key):
     if (plan_key or "") in ("no_plan", "app_access", "registration_only", ""): 
-        return {"key":"no_plan","name":"Accès Ghost","price":"0 FCFA","period":"Accès à l’app","sessions_total":0,"desc":"Accès validé à la plateforme. Choisis une formule pour démarrer un accompagnement."}
+        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois et 4h/mois d'accompagnement standard avec le coach."}
     plans = data.get("client_price_plans") or default_client_price_plans()
     return next((p for p in plans if p.get("key") == plan_key), plans[0] if plans else {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","desc":""})
 
@@ -3214,11 +3216,15 @@ def client_portal():
         student = data["students"][idx]
     plans = data.get("client_price_plans") or default_client_price_plans()
     selected_plan = find_client_plan(data, user.get("plan"))
+    price_grid = default_price_grid()
     return render_template(
         "client_dashboard.html",
         user=user,
         student=public_student_payload(student),
         payment=get_user_payment_state(user),
+        registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
+        registration_monthly_games=price_grid.get("registration_monthly_games", 15),
+        registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "4h/mois"),
         price_plans=plans,
         selected_plan=selected_plan,
         plan_theme=plan_theme(user.get("plan")),
