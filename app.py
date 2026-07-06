@@ -1403,7 +1403,7 @@ def default_price_grid():
         "registration_fee": 5000,
         "registration_fee_label": "5 000 FCFA",
         "registration_monthly_games": 15,
-        "registration_monthly_coaching": "4h/mois",
+        "registration_monthly_coaching": "1h/mois de suivi standard",
         "session_30": 2000,
         "session_60": 3500,
         "pack_progression": 9000,
@@ -1414,11 +1414,11 @@ def default_price_grid():
 
 def default_client_price_plans():
     return [
-        {"key":"session_30","name":"Séance découverte","price":"2 000 FCFA","period":"30 minutes","sessions_total":1,"featured":"starter","desc":"Diagnostic rapide, analyse de quelques parties, discussion et conseils ciblés pour débloquer un problème précis."},
-        {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","sessions_total":1,"featured":"standard","desc":"Offre découverte + suivi ponctuel : analyse, exercices rapides, conseil d’ouverture/tactique et prochaine étape claire."},
-        {"key":"pack_progression","name":"Pack progression","price":"9 000 FCFA","period":"suivi mensuel","sessions_total":5,"featured":"progress","desc":"5 séances personnalisées par mois, suivi de la progression, devoirs, corrections structurées et plan de travail."},
-        {"key":"tournament_prep","name":"Préparation tournoi","price":"10 000 FCFA","period":"4 séances ciblées","sessions_total":4,"featured":"tournament","desc":"Parties contre le coach, analyse de parties, préparation d’ouvertures, gestion du temps, préparation mentale et stratégie de tournoi."},
-        {"key":"ghost_premium","name":"Offre Ghost","price":"20 000 FCFA","period":"accompagnement premium mensuel","sessions_total":8,"featured":"ghost","desc":"Accompagnement sur mesure et à la demande : priorité de réponse < 24h, meilleurs joueurs camerounais au choix, assistance aux parties, analyses personnalisées, corrections intensives et préparation aux tournois."},
+        {"key":"session_30","name":"Séance découverte","price":"2 000 FCFA","period":"30 minutes individuelles","sessions_total":1,"featured":"starter","desc":"Point individuel rapide pour traiter une question précise : une position, une erreur récurrente, une ouverture ou une décision critique."},
+        {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure individuelle","sessions_total":1,"featured":"standard","desc":"Coaching individuel d'une heure : analyse approfondie, correction ciblée, exercices adaptés et plan d'action clair pour la suite."},
+        {"key":"pack_progression","name":"Pack progression","price":"9 000 FCFA","period":"suivi individuel mensuel","sessions_total":5,"featured":"progress","desc":"5 séances individuelles par mois, suivi de la progression, devoirs, corrections structurées et plan de travail personnalisé."},
+        {"key":"tournament_prep","name":"Préparation tournoi","price":"10 000 FCFA","period":"4 séances individuelles ciblées","sessions_total":4,"featured":"tournament","desc":"Préparation compétition : parties contre le coach, analyse de parties, préparation d’ouvertures, gestion du temps, mental et stratégie de tournoi."},
+        {"key":"ghost_premium","name":"Offre Ghost","price":"20 000 FCFA","period":"accompagnement individuel premium mensuel","sessions_total":8,"featured":"ghost","desc":"Suivi premium sur mesure : priorité de réponse < 24h, choix de forts joueurs camerounais, assistance aux parties, analyses personnalisées, corrections intensives et préparation aux tournois."},
     ]
 
 def default_amount_for_plan(plan_key):
@@ -1465,7 +1465,7 @@ def merge_default_plans(existing=None):
 
 def find_client_plan(data, plan_key):
     if (plan_key or "") in ("no_plan", "app_access", "registration_only", ""): 
-        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois et 4h/mois d'accompagnement standard avec le coach."}
+        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois et 1h/mois de suivi standard. Les séances individuelles restent des options supplémentaires."}
     plans = data.get("client_price_plans") or default_client_price_plans()
     return next((p for p in plans if p.get("key") == plan_key), plans[0] if plans else {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","desc":""})
 
@@ -1787,10 +1787,10 @@ def get_user_payment_state(user):
         "restricted": ("🔒 Accès restreint", "danger"),
         "free": ("🎟️ Accès Ghost validé", "ok"),
     }
-    # Un forfait consommé à 100% n'est pas une dette. C'est une fin normale.
+    # Une option consommée à 100% n'est pas une dette. C'est une fin normale.
     # On corrige aussi les anciens états V13 où un forfait épuisé avait été marqué par erreur "overdue".
     if active_status == "completed" and not has_pending_plan:
-        label, tone = "✅ Forfait terminé", "ok"
+        label, tone = "✅ Option terminée", "ok"
         status = "free" if raw_status == "free" else "paid"
     else:
         status = raw_status
@@ -3224,7 +3224,7 @@ def client_portal():
         payment=get_user_payment_state(user),
         registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
         registration_monthly_games=price_grid.get("registration_monthly_games", 15),
-        registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "4h/mois"),
+        registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "1h/mois de suivi standard"),
         price_plans=plans,
         selected_plan=selected_plan,
         plan_theme=plan_theme(user.get("plan")),
@@ -3553,16 +3553,16 @@ def api_client_plan_select():
     plan_key = (body.get("plan") or "").strip()
     plan = find_client_plan(data, plan_key)
     if not plan.get("key"):
-        return jsonify({"ok": False, "error": "Formule introuvable."}), 404
+        return jsonify({"ok": False, "error": "Option introuvable."}), 404
 
     old_plan = user.get("plan")
     same_plan = old_plan == plan.get("key")
     active = user.get("active_plan") or {}
     active_status = normalize_plan_status(active.get("status"))
     if active_status == "active" and not active_plan_is_completed(user):
-        return jsonify({"ok": False, "error": "Tu as déjà une formule active. Termine-la d’abord, ou demande au coach d’annuler/adapter le forfait en cours."}), 400
+        return jsonify({"ok": False, "error": "Tu as déjà une option active. Termine-la d’abord, ou demande au coach d’annuler/adapter l’option en cours."}), 400
     if user.get("pending_plan_request"):
-        return jsonify({"ok": False, "error": "Une demande de formule est déjà en attente. Attends la validation du coach ou demande-lui d’annuler la tentative."}), 400
+        return jsonify({"ok": False, "error": "Une demande d’option est déjà en attente. Attends la validation du coach ou demande-lui d’annuler la tentative."}), 400
     user["plan"] = plan.get("key")
     user["amount_due"] = plan.get("price", "")
     user["payment_status"] = "pending"
@@ -3591,11 +3591,11 @@ def api_client_plan_select():
         "sessions_log": [],
     }
     idx = user.get("student_index")
-    notif_title = "Renouvellement de formule" if same_plan else "Formule choisie"
+    notif_title = "Renouvellement d’option" if same_plan else "Option choisie"
     add_client_notification(data, notif_title, f"{user.get('name')} a demandé : {plan.get('name')} — {plan.get('price')}. Paiement à valider.", "payment", user.get("id"), idx)
     if isinstance(idx, int):
         msg = "renouvelé" if same_plan else "choisi"
-        add_student_feedback(data, idx, "Formule enregistrée", f"Tu as {msg} : {plan.get('name')} ({plan.get('price')}). Le coach validera l’accès dès confirmation du paiement.", "payment", "plan")
+        add_student_feedback(data, idx, "Option enregistrée", f"Tu as {msg} : {plan.get('name')} ({plan.get('price')}). Le coach validera l’option dès confirmation du paiement.", "payment", "plan")
     save_data(data)
     return jsonify({"ok": True, "plan": plan, "old_plan": old_plan, "renewal": same_plan})
 
@@ -4048,7 +4048,7 @@ def api_admin_payment_confirm():
     idx = user.get("student_index")
     if isinstance(idx, int):
         total = canonical_plan_total(plan)
-        add_student_feedback(data, idx, "Paiement confirmé ✅", f"Paiement validé par le coach. Formule active : {plan.get('name')} · {total} séance(s).", "payment", "payment")
+        add_student_feedback(data, idx, "Paiement confirmé ✅", f"Paiement validé par le coach. Option active : {plan.get('name')} · {total} séance(s).", "payment", "payment")
     save_data(data)
     return jsonify({"ok": True, "user": user})
 
@@ -4276,7 +4276,7 @@ def api_admin_package_use():
         return jsonify({"ok": False, "error": "Compte introuvable."}), 404
     active = user.setdefault("active_plan", {})
     if normalize_plan_status(active.get("status")) in ("pending", "completed", "inactive"):
-        return jsonify({"ok": False, "error": "Aucun forfait actif à consommer. Valide un paiement ou demande un renouvellement."}), 400
+        return jsonify({"ok": False, "error": "Aucune option active à consommer. Valide un paiement ou demande un renouvellement."}), 400
 
     plan = find_client_plan(data, active.get("plan_key") or user.get("plan") or "session_60")
     total = canonical_plan_total(plan)
@@ -4311,10 +4311,10 @@ def api_admin_package_use():
         if completed:
             user.setdefault("plan_history", []).insert(0, {"date": now_fr(), "plan": plan.get("name"), "price": plan.get("price"), "status": "completed", "used_sessions": used, "total_sessions": total})
             user["plan_history"] = user.get("plan_history", [])[:30]
-            add_student_feedback(data, idx, "Forfait terminé ✅", f"Ton forfait {plan.get('name')} est terminé ({fmt_qty(used)}/{fmt_qty(total)} séance(s)). Ce n’est pas un retard de paiement : choisis une nouvelle formule quand tu veux continuer.", "payment", "plan", priority="normal")
-            add_client_notification(data, "Forfait terminé", f"{user.get('name')} a terminé son forfait {plan.get('name')}.", "payment", user.get("id"), idx)
+            add_student_feedback(data, idx, "Option terminée ✅", f"Ton option {plan.get('name')} est terminée ({fmt_qty(used)}/{fmt_qty(total)} séance(s)). Ce n’est pas un retard de paiement : choisis une nouvelle option quand tu veux continuer.", "payment", "plan", priority="normal")
+            add_client_notification(data, "Option terminée", f"{user.get('name')} a terminé son option {plan.get('name')}.", "payment", user.get("id"), idx)
         else:
-            add_student_feedback(data, idx, "Séance comptabilisée", f"Une séance a été validée par le coach. Forfait utilisé à {percent}% ({fmt_qty(used)}/{fmt_qty(total)}).", "appointment", "session")
+            add_student_feedback(data, idx, "Séance comptabilisée", f"Une séance a été validée par le coach. Option utilisée à {percent}% ({fmt_qty(used)}/{fmt_qty(total)}).", "appointment", "session")
     save_data(data)
     return jsonify({"ok": True, "active_plan": active, "percent": percent, "completed": completed})
 
