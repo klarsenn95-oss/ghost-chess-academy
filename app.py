@@ -159,7 +159,9 @@ os.makedirs(UPLOAD_FOLDER,  exist_ok=True)
 os.makedirs(CLIENT_UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(REPORTS_FOLDER, exist_ok=True)
 VIDEO_EXT = {"mp4", "webm", "m4v"}
-ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp", "pdf", "pgn", "txt", *VIDEO_EXT}
+DOC_EXT = {"pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "pgn", "txt"}
+ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp", *DOC_EXT, *VIDEO_EXT}
+ALLOWED_UPLOAD_LABEL = "image, vidéo MP4/WebM/M4V, PDF, Word, PowerPoint, Excel, PGN ou TXT"
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 def allowed_file(fn):
@@ -3527,7 +3529,7 @@ def api_client_upload():
     if client_is_restricted(user): return restricted_response(user)
     urls = upload_many_from_request(user.get("id", "student"))
     if not urls:
-        return jsonify({"ok": False, "error": "Aucun fichier valide. Formats acceptés : image, vidéo MP4/WebM, PDF, PGN, TXT."}), 400
+        return jsonify({"ok": False, "error": f"Aucun fichier valide. Formats acceptés : {ALLOWED_UPLOAD_LABEL}."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
 
 @app.route("/api/client/avatar", methods=["POST"])
@@ -3963,7 +3965,7 @@ def api_admin_payment_update():
 def api_admin_upload():
     urls = upload_many_from_request("coach")
     if not urls:
-        return jsonify({"ok": False, "error": "Aucun fichier valide. Utilise une vidéo MP4/WebM de 100 Mo maximum."}), 400
+        return jsonify({"ok": False, "error": f"Aucun fichier valide. Formats acceptés : {ALLOWED_UPLOAD_LABEL}. Taille maximale : 100 Mo."}), 400
     return jsonify({"ok": True, "url": urls[0], "urls": urls})
 
 @app.route("/api/admin/telegram/chats", methods=["POST"])

@@ -525,7 +525,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <button class="btn btn-red btn-sm" onclick="addDevoir()">➕</button>
     </div>
     <textarea class="fta" id="dev-note" rows="2" placeholder="Consigne, liens utiles, objectif de correction..." style="width:100%"></textarea>
-    <input class="fi" type="file" id="dev-files" accept="image/*,.pdf,.pgn,.txt" multiple>
+    <input class="fi" type="file" id="dev-files" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'dev-file-count')">
+    <div class="file-count" id="dev-file-count"></div>
   </div>
   <div id="devoirs-list">
     {% for d in s.get('devoirs',[]) %}
@@ -560,7 +561,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <input class="fi" id="sf-tags" placeholder="Tags : tactique, finale...">
     </div>
     <textarea class="fta" id="sf-pgn" rows="2" placeholder="PGN / variante optionnelle"></textarea>
-    <input class="fi" type="file" id="sf-files" accept="image/*,.pdf,.pgn,.txt" multiple>
+    <input class="fi" type="file" id="sf-files" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'sf-file-count')">
+    <div class="file-count" id="sf-file-count"></div>
     <label style="font-size:12px;color:#555;display:block;margin:4px 0 10px"><input type="checkbox" id="sf-action"> Action demandee au Ghost</label>
     <button class="btn btn-red" onclick="sendStudentFeedback()">Envoyer au Ghost</button>
     <span id="sf-msg" style="font-size:12px;color:#555;margin-left:8px"></span>
@@ -1439,6 +1441,22 @@ function post(url,data,cb){
 }
 
 function v(id){var el=document.getElementById(id);return el?el.value.trim():'';}
+function mergeFileSelection(input){
+  if(!input || !window.DataTransfer) return;
+  var previous=input.__ghostSelectedFiles || [];
+  var incoming=[].slice.call(input.files || []);
+  var byKey=new Map();
+  previous.concat(incoming).forEach(function(f){byKey.set([f.name,f.size,f.lastModified].join('|'),f);});
+  var dt=new DataTransfer();
+  byKey.forEach(function(f){dt.items.add(f);});
+  input.files=dt.files;
+  input.__ghostSelectedFiles=[].slice.call(dt.files);
+}
+function showFileCount(input,id){
+  mergeFileSelection(input);
+  var el=document.getElementById(id);
+  if(el) el.textContent=input && input.files && input.files.length ? input.files.length+' fichier(s) selectionne(s)' : '';
+}
 
 async function postJSON(url,payload){
   var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});

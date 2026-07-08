@@ -396,7 +396,7 @@ body{padding:8px 8px 72px!important}
     <input class="fi" id="fb-fen" placeholder="FEN / position optionnelle">
     <textarea class="ta" id="fb-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea>
     <input class="fi" id="fb-tags" placeholder="Tags : tactique, finales, ouverture…">
-    <input class="fi" type="file" id="fb-file" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'fb-file-count')">
+    <input class="fi" type="file" id="fb-file" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'fb-file-count')">
     <div class="file-count" id="fb-file-count"></div><label class="muted" style="font-size:12px"><input type="checkbox" id="fb-action"> Action demandée à l’élève</label>
     <input type="hidden" id="fb-linked-game-id"><div class="actions"><button class="btn" onclick="sendFeedback()">Envoyer à l'élève</button><span class="muted" id="fb-msg"></span></div>
   </div>
@@ -442,7 +442,7 @@ body{padding:8px 8px 72px!important}
         <textarea class="ta" id="hw-text-{{ s._index }}-{{ loop.index0 }}" placeholder="Correction / commentaire visible par l’élève…"></textarea>
         <input class="fi" id="hw-fen-{{ s._index }}-{{ loop.index0 }}" placeholder="FEN / position optionnelle">
         <select class="fi" id="hw-status-{{ s._index }}-{{ loop.index0 }}"><option value="✅ Corrigé">✅ Corrigé</option><option value="🔄 En cours">🔄 À reprendre</option><option value="📋 À faire">📋 À refaire</option></select>
-        <input class="fi" type="file" id="hw-review-file-{{ s._index }}-{{ loop.index0 }}" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'hw-review-file-count-{{ s._index }}-{{ loop.index0 }}')"><div class="file-count" id="hw-review-file-count-{{ s._index }}-{{ loop.index0 }}"></div><div class="actions"><button class="btn good" onclick="reviewHomework({{ s._index }},{{ loop.index0 }})">Envoyer correction</button></div>
+        <input class="fi" type="file" id="hw-review-file-{{ s._index }}-{{ loop.index0 }}" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'hw-review-file-count-{{ s._index }}-{{ loop.index0 }}')"><div class="file-count" id="hw-review-file-count-{{ s._index }}-{{ loop.index0 }}"></div><div class="actions"><button class="btn good" onclick="reviewHomework({{ s._index }},{{ loop.index0 }})">Envoyer correction</button></div>
       </div>
     {% endif %}{% endfor %}{% endfor %}
     {% if not hw_found %}<div class="muted">Aucun devoir rendu en attente.</div>{% endif %}
@@ -507,7 +507,7 @@ body{padding:8px 8px 72px!important}
       <input class="fi" id="ex-title" placeholder="Titre de l'exercice">
       <textarea class="ta" id="ex-text" placeholder="Consigne, objectif, position, lien utile..."></textarea>
       <div class="mini-grid"><select class="fi" id="ex-level"><option value="standard">Standard</option><option value="débutant">Débutant</option><option value="intermédiaire">Intermédiaire</option><option value="avancé">Avancé</option></select><input class="fi" id="ex-solution" placeholder="Solution / correction optionnelle"></div>
-      <input class="fi" type="file" id="ex-files" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.pgn,.txt" multiple onchange="showFileCount(this,'ex-file-count')"><div class="file-count" id="ex-file-count"></div>
+      <input class="fi" type="file" id="ex-files" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'ex-file-count')"><div class="file-count" id="ex-file-count"></div>
       <label class="muted"><input type="checkbox" id="ex-all" checked> Envoyer à tous les élèves</label>
       <div class="target-list" id="ex-targets">{% for s in students %}<label><input type="checkbox" value="{{ loop.index0 }}"> {{ s.name or '?' }}</label>{% endfor %}</div>
       <button class="btn" onclick="createExercise()">Envoyer l'exercice</button><span class="muted" id="ex-msg"></span>
@@ -526,7 +526,8 @@ body{padding:8px 8px 72px!important}
 const $ = (id)=>document.getElementById(id);
 const ADMIN_STUDENTS = {{ students|map(attribute='name')|list|tojson }};
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
-function showFileCount(input,id){const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
+function mergeFileSelection(input){if(!input||!window.DataTransfer)return;const previous=input.__ghostSelectedFiles||[];const incoming=[...(input.files||[])];const byKey=new Map();[...previous,...incoming].forEach(f=>byKey.set([f.name,f.size,f.lastModified].join('|'),f));const dt=new DataTransfer();byKey.forEach(f=>dt.items.add(f));input.files=dt.files;input.__ghostSelectedFiles=[...dt.files];}
+function showFileCount(input,id){mergeFileSelection(input);const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Impossible d\u2019envoyer le fichier.');return(d.urls||[d.url]).filter(Boolean)}
 async function generateCode(){const d=await postJSON('/api/admin/codes/generate',{student_index:$('student-index').value,email:$('email').value,plan:'no_plan',access_kind:$('access-kind').value});if(d.ok){$('new-code').innerHTML='<div class="code" style="font-size:22px">'+d.code.code+'</div><div class="muted">'+(d.code.free_access?'Inscription offerte : non comptabilisée.':'Inscription 5 000 FCFA comptabilisée.')+'</div>';setTimeout(()=>location.reload(),1200)}}
 async function discoverTelegramChats(){const msg=$('telegram-msg');msg.textContent='Détection…';const d=await postJSON('/api/admin/telegram/chats',{});if(!d.ok){msg.textContent=d.error||'Erreur Telegram';return}const select=$('telegram-chat');select.innerHTML=(d.chats||[]).map(c=>'<option value="'+c.id+'">'+(c.name||'Compte')+(c.username?' (@'+c.username+')':'')+' · '+c.id+'</option>').join('');if(!d.chats?.length){msg.textContent='Aucun compte trouvé. Envoie /start au bot puis recommence.';return}select.style.display='block';$('telegram-target').style.display='block';$('telegram-connect').style.display='inline-flex';msg.textContent=d.chats.length+' compte(s) détecté(s).'}
