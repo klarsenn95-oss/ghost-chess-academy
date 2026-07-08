@@ -1405,6 +1405,7 @@ def default_price_grid():
         "registration_fee": 5000,
         "registration_fee_label": "5 000 FCFA",
         "registration_monthly_games": 15,
+        "registration_monthly_coaching_minutes": 120,
         "registration_monthly_coaching": "2h/mois de suivi standard",
         "session_30": 2000,
         "session_60": 3500,
@@ -1655,6 +1656,44 @@ def get_user_plan_state(user, selected_plan=None):
         "started_at": active.get("started_at", ""),
         "expires_at": active.get("expires_at", ""),
     }
+
+def current_month_key():
+    return datetime.now(ZoneInfo("Europe/Paris")).strftime("%Y-%m")
+
+def get_included_usage_state(user, data=None):
+    grid = (data or {}).get("price_grid") or default_price_grid()
+    usage = user.get("included_usage") or {}
+    games_total = max(1, safe_int(usage.get("games_total"), safe_int(grid.get("registration_monthly_games"), 15)))
+    minutes_total = max(1, safe_int(usage.get("coaching_minutes_total"), safe_int(grid.get("registration_monthly_coaching_minutes"), 120)))
+    games_used = max(0, min(safe_int(usage.get("games_used"), 0), games_total))
+    minutes_used = max(0, min(safe_int(usage.get("coaching_minutes_used"), 0), minutes_total))
+    games_remaining = max(0, games_total - games_used)
+    minutes_remaining = max(0, minutes_total - minutes_used)
+    return {
+        "period": usage.get("period") or current_month_key(),
+        "games_total": games_total,
+        "games_used": games_used,
+        "games_remaining": games_remaining,
+        "games_percent": int(round(games_used / games_total * 100)),
+        "coaching_minutes_total": minutes_total,
+        "coaching_minutes_used": minutes_used,
+        "coaching_minutes_remaining": minutes_remaining,
+        "coaching_percent": int(round(minutes_used / minutes_total * 100)),
+        "coaching_hours_label": fmt_minutes(minutes_total),
+        "coaching_used_label": fmt_minutes(minutes_used),
+        "coaching_remaining_label": fmt_minutes(minutes_remaining),
+        "note": usage.get("note") or "",
+        "updated_at": usage.get("updated_at") or "",
+    }
+
+def fmt_minutes(value):
+    minutes = max(0, safe_int(value, 0))
+    hours, rest = divmod(minutes, 60)
+    if hours and rest:
+        return f"{hours}h{rest:02d}"
+    if hours:
+        return f"{hours}h"
+    return f"{rest} min"
 
 def student_pairs_payload(data, student_index):
     if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
@@ -3224,6 +3263,7 @@ def client_portal():
         user=user,
         student=public_student_payload(student),
         payment=get_user_payment_state(user),
+        included_usage=get_included_usage_state(user, data),
         registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
         registration_monthly_games=price_grid.get("registration_monthly_games", 15),
         registration_monthly_coaching=price_grid.get("registration_monthly_coaching", "2h/mois de suivi standard"),
@@ -3262,6 +3302,7 @@ def admin_clients():
     payment_users = []
     for u in users:
         u["_plan_state"] = get_user_plan_state(u, find_client_plan(data, u.get("plan")))
+        u["_included_usage"] = get_included_usage_state(u, data)
         ap = u.get("active_plan") or {}
         # V26 : le panneau Paiements / accès ne doit pas afficher les Ghosts qui ont seulement
         # l'accès app de base. Il liste uniquement les demandes, forfaits actifs/terminés,
@@ -3284,6 +3325,7 @@ def admin_clients():
         students=students,
         users=payment_users,
         all_users=users,
+        included_users=users,
         codes=codes,
         registration_requests=data.get("registration_requests", [])[:50],
         registration_fee=format_fcfa(default_price_grid().get("registration_fee", 5000)),
@@ -3959,6 +4001,40 @@ def api_admin_payment_update():
             add_student_feedback(data, idx, "Rappel paiement", "Ton paiement semble en attente. Régularise-le pour éviter l'interruption du suivi.", "payment", "payment")
     save_data(data)
     return jsonify({"ok": True, "user": user})
+
+@app.route("/api/admin/included-usage/update", methods=["POST"])
+def api_admin_included_usage_update():
+    body = request.get_json(force=True, silent=True) or {}
+    data = load_data()
+    user_id = body.get("user_id")
+    user = next((u for u in data.get("users", []) if u.get("id") == user_id), None)
+    if not user:
+        return jsonify({"ok": False, "error": "Compte introuvable."}), 404
+    grid = data.get("price_grid") or default_price_grid()
+    games_total = max(1, safe_int(body.get("games_total"), safe_int(grid.get("registration_monthly_games"), 15)))
+    minutes_total = max(1, safe_int(body.get("coaching_minutes_total"), safe_int(grid.get("registration_monthly_coaching_minutes"), 120)))
+    games_used = max(0, min(safe_int(body.get("games_used"), 0), games_total))
+    minutes_used = max(0, min(safe_int(body.get("coaching_minutes_used"), 0), minutes_total))
+    period = (body.get("period") or current_month_key()).strip()[:20]
+    user["included_usage"] = {
+        "period": period or current_month_key(),
+        "games_used": games_used,
+        "games_total": games_total,
+        "coaching_minutes_used": minutes_used,
+        "coaching_minutes_total": minutes_total,
+        "note": (body.get("note") or "").strip()[:300],
+        "updated_at": now_fr(),
+    }
+    idx = user.get("student_index")
+    if isinstance(idx, int) and body.get("notify"):
+        state = get_included_usage_state(user, data)
+        add_student_feedback(
+            data, idx, "Suivi mensuel Ghost mis à jour",
+            f"Socle inclus : {state['games_used']}/{state['games_total']} partie(s) analysée(s), {state['coaching_used_label']}/{state['coaching_hours_label']} de suivi standard utilisé.",
+            "payment", "included_usage"
+        )
+    save_data(data)
+    return jsonify({"ok": True, "included_usage": get_included_usage_state(user, data)})
 
 
 @app.route("/api/admin/upload", methods=["POST"])

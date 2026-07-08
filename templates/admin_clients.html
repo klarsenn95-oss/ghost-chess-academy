@@ -276,6 +276,12 @@ body{padding:8px 8px 72px!important}
 }
 
 </style>
+<style>
+.included-row{display:grid;grid-template-columns:1.1fr 110px 90px 90px 90px 90px 1.2fr auto;gap:8px;align-items:end;border-top:1px solid #ffffff0b;padding:12px 0}
+.included-meter{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin-top:6px}
+.included-meter span{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#fbbf24);border-radius:999px}
+@media(max-width:980px){.included-row{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <div class="head">
@@ -315,6 +321,26 @@ body{padding:8px 8px 72px!important}
 </div>
 
 <section class="grid">
+  <div class="card full">
+    <div class="ttl" id="included-usage">Socle inclus mensuel</div>
+    <div class="section-note">Mets Ã  jour les jauges visibles par chaque Ghost : parties analysÃ©es et temps standard inclus dans lâ€™inscription. Les options individuelles restent gÃ©rÃ©es dans le panneau Paiements.</div>
+    {% for u in included_users %}
+      {% set inc = u._included_usage %}
+      <div class="included-row">
+        <div><b>{{ u.name }}</b><div class="muted">{{ u.email }}</div><div class="included-meter"><span style="width:{{ inc.games_percent }}%"></span></div><div class="muted">{{ inc.games_used }}/{{ inc.games_total }} parties Â· {{ inc.coaching_used_label }}/{{ inc.coaching_hours_label }}</div></div>
+        <input class="fi" id="inc-period-{{ u.id }}" value="{{ inc.period }}" placeholder="YYYY-MM">
+        <input class="fi" type="number" min="0" id="inc-games-used-{{ u.id }}" value="{{ inc.games_used }}" title="Parties utilisÃ©es">
+        <input class="fi" type="number" min="1" id="inc-games-total-{{ u.id }}" value="{{ inc.games_total }}" title="Total parties">
+        <input class="fi" type="number" min="0" id="inc-min-used-{{ u.id }}" value="{{ inc.coaching_minutes_used }}" title="Minutes utilisÃ©es">
+        <input class="fi" type="number" min="1" id="inc-min-total-{{ u.id }}" value="{{ inc.coaching_minutes_total }}" title="Total minutes">
+        <input class="fi" id="inc-note-{{ u.id }}" value="{{ inc.note }}" placeholder="Note interne / visible aprÃ¨s notification">
+        <button class="btn secondary" onclick="saveIncludedUsage('{{ u.id }}')">Sauver</button>
+      </div>
+    {% else %}
+      <div class="muted">Aucun compte Ghost actif.</div>
+    {% endfor %}
+  </div>
+
   <div class="card full">
     <div class="ttl">💰 Finances</div>
     <div class="muted">Vue courte des derniers encaissements. Les détails restent dans les fiches Ghost.</div>
@@ -537,6 +563,7 @@ async function deleteAdminNotification(notification_id){if(!confirm('Supprimer c
 async function sendFeedback(){const msg=$('fb-msg');msg.textContent='Envoi…';try{const attachments=await uploadAdminFiles('fb-file');const linkedGame=$('fb-linked-game-id')?.value||'';const d=await postJSON('/api/admin/feedback/send',{student_index:$('fb-student').value,title:$('fb-title').value,kind:$('fb-kind').value,priority:$('fb-priority').value,text:$('fb-text').value,attachments,image_url:attachments[0]||'',position_fen:$('fb-fen').value,pgn:$('fb-pgn').value,tags:$('fb-tags').value,linked_id:linkedGame,action_required:$('fb-action').checked});if(d.ok&&linkedGame)await postJSON('/api/admin/game/status',{student_index:$('fb-student').value,game_id:linkedGame,status:'corrigé'});msg.textContent=d.ok?'Feedback envoyé.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}catch(error){msg.textContent=error.message||'Erreur pendant l\u2019envoi.'}}
 async function apptAction(student_index,id,action){const d=await postJSON('/api/admin/appointment/action',{student_index,appointment_id:id,action,message:$('msg-'+id).value,proposed_day:$('day-'+id).value,proposed_time:$('time-'+id).value});if(d.ok)location.reload();else alert(d.error||'Erreur')}
 async function savePayment(user_id){const d=await postJSON('/api/admin/payment/update',{user_id,payment_status:$('pay-status-'+user_id).value,amount_due:$('pay-amount-'+user_id).value,next_due:$('pay-due-'+user_id).value,plan:$('pay-plan-'+user_id).value}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
+async function saveIncludedUsage(user_id){const notify=confirm('Notifier le Ghost de cette mise à jour ?');const d=await postJSON('/api/admin/included-usage/update',{user_id,period:$('inc-period-'+user_id).value,games_used:$('inc-games-used-'+user_id).value,games_total:$('inc-games-total-'+user_id).value,coaching_minutes_used:$('inc-min-used-'+user_id).value,coaching_minutes_total:$('inc-min-total-'+user_id).value,note:$('inc-note-'+user_id).value,notify}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function confirmPayment(user_id){const d=await postJSON('/api/admin/payment/confirm',{user_id,amount_due:$('pay-amount-'+user_id).value,next_due:$('pay-due-'+user_id).value}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}
 async function useSession(user_id,delta=1){const note=prompt('Note optionnelle pour cette séance (ex : analyse Ruy Lopez)')||'';const d=await postJSON('/api/admin/package/use',{user_id,delta,note}); if(d.ok){ if(d.completed) alert('Option terminée à 100%. Elle n’est pas en retard : l’élève verra un message de renouvellement.'); location.reload(); } else alert(d.error||'Erreur')}
 async function undoSession(user_id){if(!confirm('Annuler la dernière séance consommée ?'))return;const d=await postJSON('/api/admin/package/undo',{user_id}); if(d.ok)location.reload(); else alert(d.error||'Erreur')}

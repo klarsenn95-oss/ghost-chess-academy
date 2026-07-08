@@ -144,6 +144,37 @@ class FileTransferTest(unittest.TestCase):
         self.assertTrue(submission["attachments"][0].endswith(".pdf"))
         self.assertTrue(submission["attachments"][1].endswith(".docx"))
 
+    def test_coach_can_update_included_monthly_usage_visible_to_student(self):
+        updated = self.client.post(
+            "/api/admin/included-usage/update",
+            json={
+                "user_id": "ghost-user",
+                "period": "2026-07",
+                "games_used": 6,
+                "games_total": 15,
+                "coaching_minutes_used": 45,
+                "coaching_minutes_total": 120,
+                "note": "Suivi juillet",
+            },
+        )
+        self.assertEqual(updated.status_code, 200)
+        usage = updated.get_json()["included_usage"]
+        self.assertEqual(usage["games_remaining"], 9)
+        self.assertEqual(usage["coaching_remaining_label"], "1h15")
+
+        self.login_student()
+        page = self.client.get("/client")
+        html = page.get_data(as_text=True)
+        self.assertIn("2026-07", html)
+        self.assertIn("6/15", html)
+        self.assertIn("45 min/2h", html)
+        self.assertIn("1h15", html)
+
+        admin_page = self.client.get("/admin/clients")
+        admin_html = admin_page.get_data(as_text=True)
+        self.assertIn("Socle inclus mensuel", admin_html)
+        self.assertIn("inc-games-used-ghost-user", admin_html)
+
 
 if __name__ == "__main__":
     unittest.main()
