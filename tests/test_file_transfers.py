@@ -104,6 +104,8 @@ class FileTransferTest(unittest.TestCase):
         html = page.get_data(as_text=True)
         self.assertIn("fiche.pdf", html)
         self.assertIn("plan.docx", html)
+        self.assertIn("Guide 1/6", html)
+        self.assertIn("startOnboarding(true)", html)
 
         saved = self.read_data()
         self.assertEqual(saved["students"][0]["devoirs"][0]["attachments"], urls)
