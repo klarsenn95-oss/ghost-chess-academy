@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>🗂️ Banque de questions — GHOST</title>
+<title>🗂️ Banque de certifications — GHOST</title>
 <link rel="stylesheet" href="/static/style.css">
 <style>
 html,body{overflow:auto!important;height:auto!important;display:block!important;background:#050505;}
@@ -97,33 +97,33 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   <!-- Header -->
   <div class="bk-header">
     <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
-    <div class="bk-title">🗂️ Banque de questions</div>
+    <div class="bk-title">🗂️ Banque de certifications</div>
     <div style="margin-left:auto;display:flex;gap:8px;">
-      <a href="/exam" class="btn btn-red" style="text-decoration:none;font-size:13px">▶ Passer un exam</a>
+      <a href="/certifications" class="btn btn-red" style="text-decoration:none;font-size:13px">▶ Passer une certification</a>
     </div>
   </div>
 
   <!-- Stats globales -->
   <div class="bk-stats" id="global-stats">
-    <div class="bk-stat"><div class="bk-stat-val" id="stat-grades">0</div><div class="bk-stat-lbl">Grades configurés</div></div>
+    <div class="bk-stat"><div class="bk-stat-val" id="stat-grades">0</div><div class="bk-stat-lbl">Certifications configurées</div></div>
     <div class="bk-stat"><div class="bk-stat-val" id="stat-questions">0</div><div class="bk-stat-lbl">Questions au total</div></div>
     <div class="bk-stat"><div class="bk-stat-val" id="stat-images">0</div><div class="bk-stat-lbl">Avec image</div></div>
     <div class="bk-stat"><div class="bk-stat-val" id="stat-pts">0</div><div class="bk-stat-lbl">Points max par exam</div></div>
   </div>
 
-  <!-- Sélecteur de grade -->
+  <!-- Sélecteur de certification -->
   <div class="grade-tabs" id="grade-tabs">
-    <span style="font-size:12px;color:#444;align-self:center">Grade :</span>
+    <span style="font-size:12px;color:#444;align-self:center">Certification :</span>
     <!-- Générés par JS -->
   </div>
 
   <!-- Éditeur -->
   <div class="bk-panel">
-    <div class="bk-section-title" id="editor-title">— Sélectionne un grade —</div>
+    <div class="bk-section-title" id="editor-title">— Sélectionne une certification —</div>
 
     <!-- Liste des questions -->
     <div class="q-list" id="q-list">
-      <div class="bk-empty" id="q-empty">Sélectionne un grade ci-dessus pour commencer.</div>
+      <div class="bk-empty" id="q-empty">Sélectionne une certification ci-dessus pour commencer.</div>
     </div>
 
     <!-- Formulaire d'ajout -->
@@ -137,6 +137,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
           <option value="text">💬 Question orale</option>
           <option value="image">🖼️ Avec image</option>
           <option value="yesno">✅ Vrai / Faux</option>
+          <option value="fen">FEN échiquier</option>
         </select>
         <input class="fi" id="new-q-pts" type="number" value="1" min="0.5" step="0.5"
           style="max-width:90px" placeholder="Pts">
@@ -164,6 +165,11 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         placeholder="Réponse modèle (visible après correction)…"
         style="margin-top:8px;margin-bottom:10px"></textarea>
 
+      <div id="fen-zone" style="display:none;margin-bottom:10px">
+        <input class="fi" id="new-q-fen" placeholder="FEN échiquier" style="margin-bottom:8px">
+        <input class="fi" id="new-q-highlights" placeholder="Cases à surligner : e4,d5,f5">
+      </div>
+
       <button class="btn btn-ghost" onclick="addQuestion()" style="font-size:13px">➕ Ajouter à la liste</button>
     </div>
   </div>
@@ -172,7 +178,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 
 <!-- Barre de sauvegarde fixe -->
 <div class="save-bar" id="save-bar" style="display:none">
-  <div class="save-bar-grade">Grade actif : <span id="save-grade-label">—</span></div>
+  <div class="save-bar-grade">Certification active : <span id="save-grade-label">—</span></div>
   <div style="font-size:11px;color:#555" id="save-count"></div>
   <div style="margin-left:auto;display:flex;gap:8px;">
     <button class="btn btn-ghost" onclick="reloadGrade()" style="font-size:12px">↺ Annuler</button>
@@ -181,20 +187,11 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 </div>
 
 <script>
-const RANKS_PIRATES = {{ ranks_pirates|tojson }};
-const RANKS_MARINE  = {{ ranks_marine|tojson }};
+const CERTIFICATION_DEFS = {{ certification_defs|tojson }};
 var EXAM_BANK = {{ exam_bank|tojson }};
 
-// Merge tous les grades (pirates + marine sans doublons de label)
-var ALL_GRADES = [];
-var seen = {};
-[...RANKS_PIRATES, ...RANKS_MARINE].forEach(function(r){
-  var key = r.emoji + r.title;
-  if(!seen[key]){
-    seen[key] = true;
-    ALL_GRADES.push({key: r.title.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase()+'_'+r.idx,
-                     label: r.emoji+' '+r.title, color: r.color, threshold: r.threshold});
-  }
+var ALL_GRADES = CERTIFICATION_DEFS.map(function(c){
+  return {key:c.key, label:c.title, color:c.color, threshold:c.pass_pct};
 });
 
 var currentGradeKey = '';
@@ -261,13 +258,13 @@ function renderQuestions(){
   var empty = document.getElementById('q-empty');
   if(!questions.length){
     empty.style.display='';
-    empty.textContent = 'Aucune question pour ce grade. Ajoute-en ci-dessous.';
+    empty.textContent = 'Aucune question pour cette certification. Ajoute-en ci-dessous.';
     list.innerHTML='';
     list.appendChild(empty);
     return;
   }
   empty.style.display='none';
-  var typeIcon = {text:'💬',yesno:'✅',image:'🖼️',pgn:'♟️'};
+  var typeIcon = {text:'💬',yesno:'✅',image:'🖼️',pgn:'♟️',fen:'FEN'};
   list.innerHTML = '';
   questions.forEach(function(q,i){
     var row = document.createElement('div');
@@ -284,6 +281,9 @@ function renderQuestions(){
     var imgHtml = q.image
       ? '<img src="'+escapeHtml(q.image)+'" class="q-image-preview" onerror="this.style.display=\'none\'">'
       : '';
+    var fenHtml = q.fen
+      ? '<div class="q-answer">FEN: '+escapeHtml(q.fen)+'</div>'
+      : '';
     var ansHtml = q.answer
       ? '<div class="q-answer">→ '+escapeHtml(q.answer)+'</div>'
       : '';
@@ -293,6 +293,7 @@ function renderQuestions(){
       '<div class="q-body">'+
         '<div class="q-text">'+escapeHtml(q.question||'')+'</div>'+
         imgHtml+
+        fenHtml+
         '<div class="q-meta">'+
           '<span class="q-badge" style="color:#888">'+( typeIcon[q.type]||'💬')+'</span>'+
           '<span class="q-pts">'+pts+'pt'+(pts>1?'s':'')+'</span>'+
@@ -364,6 +365,7 @@ function deleteQuestion(i){
 function onTypeChange(){
   var t = document.getElementById('new-q-type').value;
   document.getElementById('image-zone').style.display = t==='image'?'':'none';
+  document.getElementById('fen-zone').style.display = t==='fen'?'':'none';
 }
 
 // ── Upload image ──────────────────────────────────────────────────
@@ -410,17 +412,24 @@ function addQuestion(){
   var type   = document.getElementById('new-q-type').value;
   var pts    = parseFloat(document.getElementById('new-q-pts').value)||1;
   var image  = document.getElementById('new-q-image').value.trim();
+  var fen    = document.getElementById('new-q-fen').value.trim();
+  var highlights = document.getElementById('new-q-highlights').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
   var answer = document.getElementById('new-q-answer').value.trim();
   if(!text){ alert('Saisis l\'énoncé de la question.'); return; }
   if(type==='image' && !image){ alert('Ajoute une image ou change le type.'); return; }
+  if(type==='fen' && !fen){ alert('Ajoute un FEN ou change le type.'); return; }
   var q = {question:text, type:type, points:pts};
   if(image)  q.image  = image;
+  if(fen) q.fen = fen;
+  if(highlights.length) q.highlights = highlights;
   if(answer) q.answer = answer;
   questions.push(q);
   dirty = true;
   // Reset form
   document.getElementById('new-q-text').value='';
   document.getElementById('new-q-answer').value='';
+  document.getElementById('new-q-fen').value='';
+  document.getElementById('new-q-highlights').value='';
   removeImage();
   document.getElementById('new-q-type').value='text';
   onTypeChange();
@@ -438,7 +447,7 @@ function saveGrade(){
   var label = gradeLabel ? gradeLabel.label : currentGradeKey;
   var btn = document.getElementById('save-btn');
   btn.textContent='⏳…'; btn.disabled=true;
-  fetch('/api/exams/save',{
+  fetch('/api/certifications/save',{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({grade_key:currentGradeKey,grade_label:label,questions:questions})
   }).then(function(r){return r.json();}).then(function(d){

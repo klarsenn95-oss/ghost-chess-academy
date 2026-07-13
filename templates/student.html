@@ -813,14 +813,29 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div style="font-size:10px;color:#555;margin-top:4px">⚠️ Amiral requiert ≥ 2100 ELO dans au moins 2 cadences.</div>
         {% endif %}
       </div>
-      {% if s.get('exam_grade_unlocked') %}
+      {% if s.get('certification_badges') or s.get('exam_grade_unlocked') %}
       <div style="margin-left:auto">
-        <div style="font-size:10px;color:#444;margin-bottom:4px">🏅 Badges examens</div>
-        {% for g in s.exam_grade_unlocked %}
-        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#1a1200;color:#fbbf24;border:1px solid #fbbf2433;margin:2px;display:inline-block">🏅 {{ g }}</span>
+        <div style="font-size:10px;color:#444;margin-bottom:4px">🏅 Badges certifications</div>
+        {% for c in certifications if c.passed %}
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#1a1200;color:#fbbf24;border:1px solid #fbbf2433;margin:2px;display:inline-block">🏅 {{ c.badge }}</span>
         {% endfor %}
       </div>
       {% endif %}
+    </div>
+  </div>
+
+  <div class="s-section">
+    <div class="s-section-title">Espace certifications</div>
+    <div class="cert-grid">
+      {% for c in certifications %}
+      <div class="cert-card {% if not c.unlocked %}locked{% endif %} {% if c.passed %}passed{% endif %}">
+        <div class="cert-mark" style="border-color:{{ c.color }}66;color:{{ c.color }}">{{ c.roman }}</div>
+        <div class="cert-copy">
+          <div class="cert-name">{{ c.title }}</div>
+          <div class="cert-state">{% if c.passed %}Badge obtenu{% elif c.unlocked %}Disponible{% else %}Verrouillée{% endif %}</div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 
@@ -834,24 +849,22 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     {% else %}<div style="color:#333;text-align:center;padding:14px">Aucun changement de grade enregistré.</div>{% endfor %}
   </div>
 
-  <!-- Passer un examen — nouveau système interactif -->
+  <!-- Certifications -->
   <div class="s-section">
-    <div class="s-section-title">📋 Faire passer l'examen</div>
+    <div class="s-section-title">📋 Faire passer une certification</div>
     <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Grade cible</label>
+      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification cible</label>
       <select class="fi" id="exam-grade-select" onchange="loadExamQuestions(this.value)">
-        <option value="">— Sélectionner un grade —</option>
-        {% for branch_ranks in [ranks_pirates, ranks_marine] %}
-        {% for r in branch_ranks %}
-        <option value="{{ r.emoji }}_{{ r.title }}">{{ r.emoji }} {{ r.title }} (≥ {{ r.threshold }} ELO)</option>
-        {% endfor %}
+        <option value="">— Sélectionner une certification —</option>
+        {% for c in certifications %}
+        <option value="{{ c.key }}" {% if not c.unlocked %}disabled{% endif %}>{{ c.title }}{% if c.passed %} — obtenue{% elif not c.unlocked %} — verrouillée{% endif %}</option>
         {% endfor %}
       </select>
     </div>
 
     <div id="exam-questions-panel" style="display:none">
       <div class="s-section" style="background:#060606;margin-bottom:8px;padding:12px 14px">
-        <div class="s-section-title" style="color:#888;margin-bottom:10px">Questions — coche pour chaque réponse</div>
+        <div class="s-section-title" style="color:#888;margin-bottom:10px">Questions et correction finale</div>
 
         <!-- Score live -->
         <div style="display:flex;align-items:center;gap:16px;padding:10px 0 12px;border-bottom:1px solid #111;margin-bottom:12px">
@@ -863,7 +876,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
             <div style="background:#111;border-radius:6px;height:6px;overflow:hidden">
               <div id="exam-progress-bar" style="background:var(--red);height:100%;width:0%;transition:.3s"></div>
             </div>
-            <div id="exam-pct-label" style="font-size:11px;color:#555;margin-top:4px">0% — Seuil de réussite : 60%</div>
+            <div id="exam-pct-label" style="font-size:11px;color:#555;margin-top:4px">0% — Seuil de réussite : 70%</div>
           </div>
           <div id="exam-verdict" style="font-size:22px"></div>
         </div>
@@ -871,16 +884,16 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div id="exam-q-list"></div>
       </div>
 
-      <textarea class="fta" id="exam-notes" rows="2" placeholder="Notes sur l'examen, points forts/faibles…" style="margin-bottom:8px"></textarea>
-      <button class="btn btn-red" onclick="submitExamResult()">✅ Valider l'examen</button>
+      <textarea class="fta" id="exam-notes" rows="2" placeholder="Notes sur la certification, points forts/faibles…" style="margin-bottom:8px"></textarea>
+      <button class="btn btn-red" onclick="submitExamResult()">✅ Valider la certification</button>
       <span id="exam-msg" style="font-size:12px;color:#888;margin-left:10px"></span>
     </div>
   </div>
 
-  <!-- Historique des examens -->
+  <!-- Historique des certifications -->
   <div class="s-section">
-    <div class="s-section-title">📜 Historique des examens</div>
-    {% for r in s.get('exam_results',[])|reverse %}
+    <div class="s-section-title">📜 Historique des certifications</div>
+    {% for r in s.get('certification_results', s.get('exam_results',[]))|reverse %}
     <div class="dev-item" style="background:#060606;border:1px solid {% if r.passed %}#4ade8033{% else %}#cc1a1a33{% endif %}">
       <div style="font-size:18px">{% if r.passed %}✅{% else %}❌{% endif %}</div>
       <div style="flex:1">
@@ -890,21 +903,19 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       </div>
     </div>
     {% else %}
-    <div style="color:#333;text-align:center;padding:20px">Aucun examen passé.</div>
+    <div style="color:#333;text-align:center;padding:20px">Aucune certification passée.</div>
     {% endfor %}
   </div>
 
-  <!-- Banque de questions — édition -->
+  <!-- Banque de certifications — édition -->
   <div class="s-section">
-    <div class="s-section-title">🗂️ Banque de questions (édition)</div>
+    <div class="s-section-title">🗂️ Banque de certifications (édition)</div>
     <div style="margin-bottom:8px">
-      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Grade concerné</label>
+      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification concernée</label>
       <select class="fi" id="bank-grade-select" onchange="loadBankGrade(this.value)">
-        <option value="">— Sélectionner un grade —</option>
-        {% for branch_ranks in [ranks_pirates, ranks_marine] %}
-        {% for r in branch_ranks %}
-        <option value="{{ r.emoji }}_{{ r.title }}">{{ r.emoji }} {{ r.title }}</option>
-        {% endfor %}
+        <option value="">— Sélectionner une certification —</option>
+        {% for c in certification_defs %}
+        <option value="{{ c.key }}">{{ c.title }}</option>
         {% endfor %}
       </select>
     </div>
@@ -924,6 +935,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
               <option value="yesno">✅ Oui/Non</option>
               <option value="pgn">♟️ Partie PGN</option>
               <option value="image">🖼️ Image</option>
+              <option value="fen">FEN échiquier</option>
             </select>
           </div>
           <div>
@@ -942,6 +954,13 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div id="bank-image-field" style="display:none;margin-bottom:6px">
           <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">URL de l'image</label>
           <input class="fi" id="bank-new-image" placeholder="https://… ou chemin local">
+        </div>
+
+        <div id="bank-fen-field" style="display:none;margin-bottom:6px">
+          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">FEN</label>
+          <input class="fi" id="bank-new-fen" placeholder="8/8/8/8/8/8/8/8 w - - 0 1">
+          <label style="font-size:10px;color:#444;display:block;margin:6px 0 3px">Cases à surligner (ex: e4,d5)</label>
+          <input class="fi" id="bank-new-highlights" placeholder="e4,d5,f5">
         </div>
 
         <!-- Réponse attendue (optionnelle) -->
@@ -1742,13 +1761,46 @@ drawGhostRadar();
 
 // ── EXAM ────────────────────────────────────────────────────
 var EXAM_BANK = {{ exam_bank|tojson }};
+var CERTIFICATION_DEFS = {{ certification_defs|tojson }};
 var currentExamGrade = '';
 var bankQuestions = [];
 var examAnswers = {}; // {qIndex: 0 | 0.5 | 1}
+var writtenAnswers = {};
+
+function renderGhostBoard(fen, highlights, orientation){
+  if(!fen) return '';
+  var pieceMap = {p:'♟',r:'♜',n:'♞',b:'♝',q:'♛',k:'♚',P:'♙',R:'♖',N:'♘',B:'♗',Q:'♕',K:'♔'};
+  var ranks = String(fen).split(' ')[0].split('/');
+  if(ranks.length !== 8) return '';
+  var hl = {};
+  (highlights || []).forEach(function(s){ hl[String(s).trim().toLowerCase()] = true; });
+  var files = ['a','b','c','d','e','f','g','h'];
+  var html = '<div class="ghost-board" data-orientation="'+escapeHtml(orientation||'white')+'">';
+  var rankOrder = orientation === 'black' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  var fileOrder = orientation === 'black' ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  rankOrder.forEach(function(rIdx){
+    var expanded = [];
+    ranks[rIdx].split('').forEach(function(ch){
+      if(/[1-8]/.test(ch)){ for(var n=0;n<parseInt(ch,10);n++) expanded.push(''); }
+      else expanded.push(ch);
+    });
+    fileOrder.forEach(function(fIdx){
+      var sq = files[fIdx] + (8-rIdx);
+      var piece = pieceMap[expanded[fIdx]] || '';
+      var dark = ((rIdx + fIdx) % 2) === 1;
+      html += '<div class="ghost-square '+(dark?'dark':'light')+(hl[sq]?' highlighted':'')+'" data-square="'+sq+'">';
+      html += piece ? '<span class="ghost-piece '+(/[prnbqk]/.test(expanded[fIdx])?'black':'white')+'">'+piece+'</span>' : '';
+      html += '</div>';
+    });
+  });
+  html += '</div>';
+  return html;
+}
 
 function loadExamQuestions(gradeKey){
   currentExamGrade = gradeKey;
   examAnswers = {};
+  writtenAnswers = {};
   var panel = document.getElementById('exam-questions-panel');
   if(!gradeKey){ panel.style.display='none'; return; }
   panel.style.display='block';
@@ -1762,7 +1814,7 @@ function loadExamQuestions(gradeKey){
   var html='';
   bank.questions.forEach(function(q,i){
     var pts = parseFloat(q.points)||1;
-    var typeBadge = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍'}[q.type]||'💬';
+    var typeBadge = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍',fen:'FEN'}[q.type]||'💬';
     html += '<div id="exam-qrow-'+i+'" style="padding:12px 0;border-bottom:1px solid #111">';
     // En-tête question
     html += '<div style="display:flex;align-items:flex-start;gap:10px">';
@@ -1778,8 +1830,12 @@ function loadExamQuestions(gradeKey){
     if(q.type==='image' && q.image){
       html += '<img src="'+escapeHtml(q.image)+'" style="max-width:100%;border-radius:8px;margin-bottom:6px;border:1px solid #1e1e1e" onerror="this.style.display=\'none\'">';
     }
+    if((q.type==='fen' || q.fen) && q.fen){
+      html += renderGhostBoard(q.fen, q.highlights || [], q.orientation || 'white');
+    }
 
     html += '<div style="font-size:10px;color:#555;margin-bottom:8px">'+typeBadge+' '+pts+' pt'+(pts>1?'s':'')+'</div>';
+    html += '<textarea class="fta cert-answer" id="cert-answer-'+i+'" rows="2" placeholder="Réponse du ghost…" oninput="writtenAnswers['+i+']=this.value" style="margin-bottom:8px"></textarea>';
 
     // Boutons ✅ ½ ❌
     html += '<div style="display:flex;gap:6px">';
@@ -1832,13 +1888,14 @@ function updateExamScore(){
   },0);
   score = Math.round(score*10)/10;
   var pct = total>0 ? Math.round(score/total*100) : 0;
+  var passPct = parseInt((bank && bank.pass_pct) || 70, 10);
   document.getElementById('exam-live-score').textContent = score;
   document.getElementById('exam-live-total').textContent = total;
   var bar = document.getElementById('exam-progress-bar');
   bar.style.width = pct+'%';
-  bar.style.background = pct>=60?'#22c55e':pct>=40?'#f59e0b':'#ef4444';
-  document.getElementById('exam-pct-label').textContent = pct+'% — Seuil de réussite : 60%';
-  document.getElementById('exam-verdict').textContent = pct>=60?'🎉':Object.keys(examAnswers).length===bank.questions.length?'❌':'';
+  bar.style.background = pct>=passPct?'#22c55e':pct>=40?'#f59e0b':'#ef4444';
+  document.getElementById('exam-pct-label').textContent = pct+'% — Seuil de réussite : '+passPct+'%';
+  document.getElementById('exam-verdict').textContent = pct>=passPct?'🎉':Object.keys(examAnswers).length===bank.questions.length?'❌':'';
 }
 
 function toggleAnswer(i){
@@ -1857,10 +1914,15 @@ function submitExamResult(){
     return s + examAnswers[i]*pts;
   },0);
   score = Math.round(score*10)/10;
-  var passed = total>0 && (score/total)>=0.6;
+  var passPct = parseInt(bank.pass_pct || 70, 10);
+  var passed = total>0 && Math.round(score/total*100)>=passPct;
   var gradeLabel = document.getElementById('exam-grade-select').options[document.getElementById('exam-grade-select').selectedIndex].text;
-  post('/api/students/exam_result',{student_index:STUDENT_IDX,grade_key:gradeKey,grade_label:gradeLabel,score:score,total:total,passed:passed,notes:notes},function(r){
-    if(r.ok){ toast(passed?'🎉 Examen réussi !':'❌ Examen échoué'); setTimeout(function(){ location.reload(); },1200); }
+  var answers = (bank.questions || []).map(function(q,i){
+    var input = document.getElementById('cert-answer-'+i);
+    return {question:q.question || '', answer: input ? input.value.trim() : '', correction: examAnswers[i]};
+  });
+  post('/api/students/certification_result',{student_index:STUDENT_IDX,grade_key:gradeKey,grade_label:gradeLabel,score:score,total:total,passed:passed,notes:notes,answers:answers},function(r){
+    if(r.ok){ toast(passed?'🎉 Certification réussie !':'❌ Certification échouée'); setTimeout(function(){ location.reload(); },1200); }
     else document.getElementById('exam-msg').textContent='Erreur';
   });
 }
@@ -1870,6 +1932,7 @@ function toggleBankExtraFields(){
   var type = document.getElementById('bank-new-type').value;
   document.getElementById('bank-pgn-field').style.display   = type==='pgn'   ? '' : 'none';
   document.getElementById('bank-image-field').style.display = type==='image' ? '' : 'none';
+  document.getElementById('bank-fen-field').style.display = type==='fen' ? '' : 'none';
 }
 
 function loadBankGrade(gradeKey){
@@ -1884,7 +1947,7 @@ function loadBankGrade(gradeKey){
 function renderBankQuestions(){
   var list = document.getElementById('bank-questions-list');
   if(!bankQuestions.length){ list.innerHTML='<div style="color:#444;font-size:12px">Aucune question. Ajoute-en ci-dessous.</div>'; return; }
-  var typeLabel = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍'};
+  var typeLabel = {text:'💬',yesno:'✅',pgn:'♟️',image:'🖼️',position:'📍',fen:'FEN'};
   var html='';
   bankQuestions.forEach(function(q,i){
     var pts = parseFloat(q.points)||1;
@@ -1894,6 +1957,7 @@ function renderBankQuestions(){
     html += ' <span style="font-size:10px;color:#444">'+(typeLabel[q.type]||'💬')+' '+pts+'pt</span>';
     if(q.pgn) html += '<span style="font-size:10px;color:#333;margin-left:4px">♟ PGN</span>';
     if(q.image) html += '<span style="font-size:10px;color:#333;margin-left:4px">🖼</span>';
+    if(q.fen) html += '<span style="font-size:10px;color:#333;margin-left:4px">FEN</span>';
     html += '</div>';
     html += '<button class="btn btn-danger btn-xs" onclick="deleteBankQuestion('+i+')">🗑</button>';
     html += '</div>';
@@ -1907,16 +1971,22 @@ function addBankQuestion(){
   var pts = parseFloat(document.getElementById('bank-new-pts').value)||1;
   var pgn = document.getElementById('bank-new-pgn').value.trim();
   var image = document.getElementById('bank-new-image').value.trim();
+  var fen = document.getElementById('bank-new-fen').value.trim();
+  var highlights = document.getElementById('bank-new-highlights').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
   var answer = document.getElementById('bank-new-answer').value.trim();
   if(!q) return;
   var entry = {question:q, type:t, points:pts};
   if(pgn) entry.pgn = pgn;
   if(image) entry.image = image;
+  if(fen) entry.fen = fen;
+  if(highlights.length) entry.highlights = highlights;
   if(answer) entry.answer = answer;
   bankQuestions.push(entry);
   document.getElementById('bank-new-q').value='';
   document.getElementById('bank-new-pgn').value='';
   document.getElementById('bank-new-image').value='';
+  document.getElementById('bank-new-fen').value='';
+  document.getElementById('bank-new-highlights').value='';
   document.getElementById('bank-new-answer').value='';
   renderBankQuestions();
 }
@@ -1927,7 +1997,7 @@ function saveBankGrade(){
   var gradeKey = document.getElementById('bank-grade-select').value;
   var gradeLabel = document.getElementById('bank-grade-select').options[document.getElementById('bank-grade-select').selectedIndex].text;
   if(!gradeKey) return;
-  post('/api/exams/save',{grade_key:gradeKey,grade_label:gradeLabel,questions:bankQuestions},function(r){
+  post('/api/certifications/save',{grade_key:gradeKey,grade_label:gradeLabel,questions:bankQuestions},function(r){
     if(r.ok){ toast('Banque sauvegardée ✅'); EXAM_BANK[gradeKey]={grade_key:gradeKey,grade_label:gradeLabel,questions:bankQuestions}; }
     else toast('Erreur');
   });

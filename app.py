@@ -820,6 +820,121 @@ def fetch_lichess_games(username, max_games=30):
             "white_results":white_r,"black_results":black_r}
 
 # ─── Data ──────────────────────────────────────────────────
+CERTIFICATION_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+
+def certification_key(index):
+    return "cert_%s" % CERTIFICATION_ROMANS[index].lower()
+
+def certification_definitions():
+    palette = ["#fbbf24", "#60a5fa", "#34d399", "#f472b6", "#a78bfa",
+               "#fb7185", "#2dd4bf", "#f97316", "#e5e7eb", "#facc15"]
+    return [
+        {
+            "key": certification_key(i),
+            "index": i + 1,
+            "roman": roman,
+            "title": "Certification %s" % roman,
+            "badge": "Certif %s" % roman,
+            "color": palette[i],
+            "pass_pct": 70 if i == 0 else 75,
+            "locked_label": "Verrouillee" if i else "Ouverte",
+        }
+        for i, roman in enumerate(CERTIFICATION_ROMANS)
+    ]
+
+def default_certification_bank():
+    certs = certification_definitions()
+    bank = {
+        c["key"]: {
+            "grade_key": c["key"],
+            "grade_label": c["title"],
+            "pass_pct": c["pass_pct"],
+            "questions": [],
+        }
+        for c in certs
+    }
+    bank["cert_i"]["questions"] = [
+        {
+            "question": "Nommer les pieces blanches et noires presentes sur l'echiquier.",
+            "type": "fen",
+            "points": 1,
+            "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "answer": "Roi, dame, tours, fous, cavaliers et pions.",
+        },
+        {
+            "question": "Quelle case controle le pion blanc apres 1.e4 ?",
+            "type": "fen",
+            "points": 1,
+            "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            "highlights": ["e4", "d5", "f5"],
+            "answer": "Le pion e4 controle d5 et f5.",
+        },
+        {
+            "question": "Trouver le meilleur coup des Blancs pour faire mat en un coup.",
+            "type": "fen",
+            "points": 2,
+            "fen": "6k1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1",
+            "highlights": ["f8"],
+            "answer": "Txf8+ est mat.",
+        },
+        {
+            "question": "Expliquer pourquoi le roi noir est en danger sur la colonne f.",
+            "type": "fen",
+            "points": 1,
+            "fen": "5rk1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1",
+            "highlights": ["f1", "f8"],
+            "answer": "Les tours sont face a face sur la colonne f.",
+        },
+        {
+            "question": "Donner un plan simple pour les Blancs dans cette position.",
+            "type": "fen",
+            "points": 2,
+            "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 3",
+            "answer": "Developper le fou, roquer, puis lutter pour le centre.",
+        },
+    ]
+    return bank
+
+def merge_default_certifications(data):
+    defaults = default_certification_bank()
+    bank = data.setdefault("certification_bank", {})
+    legacy_bank = data.get("exam_bank") if isinstance(data.get("exam_bank"), dict) else {}
+    for key, default_value in defaults.items():
+        if key not in bank:
+            bank[key] = legacy_bank.get(key, default_value)
+        elif not isinstance(bank.get(key), dict):
+            bank[key] = default_value
+        else:
+            bank[key].setdefault("grade_key", key)
+            bank[key].setdefault("grade_label", default_value["grade_label"])
+            bank[key].setdefault("pass_pct", default_value["pass_pct"])
+            if key == "cert_i" and not bank[key].get("questions"):
+                bank[key]["questions"] = default_value["questions"]
+            else:
+                bank[key].setdefault("questions", [])
+    data["certification_bank"] = bank
+    data["exam_bank"] = bank
+    return bank
+
+def student_certification_state(student):
+    passed = set(student.get("certification_badges") or [])
+    for result in student.get("certification_results", []) or []:
+        if result.get("passed") and result.get("grade_key"):
+            passed.add(result.get("grade_key"))
+    for key in student.get("exam_grade_unlocked") or []:
+        if str(key).startswith("cert_"):
+            passed.add(key)
+    states = []
+    previous_passed = True
+    for cert in certification_definitions():
+        is_passed = cert["key"] in passed
+        unlocked = cert["index"] == 1 or previous_passed
+        row = dict(cert)
+        row.update({"passed": is_passed, "unlocked": unlocked})
+        states.append(row)
+        previous_passed = is_passed
+    return states
+
 def _default_data():
     return {
         "students": [],
@@ -827,6 +942,7 @@ def _default_data():
         "sessions": [],
         "pairs": [],
         "exam_bank": {},
+        "certification_bank": default_certification_bank(),
         "price_grid": default_price_grid(),
         "units": [],
         "users": [],
@@ -844,6 +960,9 @@ def normalize_data(d):
     if "group_notes" not in d: d["group_notes"] = []
     if "pairs" not in d: d["pairs"] = []
     if "exam_bank" not in d: d["exam_bank"] = {}
+    if "certification_bank" not in d or not isinstance(d.get("certification_bank"), dict):
+        d["certification_bank"] = {}
+    merge_default_certifications(d)
     # V22 : la grille officielle est remise en cohérence avec les offres Ghost Academy.
     if "price_grid" not in d or not isinstance(d.get("price_grid"), dict):
         d["price_grid"] = default_price_grid()
@@ -2091,6 +2210,8 @@ def public_student_payload(student):
         "client_divers": divers[:20],
         "client_notifications": ghost_notifications[:20],
         "client_notifications_count": len(ghost_notifications),
+        "certifications": student_certification_state(student),
+        "certification_results": student.get("certification_results", student.get("exam_results", []))[-20:],
     }
 
 def require_client_json():
@@ -2383,7 +2504,9 @@ def student_page(idx):
         ranks_pirates=ranks_pirates_data, ranks_marine=ranks_marine_data,
         haki_list=haki_list,
         island=island, islands_list=islands_list,
-        exam_bank=data.get("exam_bank",{}),
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
+        certifications=student_certification_state(s),
+        certification_defs=certification_definitions(),
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
@@ -2422,16 +2545,19 @@ def islands_page():
 # ── Nouvelles pages ────────────────────────────────────────
 
 @app.route("/bank")
+@app.route("/certifications/bank")
 def bank_page():
     data = load_data()
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
     return render_template("bank.html",
-        exam_bank=data.get("exam_bank",{}),
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
+        certification_defs=certification_definitions(),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
 @app.route("/exam")
+@app.route("/certifications")
 def exam_page():
     data = load_data()
     students = enrich_students(data["students"])
@@ -2439,7 +2565,8 @@ def exam_page():
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
     return render_template("exam.html",
         students=students,
-        exam_bank=data.get("exam_bank",{}),
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
+        certification_defs=certification_definitions(),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
@@ -2904,29 +3031,34 @@ def get_pairs():
     return jsonify({"pairs": data.get("pairs", [])})
 
 @app.route("/api/exams/save", methods=["POST"])
+@app.route("/api/certifications/save", methods=["POST"])
 def save_exam():
     data = load_data()
     body = request.json
-    exams = data.setdefault("exam_bank", {})
+    exams = data.setdefault("certification_bank", data.setdefault("exam_bank", {}))
     grade_key = body.get("grade_key", "")
     if not grade_key:
         return jsonify({"ok": False, "error": "no grade_key"})
     exams[grade_key] = {
         "grade_key": grade_key,
         "grade_label": body.get("grade_label", grade_key),
+        "pass_pct": body.get("pass_pct", 70),
         "questions": body.get("questions", []),
         "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
+    data["certification_bank"] = exams
     data["exam_bank"] = exams
     save_data(data)
     return jsonify({"ok": True})
 
 @app.route("/api/exams/get", methods=["GET"])
+@app.route("/api/certifications/get", methods=["GET"])
 def get_exams():
     data = load_data()
-    return jsonify({"exam_bank": data.get("exam_bank", {})})
+    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions()})
 
 @app.route("/api/students/exam_result", methods=["POST"])
+@app.route("/api/students/certification_result", methods=["POST"])
 def save_exam_result():
     data = load_data()
     body = request.json
@@ -2944,11 +3076,16 @@ def save_exam_result():
         "passed": body.get("passed", False),
         "notes": body.get("notes", ""),
         "examiner": body.get("examiner", ""),
+        "answers": body.get("answers", []),
     }
     if result["passed"]:
+        s["certification_badges"] = s.get("certification_badges", [])
+        if result["grade_key"] not in s["certification_badges"]:
+            s["certification_badges"].append(result["grade_key"])
         s["exam_grade_unlocked"] = s.get("exam_grade_unlocked", [])
         if result["grade_key"] not in s["exam_grade_unlocked"]:
             s["exam_grade_unlocked"].append(result["grade_key"])
+    s.setdefault("certification_results", []).append(result)
     s.setdefault("exam_results", []).append(result)
     data["students"][idx] = s
     save_data(data)
