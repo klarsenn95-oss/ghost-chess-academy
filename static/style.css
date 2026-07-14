@@ -525,3 +525,16 @@ input[type="date"]:focus,input[type="datetime-local"]:focus{outline:none;border-
 .ghost-piece.white{color:#f7ead0;-webkit-text-stroke:1px #2e2115;}
 .ghost-piece.black{color:#26222a;-webkit-text-stroke:1px #111;text-shadow:0 1px 0 #846447,0 2px 2px rgba(0,0,0,.8);}
 .cert-answer{background:#050508!important;border-color:#202032!important;color:#d8d8e4!important;}
+.cert-score-box{min-width:126px;background:#07070c;border:1px solid #202032;border-radius:8px;padding:10px 12px;text-align:center;}
+.cert-score-box>div{font-size:24px;font-weight:800;color:#fbbf24;line-height:1;}
+.cert-score-box>span{display:block;font-size:11px;color:#666676;margin-top:6px;}
+.cert-rubric{border:1px solid #202032;border-radius:8px;overflow:hidden;background:#050508;}
+.cert-rubric-head,.cert-rubric-row{display:grid;grid-template-columns:1fr 100px 150px;gap:0;align-items:center;}
+.cert-rubric-head{background:#d7e6ff;color:#164f9f;font-weight:800;text-align:center;}
+.cert-rubric-head>*{padding:10px;border-right:1px solid #b7cae5;}
+.cert-rubric-row{border-top:1px solid #202032;}
+.cert-rubric-row>*{padding:9px 12px;border-right:1px solid #202032;}
+.cert-rubric-row>span:nth-child(2){text-align:center;color:#d8d8e4;}
+.cert-rubric-row.total{font-weight:800;background:#0b0b16;}
+.cert-rubric-row input{margin:0;text-align:center;}
+@media(max-width:720px){.cert-rubric-head,.cert-rubric-row{grid-template-columns:1fr 70px 110px}.cert-score-box{width:100%;}}

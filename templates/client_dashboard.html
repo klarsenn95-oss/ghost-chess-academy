@@ -237,7 +237,14 @@
       {% if student.certification_results %}
       <div style="margin-top:14px">
         {% for r in student.certification_results|reverse %}
-        <div class="history-row"><span>{{ r.grade_label }} - {{ r.date }}</span><span>{{ r.score }}/{{ r.total }}</span></div>
+        <div class="item">
+          <div class="history-row"><span>{{ r.grade_label }} · {{ r.date }}</span><span>{{ r.score }}/{{ r.total }}</span></div>
+          {% if r.documents %}<div class="attach-list">{% for doc in r.documents %}<a class="attach" href="{{ doc }}" target="_blank">Document {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+          {% if not r.passed %}
+          <div class="muted small" style="margin:8px 0">Rattrapage : 1000 FCFA. Après paiement, demande une nouvelle tentative.</div>
+          <button class="btn secondary" onclick="requestCertificationRetake('{{ r.grade_key }}')">J’ai payé, je veux repasser</button><span class="msg" id="retake-msg-{{ r.grade_key }}"></span>
+          {% endif %}
+        </div>
         {% endfor %}
       </div>
       {% endif %}
@@ -413,6 +420,7 @@ async function sendRdv(){const msg=document.getElementById('rdv-msg');msg.textCo
 async function submitHomework(i){const msg=document.getElementById('hw-msg-'+i);msg.textContent='Envoi…';try{const attachments=await uploadFiles('hw-file-'+i);const d=await postJSON('/api/client/homework/submit',{devoir_index:i,text:document.getElementById('hw-text-'+i).value,url:document.getElementById('hw-url-'+i).value,attachments,image_url:attachments[0]||''});if(handleRestricted(d,msg))return;msg.textContent=d.ok?'Devoir envoyé au coach.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),800)}catch(error){msg.textContent=error.message||'Erreur pendant l\u2019envoi.'}}
 async function respondRdv(id,response){const d=await postJSON('/api/client/appointment/respond',{appointment_id:id,response});if(d.ok)location.reload();else alert(d.error||'Erreur')}
 async function claimPayment(){const msg=prompt('Message optionnel pour le coach (ex : virement fait aujourd’hui)')||'';const d=await postJSON('/api/client/payment/claim',{message:msg});document.querySelectorAll('#pay-msg,#pay-claim-msg').forEach(e=>{if(e)e.textContent=d.ok?'Coach notifié.':'Erreur'});}
+async function requestCertificationRetake(gradeKey){const msg=prompt('Message optionnel pour le coach')||'';const d=await postJSON('/api/client/certification/retake',{grade_key:gradeKey,message:msg});const el=document.getElementById('retake-msg-'+gradeKey);if(el)el.textContent=d.ok?'Coach notifié.':'Erreur';}
 async function markFeedbackRead(){await fetch('/api/client/feedback/read',{method:'POST'});location.reload()}
 function toggleGhostNotifPanel(ev){ if(ev) ev.stopPropagation(); document.getElementById('ghostNotifPanel')?.classList.toggle('open'); }
 document.addEventListener('click',(ev)=>{ const p=document.getElementById('ghostNotifPanel'); if(!p) return; if(!ev.target.closest('.ghost-notif-wrap')) p.classList.remove('open'); });

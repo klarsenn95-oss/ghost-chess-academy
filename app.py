@@ -821,6 +821,13 @@ def fetch_lichess_games(username, max_games=30):
 
 # ─── Data ──────────────────────────────────────────────────
 CERTIFICATION_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+CERTIFICATION_RUBRIC = [
+    {"key": "fundamentals", "label": "Fondamentaux", "points": 30},
+    {"key": "tactics", "label": "Reconnaissance tactique", "points": 25},
+    {"key": "strategy", "label": "Stratégie", "points": 25},
+    {"key": "blind_tactics", "label": "Tactique à l'aveugle", "points": 20},
+]
+CERTIFICATION_RETAKE_FEE = 1000
 
 def certification_key(index):
     return "cert_%s" % CERTIFICATION_ROMANS[index].lower()
@@ -841,6 +848,9 @@ def certification_definitions():
         }
         for i, roman in enumerate(CERTIFICATION_ROMANS)
     ]
+
+def certification_rubric():
+    return [dict(row) for row in CERTIFICATION_RUBRIC]
 
 def default_certification_bank():
     certs = certification_definitions()
@@ -934,6 +944,51 @@ def student_certification_state(student):
         states.append(row)
         previous_passed = is_passed
     return states
+
+def certification_label_from_key(key):
+    for cert in certification_definitions():
+        if cert["key"] == key:
+            return cert["title"]
+    return key or "Certification"
+
+def certification_pass_pct(key):
+    for cert in certification_definitions():
+        if cert["key"] == key:
+            return int(cert.get("pass_pct") or 70)
+    return 70
+
+def add_certification_retake_due(data, student_index, student, grade_key, grade_label):
+    payment_id = datetime.now().strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:4]
+    entry = {
+        "id": payment_id,
+        "date": datetime.now().strftime("%d/%m/%Y"),
+        "amount": CERTIFICATION_RETAKE_FEE,
+        "label": "Rattrapage %s" % grade_label,
+        "type": "certification_retake",
+        "status": "pending",
+        "certification_key": grade_key,
+    }
+    student.setdefault("payments", []).append(entry)
+    user = next((u for u in data.get("users", []) if u.get("student_index") == student_index), None)
+    rec = {
+        "id": payment_id,
+        "date": entry["date"],
+        "user_id": user.get("id") if user else None,
+        "student_index": student_index,
+        "student_name": student.get("name"),
+        "plan_key": "certification_retake",
+        "plan": entry["label"],
+        "amount": CERTIFICATION_RETAKE_FEE,
+        "amount_label": format_fcfa(CERTIFICATION_RETAKE_FEE),
+        "status": "pending",
+        "source": "certification_result",
+    }
+    data.setdefault("payments_log", []).insert(0, rec)
+    data["payments_log"] = data.get("payments_log", [])[:400]
+    if user:
+        user.setdefault("payment_history", []).insert(0, rec)
+        user["payment_history"] = user.get("payment_history", [])[:80]
+    return entry
 
 def _default_data():
     return {
@@ -2507,6 +2562,8 @@ def student_page(idx):
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
         certifications=student_certification_state(s),
         certification_defs=certification_definitions(),
+        certification_rubric=certification_rubric(),
+        certification_retake_fee=CERTIFICATION_RETAKE_FEE,
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
@@ -2547,6 +2604,7 @@ def islands_page():
 @app.route("/bank")
 @app.route("/certifications/bank")
 def bank_page():
+    return redirect("/")
     data = load_data()
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
@@ -2559,6 +2617,7 @@ def bank_page():
 @app.route("/exam")
 @app.route("/certifications")
 def exam_page():
+    return redirect("/")
     data = load_data()
     students = enrich_students(data["students"])
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
@@ -3066,17 +3125,36 @@ def save_exam_result():
     if idx is None or idx >= len(data["students"]):
         return jsonify({"ok": False})
     s = data["students"][idx]
+    grade_key = body.get("grade_key", "")
+    grade_label = body.get("grade_label") or certification_label_from_key(grade_key)
+    sections = body.get("sections") or []
+    if sections:
+        score = round(sum(float(row.get("score") or 0) for row in sections), 1)
+        total = round(sum(float(row.get("points") or 0) for row in sections), 1) or 100
+        score_100 = round(score / total * 100, 1) if total else 0
+        passed = score_100 >= certification_pass_pct(grade_key)
+    else:
+        score = float(body.get("score", 0) or 0)
+        total = float(body.get("total", 0) or 0)
+        score_100 = round(score / total * 100, 1) if total else score
+        passed = bool(body.get("passed", False))
+    documents = body.get("documents") or body.get("attachments") or []
     result = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "date": datetime.now().strftime("%d/%m/%Y"),
-        "grade_key": body.get("grade_key", ""),
-        "grade_label": body.get("grade_label", ""),
-        "score": body.get("score", 0),
-        "total": body.get("total", 0),
-        "passed": body.get("passed", False),
+        "grade_key": grade_key,
+        "grade_label": grade_label,
+        "score": score_100,
+        "total": 100,
+        "raw_score": score,
+        "raw_total": total,
+        "passed": passed,
         "notes": body.get("notes", ""),
         "examiner": body.get("examiner", ""),
         "answers": body.get("answers", []),
+        "sections": sections,
+        "documents": documents,
+        "retake_fee": 0,
     }
     if result["passed"]:
         s["certification_badges"] = s.get("certification_badges", [])
@@ -3085,11 +3163,22 @@ def save_exam_result():
         s["exam_grade_unlocked"] = s.get("exam_grade_unlocked", [])
         if result["grade_key"] not in s["exam_grade_unlocked"]:
             s["exam_grade_unlocked"].append(result["grade_key"])
+        text = "%s validée avec %s/100." % (grade_label, score_100)
+        if result["notes"]:
+            text += "\n\n" + result["notes"]
+        add_student_feedback(data, idx, "Certification validée", text, "certification", "certification", result["id"], attachments=documents, priority="normal")
+    else:
+        result["retake_fee"] = CERTIFICATION_RETAKE_FEE
+        add_certification_retake_due(data, idx, s, grade_key, grade_label)
+        text = "%s non validée avec %s/100. Rattrapage disponible après paiement de %s FCFA." % (grade_label, score_100, CERTIFICATION_RETAKE_FEE)
+        if result["notes"]:
+            text += "\n\n" + result["notes"]
+        add_student_feedback(data, idx, "Rattrapage certification", text, "payment", "certification_retake", result["id"], attachments=documents, priority="high", action_required=True)
     s.setdefault("certification_results", []).append(result)
     s.setdefault("exam_results", []).append(result)
     data["students"][idx] = s
     save_data(data)
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "result": result})
 
 @app.route("/api/students/finance", methods=["POST"])
 def update_finance():
@@ -4762,6 +4851,30 @@ def api_admin_tournament_delete():
         student["client_feedback"] = [f for f in student.get("client_feedback", []) if not (f.get("linked_type") == "tournament" and f.get("linked_id") == tid)]
     save_data(data)
     return jsonify({"ok": True})
+
+@app.route("/api/client/certification/retake", methods=["POST"])
+def api_client_certification_retake():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    body = request.get_json(force=True, silent=True) or {}
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Profil Ghost introuvable."}), 404
+    grade_key = (body.get("grade_key") or "").strip()
+    grade_label = certification_label_from_key(grade_key)
+    message = (body.get("message") or "").strip()
+    student = data["students"][idx]
+    pending = next((p for p in student.get("payments", []) if p.get("type") == "certification_retake" and p.get("certification_key") == grade_key and p.get("status") != "paid"), None)
+    if not pending:
+        pending = add_certification_retake_due(data, idx, student, grade_key, grade_label)
+    text = f"{user.get('name')} veut repasser {grade_label}. Paiement rattrapage à vérifier : {format_fcfa(CERTIFICATION_RETAKE_FEE)}."
+    if message:
+        text += f" Message : {message}"
+    add_client_notification(data, "Rattrapage certification demandé", text, "payment", user.get("id"), idx, target_url=f"/student/{idx}#grade", item_id=pending.get("id"))
+    add_student_feedback(data, idx, "Demande de rattrapage reçue", f"Ta demande pour {grade_label} est transmise au coach. Il validera le paiement avant la nouvelle tentative.", "payment", "certification_retake", pending.get("id"))
+    data["students"][idx] = student
+    save_data(data)
+    return jsonify({"ok": True, "payment": pending})
 
 @app.route("/api/admin/tournaments/result", methods=["POST"])
 def api_admin_tournament_result():

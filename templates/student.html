@@ -849,44 +849,47 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     {% else %}<div style="color:#333;text-align:center;padding:14px">Aucun changement de grade enregistré.</div>{% endfor %}
   </div>
 
-  <!-- Certifications -->
   <div class="s-section">
-    <div class="s-section-title">📋 Faire passer une certification</div>
-    <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification cible</label>
-      <select class="fi" id="exam-grade-select" onchange="loadExamQuestions(this.value)">
-        <option value="">— Sélectionner une certification —</option>
-        {% for c in certifications %}
-        <option value="{{ c.key }}" {% if not c.unlocked %}disabled{% endif %}>{{ c.title }}{% if c.passed %} — obtenue{% elif not c.unlocked %} — verrouillée{% endif %}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div id="exam-questions-panel" style="display:none">
-      <div class="s-section" style="background:#060606;margin-bottom:8px;padding:12px 14px">
-        <div class="s-section-title" style="color:#888;margin-bottom:10px">Questions et correction finale</div>
-
-        <!-- Score live -->
-        <div style="display:flex;align-items:center;gap:16px;padding:10px 0 12px;border-bottom:1px solid #111;margin-bottom:12px">
-          <div style="text-align:center">
-            <div id="exam-live-score" style="font-size:28px;font-weight:700;color:var(--red)">0</div>
-            <div style="font-size:10px;color:#444">/ <span id="exam-live-total">0</span> pts</div>
-          </div>
-          <div style="flex:1">
-            <div style="background:#111;border-radius:6px;height:6px;overflow:hidden">
-              <div id="exam-progress-bar" style="background:var(--red);height:100%;width:0%;transition:.3s"></div>
-            </div>
-            <div id="exam-pct-label" style="font-size:11px;color:#555;margin-top:4px">0% — Seuil de réussite : 70%</div>
-          </div>
-          <div id="exam-verdict" style="font-size:22px"></div>
-        </div>
-
-        <div id="exam-q-list"></div>
+    <div class="s-section-title">📋 Résultat de certification</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:12px">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification</label>
+        <select class="fi" id="cert-grade-select" onchange="updateCertificationScore()">
+          {% for c in certifications %}
+          <option value="{{ c.key }}" data-pass="{{ c.pass_pct }}" {% if not c.unlocked %}disabled{% endif %}>{{ c.title }}{% if c.passed %} — obtenue{% elif not c.unlocked %} — verrouillée{% endif %}</option>
+          {% endfor %}
+        </select>
       </div>
-
-      <textarea class="fta" id="exam-notes" rows="2" placeholder="Notes sur la certification, points forts/faibles…" style="margin-bottom:8px"></textarea>
-      <button class="btn btn-red" onclick="submitExamResult()">✅ Valider la certification</button>
-      <span id="exam-msg" style="font-size:12px;color:#888;margin-left:10px"></span>
+      <div class="cert-score-box">
+        <div id="cert-score-live">0/100</div>
+        <span id="cert-verdict">En attente</span>
+      </div>
+    </div>
+    <div class="cert-rubric">
+      <div class="cert-rubric-head"><b>Section</b><b>Points</b><b>Score obtenu</b></div>
+      {% for row in certification_rubric %}
+      <div class="cert-rubric-row">
+        <span>{{ row.label }}</span>
+        <span>{{ row.points }}</span>
+        <input class="fi cert-score-input" type="number" min="0" max="{{ row.points }}" step="0.5" data-key="{{ row.key }}" data-label="{{ row.label }}" data-max="{{ row.points }}" value="0" oninput="updateCertificationScore()">
+      </div>
+      {% endfor %}
+      <div class="cert-rubric-row total">
+        <span>Total</span><span>100</span><span id="cert-total-cell">0 / 100</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <textarea class="fta" id="cert-notes" rows="3" placeholder="Appréciation, points forts/faibles, décision…"></textarea>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Document final à envoyer au Ghost</label>
+        <input class="fi" type="file" id="cert-doc-file" accept="image/*,application/pdf,.doc,.docx,.ppt,.pptx" multiple onchange="showFileCount(this,'cert-doc-count')">
+        <div class="file-count" id="cert-doc-count"></div>
+        <div style="font-size:11px;color:#555">Si le seuil n'est pas atteint, un rattrapage payant de {{ certification_retake_fee }} FCFA est créé.</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;text-align:right">
+      <button class="btn btn-red" onclick="submitCertificationResult()">✅ Enregistrer le résultat</button>
+      <span id="cert-msg" style="font-size:12px;color:#888;margin-left:10px"></span>
     </div>
   </div>
 
@@ -900,6 +903,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div style="font-size:13px;color:#ccc;font-weight:600">{{ r.grade_label }}</div>
         <div style="font-size:11px;color:#555">{{ r.date }} — Score : {{ r.score }}/{{ r.total }} {% if r.total %}({{ (r.score/r.total*100)|int }}%){% endif %}</div>
         {% if r.notes %}<div style="font-size:11px;color:#444;margin-top:2px">{{ r.notes }}</div>{% endif %}
+        {% if r.documents %}<div style="margin-top:5px">{% for doc in r.documents %}<a class="attach" href="{{ doc }}" target="_blank">Document {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+        {% if r.retake_fee %}<div style="font-size:11px;color:#f59e0b;margin-top:4px">Rattrapage créé : {{ r.retake_fee }} FCFA</div>{% endif %}
       </div>
     </div>
     {% else %}
@@ -907,74 +912,6 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     {% endfor %}
   </div>
 
-  <!-- Banque de certifications — édition -->
-  <div class="s-section">
-    <div class="s-section-title">🗂️ Banque de certifications (édition)</div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification concernée</label>
-      <select class="fi" id="bank-grade-select" onchange="loadBankGrade(this.value)">
-        <option value="">— Sélectionner une certification —</option>
-        {% for c in certification_defs %}
-        <option value="{{ c.key }}">{{ c.title }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div id="bank-editor" style="display:none">
-      <div id="bank-questions-list" style="margin-bottom:8px"></div>
-
-      <!-- Ajouter une question -->
-      <div style="background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px;margin-bottom:8px">
-        <div style="font-size:11px;color:#555;margin-bottom:8px;font-weight:600">➕ Nouvelle question</div>
-        <input class="fi" id="bank-new-q" placeholder="Énoncé de la question…" style="width:100%;margin-bottom:6px">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-          <div>
-            <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Type</label>
-            <select class="fi" id="bank-new-type" onchange="toggleBankExtraFields()">
-              <option value="text">💬 Texte libre</option>
-              <option value="yesno">✅ Oui/Non</option>
-              <option value="pgn">♟️ Partie PGN</option>
-              <option value="image">🖼️ Image</option>
-              <option value="fen">FEN échiquier</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Points (défaut 1)</label>
-            <input class="fi" id="bank-new-pts" type="number" value="1" min="0.5" step="0.5">
-          </div>
-        </div>
-
-        <!-- Champ PGN -->
-        <div id="bank-pgn-field" style="display:none;margin-bottom:6px">
-          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Coller le PGN</label>
-          <textarea class="fta" id="bank-new-pgn" rows="3" placeholder="[Event &quot;?&quot;]\n[White &quot;?&quot;]&#10;1. e4 e5 2. Nf3…"></textarea>
-        </div>
-
-        <!-- Champ Image URL -->
-        <div id="bank-image-field" style="display:none;margin-bottom:6px">
-          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">URL de l'image</label>
-          <input class="fi" id="bank-new-image" placeholder="https://… ou chemin local">
-        </div>
-
-        <div id="bank-fen-field" style="display:none;margin-bottom:6px">
-          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">FEN</label>
-          <input class="fi" id="bank-new-fen" placeholder="8/8/8/8/8/8/8/8 w - - 0 1">
-          <label style="font-size:10px;color:#444;display:block;margin:6px 0 3px">Cases à surligner (ex: e4,d5)</label>
-          <input class="fi" id="bank-new-highlights" placeholder="e4,d5,f5">
-        </div>
-
-        <!-- Réponse attendue (optionnelle) -->
-        <div style="margin-bottom:6px">
-          <label style="font-size:10px;color:#444;display:block;margin-bottom:3px">Réponse attendue (optionnel)</label>
-          <input class="fi" id="bank-new-answer" placeholder="Réponse modèle visible après correction…">
-        </div>
-
-        <button class="btn btn-ghost btn-sm" onclick="addBankQuestion()">➕ Ajouter à la banque</button>
-      </div>
-
-      <button class="btn btn-red btn-sm" onclick="saveBankGrade()">💾 Sauvegarder la banque</button>
-    </div>
-  </div>
 </div>
 
 <!-- AGENDA -->
@@ -1758,6 +1695,63 @@ function openStudentHash(){
 window.addEventListener('hashchange',openStudentHash);
 openStudentHash();
 drawGhostRadar();
+
+// ── CERTIFICATIONS ─────────────────────────────────────────
+function currentCertificationMeta(){
+  var select = document.getElementById('cert-grade-select');
+  if(!select) return {key:'', label:'Certification', passPct:70};
+  var opt = select.options[select.selectedIndex];
+  return {key:select.value, label:opt ? opt.text.replace(/ — .*/,'') : select.value, passPct:parseInt((opt && opt.dataset.pass) || '70', 10)};
+}
+function getCertificationRows(){
+  return Array.from(document.querySelectorAll('.cert-score-input')).map(function(input){
+    var max = parseFloat(input.dataset.max)||0;
+    var score = Math.max(0, Math.min(max, parseFloat(input.value)||0));
+    input.value = score;
+    return {key:input.dataset.key, label:input.dataset.label, points:max, score:score};
+  });
+}
+function updateCertificationScore(){
+  var rows = getCertificationRows();
+  var total = rows.reduce(function(sum,row){return sum + row.score;},0);
+  total = Math.round(total*10)/10;
+  var meta = currentCertificationMeta();
+  var passed = total >= meta.passPct;
+  var live = document.getElementById('cert-score-live');
+  var verdict = document.getElementById('cert-verdict');
+  var totalCell = document.getElementById('cert-total-cell');
+  if(live) live.textContent = total + '/100';
+  if(totalCell) totalCell.textContent = total + ' / 100';
+  if(verdict){
+    verdict.textContent = passed ? 'Validé' : 'Rattrapage 1000 FCFA';
+    verdict.style.color = passed ? '#22c55e' : '#f59e0b';
+  }
+  return {rows:rows, total:total, passed:passed, meta:meta};
+}
+async function submitCertificationResult(){
+  var msg = document.getElementById('cert-msg');
+  var state = updateCertificationScore();
+  if(!state.meta.key){ if(msg) msg.textContent='Sélectionne une certification.'; return; }
+  if(msg) msg.textContent='Enregistrement...';
+  var documents = [];
+  try{ documents = await uploadStudentFiles('cert-doc-file'); }
+  catch(error){ if(msg) msg.textContent=error.message||'Erreur upload document.'; return; }
+  post('/api/students/certification_result',{
+    student_index:STUDENT_IDX,
+    grade_key:state.meta.key,
+    grade_label:state.meta.label,
+    score:state.total,
+    total:100,
+    passed:state.passed,
+    sections:state.rows,
+    notes:(document.getElementById('cert-notes')||{}).value||'',
+    documents:documents
+  },function(r){
+    if(r.ok){ toast(state.passed?'Certification validée ✅':'Rattrapage créé à 1000 FCFA'); setTimeout(function(){ location.reload(); },900); }
+    else if(msg) msg.textContent=r.error||'Erreur';
+  });
+}
+updateCertificationScore();
 
 // ── EXAM ────────────────────────────────────────────────────
 var EXAM_BANK = {{ exam_bank|tojson }};
