@@ -832,22 +832,30 @@ CERTIFICATION_RETAKE_FEE = 1000
 def certification_key(index):
     return "cert_%s" % CERTIFICATION_ROMANS[index].lower()
 
-def certification_definitions():
+def certification_definitions(data=None):
     palette = ["#fbbf24", "#60a5fa", "#34d399", "#f472b6", "#a78bfa",
                "#fb7185", "#2dd4bf", "#f97316", "#e5e7eb", "#facc15"]
-    return [
-        {
-            "key": certification_key(i),
+    bank = (data or {}).get("certification_bank", {}) if isinstance(data, dict) else {}
+    definitions = []
+    for i, roman in enumerate(CERTIFICATION_ROMANS):
+        key = certification_key(i)
+        stored = bank.get(key, {}) if isinstance(bank, dict) else {}
+        default_pass = 70 if i == 0 else 75
+        try:
+            pass_pct = max(0, min(100, int(stored.get("pass_pct", default_pass))))
+        except (TypeError, ValueError):
+            pass_pct = default_pass
+        definitions.append({
+            "key": key,
             "index": i + 1,
             "roman": roman,
             "title": "Certification %s" % roman,
-            "badge": "Certif %s" % roman,
+            "badge": "Certified GHOST %s" % roman,
             "color": palette[i],
-            "pass_pct": 70 if i == 0 else 75,
+            "pass_pct": pass_pct,
             "locked_label": "Verrouillee" if i else "Ouverte",
-        }
-        for i, roman in enumerate(CERTIFICATION_ROMANS)
-    ]
+        })
+    return definitions
 
 def certification_rubric():
     return [dict(row) for row in CERTIFICATION_RUBRIC]
@@ -926,7 +934,7 @@ def merge_default_certifications(data):
     data["exam_bank"] = bank
     return bank
 
-def student_certification_state(student):
+def student_certification_state(student, data=None):
     passed = set(student.get("certification_badges") or [])
     for result in student.get("certification_results", []) or []:
         if result.get("passed") and result.get("grade_key"):
@@ -936,7 +944,7 @@ def student_certification_state(student):
             passed.add(key)
     states = []
     previous_passed = True
-    for cert in certification_definitions():
+    for cert in certification_definitions(data):
         is_passed = cert["key"] in passed
         unlocked = cert["index"] == 1 or previous_passed
         row = dict(cert)
@@ -945,14 +953,14 @@ def student_certification_state(student):
         previous_passed = is_passed
     return states
 
-def certification_label_from_key(key):
-    for cert in certification_definitions():
+def certification_label_from_key(key, data=None):
+    for cert in certification_definitions(data):
         if cert["key"] == key:
             return cert["title"]
     return key or "Certification"
 
-def certification_pass_pct(key):
-    for cert in certification_definitions():
+def certification_pass_pct(key, data=None):
+    for cert in certification_definitions(data):
         if cert["key"] == key:
             return int(cert.get("pass_pct") or 70)
     return 70
@@ -2188,7 +2196,7 @@ def calculate_age_from_birthdate(birthdate):
     except Exception:
         return ""
 
-def public_student_payload(student):
+def public_student_payload(student, data=None):
     if not student:
         return None
     rank = get_rank(student)
@@ -2265,8 +2273,16 @@ def public_student_payload(student):
         "client_divers": divers[:20],
         "client_notifications": ghost_notifications[:20],
         "client_notifications_count": len(ghost_notifications),
-        "certifications": student_certification_state(student),
-        "certification_results": student.get("certification_results", student.get("exam_results", []))[-20:],
+        "certifications": student_certification_state(student, data),
+        "certification_results": [
+            {
+                **row,
+                "copy_url": f"/client/certification/{row.get('id')}/copy",
+                "report_url": f"/client/certification/{row.get('id')}/report",
+                "certificate_url": f"/client/certification/{row.get('id')}/certificate" if row.get("passed") else "",
+            }
+            for row in student.get("certification_results", student.get("exam_results", []))[-20:]
+        ],
     }
 
 def require_client_json():
@@ -2560,8 +2576,8 @@ def student_page(idx):
         haki_list=haki_list,
         island=island, islands_list=islands_list,
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certifications=student_certification_state(s),
-        certification_defs=certification_definitions(),
+        certifications=student_certification_state(s, data),
+        certification_defs=certification_definitions(data),
         certification_rubric=certification_rubric(),
         certification_retake_fee=CERTIFICATION_RETAKE_FEE,
         price_grid=data.get("price_grid",{}),
@@ -2610,7 +2626,7 @@ def bank_page():
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
     return render_template("bank.html",
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certification_defs=certification_definitions(),
+        certification_defs=certification_definitions(data),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
@@ -2625,7 +2641,7 @@ def exam_page():
     return render_template("exam.html",
         students=students,
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certification_defs=certification_definitions(),
+        certification_defs=certification_definitions(data),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
@@ -3114,7 +3130,7 @@ def save_exam():
 @app.route("/api/certifications/get", methods=["GET"])
 def get_exams():
     data = load_data()
-    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions()})
+    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions(data)})
 
 @app.route("/api/students/exam_result", methods=["POST"])
 @app.route("/api/students/certification_result", methods=["POST"])
@@ -3126,21 +3142,23 @@ def save_exam_result():
         return jsonify({"ok": False})
     s = data["students"][idx]
     grade_key = body.get("grade_key", "")
-    grade_label = body.get("grade_label") or certification_label_from_key(grade_key)
+    grade_label = body.get("grade_label") or certification_label_from_key(grade_key, data)
     sections = body.get("sections") or []
     if sections:
         score = round(sum(float(row.get("score") or 0) for row in sections), 1)
         total = round(sum(float(row.get("points") or 0) for row in sections), 1) or 100
         score_100 = round(score / total * 100, 1) if total else 0
-        passed = score_100 >= certification_pass_pct(grade_key)
+        passed = score_100 >= certification_pass_pct(grade_key, data)
     else:
         score = float(body.get("score", 0) or 0)
         total = float(body.get("total", 0) or 0)
         score_100 = round(score / total * 100, 1) if total else score
         passed = bool(body.get("passed", False))
     documents = body.get("documents") or body.get("attachments") or []
+    existing_results = [r for student in data.get("students", []) for r in student.get("certification_results", [])]
     result = {
-        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+        "id": uuid.uuid4().hex,
+        "certificate_number": "GCA-%s-%04d" % (datetime.now().year, len(existing_results) + 1),
         "date": datetime.now().strftime("%d/%m/%Y"),
         "grade_key": grade_key,
         "grade_label": grade_label,
@@ -3487,7 +3505,7 @@ def client_portal():
     return render_template(
         "client_dashboard.html",
         user=user,
-        student=public_student_payload(student),
+        student=public_student_payload(student, data),
         payment=get_user_payment_state(user),
         included_usage=get_included_usage_state(user, data),
         registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
@@ -3517,6 +3535,31 @@ def favicon():
 def client_logout():
     session.pop("client_user_id", None)
     return redirect("/client")
+
+@app.route("/client/certification/<result_id>/<document_kind>")
+def client_certification_document(result_id, document_kind):
+    if document_kind not in {"copy", "report", "certificate"}:
+        return "Document inconnu.", 404
+    data = load_data()
+    user = get_current_user(data)
+    if not user:
+        return redirect("/client")
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return "Profil Ghost introuvable.", 404
+    student = data["students"][idx]
+    result = next((row for row in student.get("certification_results", []) if row.get("id") == result_id), None)
+    if not result:
+        return "Résultat introuvable.", 404
+    if document_kind == "certificate" and not result.get("passed"):
+        return "Le certificat est disponible après validation.", 403
+    return render_template(
+        "certification_document.html",
+        student=student,
+        result=result,
+        document_kind=document_kind,
+        certification=next((c for c in certification_definitions(data) if c["key"] == result.get("grade_key")), None),
+    )
 
 @app.route("/admin/clients")
 def admin_clients():
@@ -4861,7 +4904,7 @@ def api_client_certification_retake():
     if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
         return jsonify({"ok": False, "error": "Profil Ghost introuvable."}), 404
     grade_key = (body.get("grade_key") or "").strip()
-    grade_label = certification_label_from_key(grade_key)
+    grade_label = certification_label_from_key(grade_key, data)
     message = (body.get("message") or "").strip()
     student = data["students"][idx]
     pending = next((p for p in student.get("payments", []) if p.get("type") == "certification_retake" and p.get("certification_key") == grade_key and p.get("status") != "paid"), None)
