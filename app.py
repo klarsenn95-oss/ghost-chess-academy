@@ -832,25 +832,65 @@ CERTIFICATION_RETAKE_FEE = 1000
 def certification_key(index):
     return "cert_%s" % CERTIFICATION_ROMANS[index].lower()
 
-def certification_definitions():
+def certification_definitions(data=None):
     palette = ["#fbbf24", "#60a5fa", "#34d399", "#f472b6", "#a78bfa",
                "#fb7185", "#2dd4bf", "#f97316", "#e5e7eb", "#facc15"]
-    return [
-        {
-            "key": certification_key(i),
+    bank = (data or {}).get("certification_bank", {}) if isinstance(data, dict) else {}
+    definitions = []
+    for i, roman in enumerate(CERTIFICATION_ROMANS):
+        key = certification_key(i)
+        stored = bank.get(key, {}) if isinstance(bank, dict) else {}
+        definitions.append({
+            "key": key,
             "index": i + 1,
             "roman": roman,
             "title": "Certification %s" % roman,
-            "badge": "Certif %s" % roman,
+            "badge": "Certified GHOST %s" % roman,
             "color": palette[i],
-            "pass_pct": 70 if i == 0 else 75,
+            "pass_pct": max(0, min(100, safe_int(stored.get("pass_pct"), 70 if i == 0 else 75))),
             "locked_label": "Verrouillee" if i else "Ouverte",
-        }
-        for i, roman in enumerate(CERTIFICATION_ROMANS)
-    ]
+        })
+    return definitions
 
 def certification_rubric():
     return [dict(row) for row in CERTIFICATION_RUBRIC]
+
+def normalize_certification_sections(sections):
+    """Keep a small, safe snapshot of the configurable grading rubric."""
+    if not isinstance(sections, list):
+        return certification_rubric()
+    normalized = []
+    used_keys = set()
+    for index, section in enumerate(sections):
+        if not isinstance(section, dict):
+            continue
+        label = str(section.get("label") or "").strip()[:80]
+        points = round(max(0, float(section.get("points") or 0)), 1)
+        if not label or not points:
+            continue
+        raw_key = str(section.get("key") or label).lower()
+        key = "".join(char if char.isalnum() else "_" for char in raw_key).strip("_") or "section_%s" % (index + 1)
+        base_key = key
+        suffix = 2
+        while key in used_keys:
+            key = "%s_%s" % (base_key, suffix)
+            suffix += 1
+        used_keys.add(key)
+        normalized.append({"key": key, "label": label, "points": points})
+    return normalized or certification_rubric()
+
+def certification_sections(data, key):
+    bank = merge_default_certifications(data)
+    entry = bank.get(key, {}) if isinstance(bank, dict) else {}
+    return normalize_certification_sections(entry.get("sections"))
+
+def normalize_result_sections(sections):
+    by_key = {str(row.get("key") or ""): row for row in sections if isinstance(row, dict)} if isinstance(sections, list) else {}
+    normalized = normalize_certification_sections(sections)
+    for row in normalized:
+        source = by_key.get(row["key"], {})
+        row["score"] = round(max(0, min(row["points"], float(source.get("score") or 0))), 1)
+    return normalized
 
 def default_certification_bank():
     certs = certification_definitions()
@@ -859,6 +899,7 @@ def default_certification_bank():
             "grade_key": c["key"],
             "grade_label": c["title"],
             "pass_pct": c["pass_pct"],
+            "sections": certification_rubric(),
             "questions": [],
         }
         for c in certs
@@ -918,6 +959,7 @@ def merge_default_certifications(data):
             bank[key].setdefault("grade_key", key)
             bank[key].setdefault("grade_label", default_value["grade_label"])
             bank[key].setdefault("pass_pct", default_value["pass_pct"])
+            bank[key]["sections"] = normalize_certification_sections(bank[key].get("sections", default_value["sections"]))
             if key == "cert_i" and not bank[key].get("questions"):
                 bank[key]["questions"] = default_value["questions"]
             else:
@@ -926,7 +968,7 @@ def merge_default_certifications(data):
     data["exam_bank"] = bank
     return bank
 
-def student_certification_state(student):
+def student_certification_state(student, data=None):
     passed = set(student.get("certification_badges") or [])
     for result in student.get("certification_results", []) or []:
         if result.get("passed") and result.get("grade_key"):
@@ -936,7 +978,7 @@ def student_certification_state(student):
             passed.add(key)
     states = []
     previous_passed = True
-    for cert in certification_definitions():
+    for cert in certification_definitions(data):
         is_passed = cert["key"] in passed
         unlocked = cert["index"] == 1 or previous_passed
         row = dict(cert)
@@ -945,14 +987,14 @@ def student_certification_state(student):
         previous_passed = is_passed
     return states
 
-def certification_label_from_key(key):
-    for cert in certification_definitions():
+def certification_label_from_key(key, data=None):
+    for cert in certification_definitions(data):
         if cert["key"] == key:
             return cert["title"]
     return key or "Certification"
 
-def certification_pass_pct(key):
-    for cert in certification_definitions():
+def certification_pass_pct(key, data=None):
+    for cert in certification_definitions(data):
         if cert["key"] == key:
             return int(cert.get("pass_pct") or 70)
     return 70
@@ -1642,7 +1684,7 @@ def merge_default_plans(existing=None):
 
 def find_client_plan(data, plan_key):
     if (plan_key or "") in ("no_plan", "app_access", "registration_only", ""): 
-        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois, 2h/mois de suivi standard et outils de travail comme Listudy, études Lichess, PGN/FEN et suivi ELO. Les séances individuelles restent des options supplémentaires."}
+        return {"key":"no_plan","name":"Accès Ghost standard","price":"5 000 FCFA","period":"Inscription unique déjà validée","sessions_total":0,"desc":"Accès définitif à la plateforme, 15 parties analysables par mois, 2h/mois de suivi standard, études Lichess, PGN/FEN et suivi ELO. Les séances individuelles restent des options supplémentaires."}
     plans = data.get("client_price_plans") or default_client_price_plans()
     return next((p for p in plans if p.get("key") == plan_key), plans[0] if plans else {"key":"session_60","name":"Séance standard","price":"3 500 FCFA","period":"1 heure","desc":""})
 
@@ -2560,8 +2602,8 @@ def student_page(idx):
         haki_list=haki_list,
         island=island, islands_list=islands_list,
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certifications=student_certification_state(s),
-        certification_defs=certification_definitions(),
+        certifications=student_certification_state(s, data),
+        certification_defs=certification_definitions(data),
         certification_rubric=certification_rubric(),
         certification_retake_fee=CERTIFICATION_RETAKE_FEE,
         price_grid=data.get("price_grid",{}),
@@ -2604,20 +2646,18 @@ def islands_page():
 @app.route("/bank")
 @app.route("/certifications/bank")
 def bank_page():
-    return redirect("/")
     data = load_data()
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
     return render_template("bank.html",
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certification_defs=certification_definitions(),
+        certification_defs=certification_definitions(data),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
 @app.route("/exam")
 @app.route("/certifications")
 def exam_page():
-    return redirect("/")
     data = load_data()
     students = enrich_students(data["students"])
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
@@ -2625,7 +2665,7 @@ def exam_page():
     return render_template("exam.html",
         students=students,
         exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
-        certification_defs=certification_definitions(),
+        certification_defs=certification_definitions(data),
         ranks_pirates=ranks_pirates_data,
         ranks_marine=ranks_marine_data)
 
@@ -3101,7 +3141,8 @@ def save_exam():
     exams[grade_key] = {
         "grade_key": grade_key,
         "grade_label": body.get("grade_label", grade_key),
-        "pass_pct": body.get("pass_pct", 70),
+        "pass_pct": max(0, min(100, safe_int(body.get("pass_pct"), 70))),
+        "sections": normalize_certification_sections(body.get("sections")),
         "questions": body.get("questions", []),
         "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
@@ -3114,7 +3155,8 @@ def save_exam():
 @app.route("/api/certifications/get", methods=["GET"])
 def get_exams():
     data = load_data()
-    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions()})
+    merge_default_certifications(data)
+    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions(data)})
 
 @app.route("/api/students/exam_result", methods=["POST"])
 @app.route("/api/students/certification_result", methods=["POST"])
@@ -3126,13 +3168,13 @@ def save_exam_result():
         return jsonify({"ok": False})
     s = data["students"][idx]
     grade_key = body.get("grade_key", "")
-    grade_label = body.get("grade_label") or certification_label_from_key(grade_key)
-    sections = body.get("sections") or []
+    grade_label = body.get("grade_label") or certification_label_from_key(grade_key, data)
+    sections = normalize_result_sections(body.get("sections") or certification_sections(data, grade_key))
     if sections:
         score = round(sum(float(row.get("score") or 0) for row in sections), 1)
         total = round(sum(float(row.get("points") or 0) for row in sections), 1) or 100
         score_100 = round(score / total * 100, 1) if total else 0
-        passed = score_100 >= certification_pass_pct(grade_key)
+        passed = score_100 >= certification_pass_pct(grade_key, data)
     else:
         score = float(body.get("score", 0) or 0)
         total = float(body.get("total", 0) or 0)
@@ -3450,21 +3492,9 @@ def generate_workplan_pdf():
 # ─── Tournoi des Châteaux ───────────────────────────────────
 # ═══════════════════════════════════════════════════════════
 
-@app.route("/chateau")
-def chateau_page():
-    data = load_data()
-    students = enrich_students(data["students"])
-    return render_template("chateau.html", students=students)
-
 # ═══════════════════════════════════════════════════════════
 # ─── Roulette Russe ─────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════
-
-@app.route("/roulette")
-def roulette_page():
-    data = load_data()
-    students = enrich_students(data["students"])
-    return render_template("roulette.html", students=students)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -3504,8 +3534,8 @@ def client_portal():
         client_tournaments=visible_tournaments_for_student(data, idx),
         student_messages=visible_messages_for_student(data, idx),
         student_contacts=student_contacts_payload(data, idx),
-        blind_tactics=blind_tactics_public(),
-        blind_summary=blind_tactics_summary(user),
+        blind_tactics=[],
+        blind_summary={},
         theme=plan_theme(selected_plan.get("key")),
     )
 
@@ -3988,73 +4018,6 @@ def api_admin_appointment_action():
     feedback = add_student_feedback(data, idx, title, text, "appointment", "appointment", appointment_id)
     save_data(data)
     return jsonify({"ok": True, "appointment": appt, "feedback": feedback})
-
-@app.route("/api/client/blind-tactics/solve", methods=["POST"])
-def api_client_blind_tactics_solve():
-    data, user, resp, code = require_client_json()
-    if resp: return resp, code
-    idx = user.get("student_index")
-    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
-        return jsonify({"ok": False, "error": "Profil Ghost introuvable."}), 404
-    body = request.get_json(force=True, silent=True) or {}
-    puzzle_id = (body.get("puzzle_id") or "").strip()
-    hidden_plies = max(1, min(20, safe_int(body.get("hidden_plies"), 4)))
-    puzzle = next((p for p in BLIND_TACTICS if p.get("id") == puzzle_id), None)
-    if not puzzle:
-        return jsonify({"ok": False, "error": "Tactique introuvable."}), 404
-
-    user["blind_tactics_attempts"] = safe_int(user.get("blind_tactics_attempts"), 0) + 1
-    solved = user.setdefault("blind_tactics_solved", [])
-    already_solved = puzzle_id in solved
-
-    today = today_paris_iso()
-    yesterday = (now_paris().date() - timedelta(days=1)).isoformat()
-    last_day = user.get("blind_tactics_last_day") or ""
-    daily_streak = safe_int(user.get("blind_tactics_daily_streak"), 0)
-    if last_day == today:
-        pass
-    elif last_day == yesterday:
-        daily_streak += 1
-        user["blind_tactics_last_day"] = today
-    else:
-        daily_streak = 1
-        user["blind_tactics_last_day"] = today
-    user["blind_tactics_daily_streak"] = daily_streak
-    user["blind_tactics_best_streak"] = max(safe_int(user.get("blind_tactics_best_streak"), 0), daily_streak)
-
-    xp_awarded = 0
-    if not already_solved:
-        streak_bonus = min(daily_streak, 7)
-        xp_awarded = safe_int(puzzle.get("xp"), 10) + min(hidden_plies, 12) * 2 + streak_bonus
-        solved.append(puzzle_id)
-        user["ghost_xp"] = safe_int(user.get("ghost_xp"), 0) + xp_awarded
-        student = data["students"][idx]
-        student["ghost_xp"] = safe_int(student.get("ghost_xp"), 0) + xp_awarded
-        student["training_streak"] = daily_streak
-        student["training_best_streak"] = max(safe_int(student.get("training_best_streak"), 0), daily_streak)
-        student["training_last_day"] = today
-        student.setdefault("training_log", []).insert(0, {
-            "id": str(uuid.uuid4()),
-            "date": now_fr(),
-            "type": "blind_tactic",
-            "title": puzzle.get("title"),
-            "hidden_plies": hidden_plies,
-            "move": body.get("final_san") or "",
-            "xp": xp_awarded,
-            "streak": daily_streak,
-        })
-        student["training_log"] = student.get("training_log", [])[:80]
-    save_data(data)
-    return jsonify({
-        "ok": True,
-        "correct": True,
-        "already_solved": already_solved,
-        "xp_awarded": xp_awarded,
-        "total_xp": safe_int(user.get("ghost_xp"), 0),
-        "solved": len(user.get("blind_tactics_solved") or []),
-        "daily_streak": daily_streak,
-        "best_streak": safe_int(user.get("blind_tactics_best_streak"), 0),
-    })
 
 @app.route("/api/client/appointment/respond", methods=["POST"])
 def api_client_appointment_respond():

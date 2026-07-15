@@ -181,7 +181,7 @@
         <div class="plan"><b>{{ registration_monthly_coaching }}</b><p class="muted">Un suivi standard pour orienter ton travail, cadrer tes priorités et répondre aux points importants. Ce n'est pas un pack de séances individuelles privées.</p></div>
         <div class="plan"><b>Compte actif durablement</b><p class="muted">Même sans option payante, ton accès Ghost reste ouvert. Les options ci-dessous ajoutent du coaching individuel et un suivi plus intense.</p></div>
       </div>
-      <div class="coach-reply" style="margin-top:14px"><b>Outils utilisés dans le socle Ghost</b><div class="tags"><span class="tag">Listudy</span><span class="tag">Études Lichess</span><span class="tag">Analyse Lichess</span><span class="tag">PGN / FEN</span><span class="tag">Suivi ELO Lichess & Chess.com</span><span class="tag">Devoirs et feedbacks coach</span></div><p class="muted" style="margin-bottom:0">Ces outils servent à structurer le travail : mémorisation, analyse de positions, corrections, suivi des progrès et préparation des prochaines étapes.</p></div>
+      <div class="coach-reply" style="margin-top:14px"><b>Outils utilisés dans le socle Ghost</b><div class="tags"><span class="tag">Études Lichess</span><span class="tag">Analyse Lichess</span><span class="tag">PGN / FEN</span><span class="tag">Suivi ELO Lichess & Chess.com</span><span class="tag">Devoirs et feedbacks coach</span></div><p class="muted" style="margin-bottom:0">Ces outils servent à structurer le travail : analyse de positions, corrections, suivi des progrès et préparation des prochaines étapes.</p></div>
     </div>
     <div class="card full">
       <div class="ttl">🚀 Options individuelles pour aller plus loin</div>
@@ -358,7 +358,6 @@
 </div>
 <div class="payment-modal" id="paymentModal"><div class="modal-card"><h2 id="pmTitle">Option individuelle</h2><div class="price" id="pmPrice"></div><div class="muted" id="pmPeriod"></div><p id="pmDesc"></p><div class="pay-target"><b>Paiement à effectuer à :</b><br>Arthur Simo<br><b>(+237) 694054282</b></div><div class="muted">Après paiement, clique sur “Paiement effectué”. Le coach confirmera dans les prochaines minutes et organisera la/les séance(s) individuelles.</div><div class="tools" style="margin-top:14px"><button class="btn" onclick="confirmPlanPayment()">Paiement effectué</button><button class="btn secondary" onclick="closePaymentModal()">Annuler</button></div><div class="msg" id="pmMsg"></div></div></div>
 
-<script src="/static/chess.js?v=blind1"></script>
 <script>
 function showTab(name,btn){let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name)}
 const $ = (id)=>document.getElementById(id);

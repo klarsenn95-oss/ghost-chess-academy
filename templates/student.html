@@ -851,10 +851,11 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 
   <div class="s-section">
     <div class="s-section-title">📋 Résultat de certification</div>
+    <div style="display:flex;justify-content:flex-end;margin:-2px 0 10px"><a href="/certifications/bank" class="btn btn-ghost" style="font-size:11px;text-decoration:none">Configurer les certifications</a></div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:12px">
       <div>
         <label style="font-size:11px;color:#444;display:block;margin-bottom:4px">Certification</label>
-        <select class="fi" id="cert-grade-select" onchange="updateCertificationScore()">
+        <select class="fi" id="cert-grade-select" onchange="renderCertificationRubric()">
           {% for c in certifications %}
           <option value="{{ c.key }}" data-pass="{{ c.pass_pct }}" {% if not c.unlocked %}disabled{% endif %}>{{ c.title }}{% if c.passed %} — obtenue{% elif not c.unlocked %} — verrouillée{% endif %}</option>
           {% endfor %}
@@ -867,15 +868,9 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     </div>
     <div class="cert-rubric">
       <div class="cert-rubric-head"><b>Section</b><b>Points</b><b>Score obtenu</b></div>
-      {% for row in certification_rubric %}
-      <div class="cert-rubric-row">
-        <span>{{ row.label }}</span>
-        <span>{{ row.points }}</span>
-        <input class="fi cert-score-input" type="number" min="0" max="{{ row.points }}" step="0.5" data-key="{{ row.key }}" data-label="{{ row.label }}" data-max="{{ row.points }}" value="0" oninput="updateCertificationScore()">
-      </div>
-      {% endfor %}
+      <div id="cert-rubric-body"></div>
       <div class="cert-rubric-row total">
-        <span>Total</span><span>100</span><span id="cert-total-cell">0 / 100</span>
+        <span>Total</span><span id="cert-max-total">0</span><span id="cert-total-cell">0 / 0</span>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
@@ -1741,7 +1736,7 @@ async function submitCertificationResult(){
     grade_key:state.meta.key,
     grade_label:state.meta.label,
     score:state.total,
-    total:100,
+    total:state.maxTotal,
     passed:state.passed,
     sections:state.rows,
     notes:(document.getElementById('cert-notes')||{}).value||'',
@@ -1756,6 +1751,51 @@ updateCertificationScore();
 // ── EXAM ────────────────────────────────────────────────────
 var EXAM_BANK = {{ exam_bank|tojson }};
 var CERTIFICATION_DEFS = {{ certification_defs|tojson }};
+var DEFAULT_CERTIFICATION_RUBRIC = {{ certification_rubric|tojson }};
+
+currentCertificationMeta = function(){
+  var select = document.getElementById('cert-grade-select');
+  if(!select) return {key:'', label:'Certification', passPct:70, sections:[]};
+  var opt = select.options[select.selectedIndex];
+  var bank = EXAM_BANK[select.value] || {};
+  return {
+    key:select.value,
+    label:opt ? opt.text.split(' - ')[0] : select.value,
+    passPct:parseInt(bank.pass_pct || (opt && opt.dataset.pass) || '70', 10),
+    sections:Array.isArray(bank.sections) && bank.sections.length ? bank.sections : DEFAULT_CERTIFICATION_RUBRIC
+  };
+};
+renderCertificationRubric = function(){
+  var meta = currentCertificationMeta();
+  var body = document.getElementById('cert-rubric-body');
+  if(!body) return;
+  body.innerHTML = meta.sections.map(function(row){
+    var points = parseFloat(row.points)||0;
+    return '<div class="cert-rubric-row"><span>'+escapeHtml(row.label||'Section')+'</span><span>'+points+'</span>'+
+      '<input class="fi cert-score-input" type="number" min="0" max="'+points+'" step="0.5" '+
+      'data-key="'+escapeHtml(row.key||'section')+'" data-label="'+escapeHtml(row.label||'Section')+'" data-max="'+points+'" value="0" oninput="updateCertificationScore()"></div>';
+  }).join('');
+  var maxTotal = meta.sections.reduce(function(sum,row){return sum+(parseFloat(row.points)||0);},0);
+  var maxCell = document.getElementById('cert-max-total');
+  if(maxCell) maxCell.textContent = maxTotal;
+  updateCertificationScore();
+};
+updateCertificationScore = function(){
+  var rows = getCertificationRows();
+  var total = Math.round(rows.reduce(function(sum,row){return sum + row.score;},0)*10)/10;
+  var maxTotal = rows.reduce(function(sum,row){return sum + row.points;},0);
+  var meta = currentCertificationMeta();
+  var score100 = maxTotal ? Math.round(total / maxTotal * 1000) / 10 : 0;
+  var passed = score100 >= meta.passPct;
+  var live = document.getElementById('cert-score-live');
+  var verdict = document.getElementById('cert-verdict');
+  var totalCell = document.getElementById('cert-total-cell');
+  if(live) live.textContent = score100 + '/100';
+  if(totalCell) totalCell.textContent = total + ' / ' + maxTotal;
+  if(verdict){ verdict.textContent = passed ? 'Valide' : 'Rattrapage 1000 FCFA'; verdict.style.color = passed ? '#22c55e' : '#f59e0b'; }
+  return {rows:rows, total:total, maxTotal:maxTotal, score100:score100, passed:passed, meta:meta};
+};
+renderCertificationRubric();
 var currentExamGrade = '';
 var bankQuestions = [];
 var examAnswers = {}; // {qIndex: 0 | 0.5 | 1}

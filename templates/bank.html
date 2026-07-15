@@ -23,6 +23,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .bk-section-title{font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;
   letter-spacing:.06em;margin-bottom:14px;}
 .bk-empty{color:#333;font-size:13px;text-align:center;padding:30px;}
+.settings-grid{display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:14px;margin:0 0 20px;padding:14px;background:#060606;border:1px solid #151515;border-radius:10px}.section-list{display:flex;flex-direction:column;gap:7px}.section-row{display:grid;grid-template-columns:1fr 86px 30px;gap:7px;align-items:center}.section-row button{height:31px;border:1px solid #5b2020;background:#160909;color:#f87171;border-radius:6px;cursor:pointer}@media(max-width:640px){.settings-grid{grid-template-columns:1fr}}
 
 /* Question rows (drag & drop) */
 .q-list{display:flex;flex-direction:column;gap:0;}
@@ -121,6 +122,19 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   <div class="bk-panel">
     <div class="bk-section-title" id="editor-title">— Sélectionne une certification —</div>
 
+    <div class="settings-grid" id="cert-settings" style="display:none">
+      <div>
+        <label style="display:block;font-size:11px;color:#777;margin-bottom:6px">Seuil de reussite (%)</label>
+        <input class="fi" id="pass-pct" type="number" min="0" max="100" step="1" oninput="markSettingsDirty()">
+        <div style="font-size:11px;color:#555;margin-top:7px">Le resultat est calcule automatiquement sur 100.</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;color:#777;margin-bottom:6px">Sections et points</label>
+        <div class="section-list" id="section-list"></div>
+        <button class="btn btn-ghost" type="button" onclick="addSection()" style="margin-top:8px;font-size:12px">+ Ajouter une section</button>
+      </div>
+    </div>
+
     <!-- Liste des questions -->
     <div class="q-list" id="q-list">
       <div class="bk-empty" id="q-empty">Sélectionne une certification ci-dessus pour commencer.</div>
@@ -195,6 +209,7 @@ var ALL_GRADES = CERTIFICATION_DEFS.map(function(c){
 });
 
 var currentGradeKey = '';
+var certificationSections = [];
 var questions = []; // Questions en cours d'édition
 var dirty = false;
 var dragSrcIdx = null;
@@ -226,14 +241,46 @@ function selectGrade(key, label, color){
   dirty = false;
   var bank = EXAM_BANK[key];
   questions = bank && bank.questions ? JSON.parse(JSON.stringify(bank.questions)) : [];
+  certificationSections = bank && bank.sections ? JSON.parse(JSON.stringify(bank.sections)) : [];
+  if(!certificationSections.length) certificationSections = [
+    {key:'fundamentals',label:'Fondamentaux',points:30},
+    {key:'tactics',label:'Reconnaissance tactique',points:25},
+    {key:'strategy',label:'Strategie',points:25},
+    {key:'blind_tactics',label:"Tactique a l'aveugle",points:20}
+  ];
   document.getElementById('editor-title').textContent = label;
   document.getElementById('add-form').style.display = '';
+  document.getElementById('cert-settings').style.display = '';
+  document.getElementById('pass-pct').value = bank && bank.pass_pct != null ? bank.pass_pct : (ALL_GRADES.find(function(g){return g.key===key;})||{}).threshold || 70;
   document.getElementById('save-bar').style.display = '';
   document.getElementById('save-grade-label').textContent = label;
   renderGradeTabs();
   renderQuestions();
+  renderSections();
   updateSaveCount();
 }
+
+function sectionKey(label, index){
+  var key=String(label||'section').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  return key || 'section_'+(index+1);
+}
+function renderSections(){
+  var list=document.getElementById('section-list');
+  list.innerHTML='';
+  certificationSections.forEach(function(section,index){
+    var row=document.createElement('div'); row.className='section-row';
+    row.innerHTML='<input class="fi" value="'+escapeHtml(section.label||'')+'" placeholder="Nom de section">'+
+      '<input class="fi" type="number" min="0.5" step="0.5" value="'+(parseFloat(section.points)||0)+'" title="Points">'+
+      '<button type="button" title="Supprimer">x</button>';
+    var inputs=row.querySelectorAll('input');
+    inputs[0].oninput=function(){certificationSections[index].label=this.value;certificationSections[index].key=sectionKey(this.value,index);markSettingsDirty();};
+    inputs[1].oninput=function(){certificationSections[index].points=parseFloat(this.value)||0;markSettingsDirty();updateSaveCount();};
+    row.querySelector('button').onclick=function(){certificationSections.splice(index,1);markSettingsDirty();renderSections();updateSaveCount();};
+    list.appendChild(row);
+  });
+}
+function addSection(){certificationSections.push({key:'section_'+(certificationSections.length+1),label:'Nouvelle section',points:5});markSettingsDirty();renderSections();}
+function markSettingsDirty(){dirty=true;}
 
 function updateGlobalStats(){
   var grades = Object.keys(EXAM_BANK).length;
@@ -311,6 +358,7 @@ function renderQuestions(){
 
 function updateSaveCount(){
   var total = questions.reduce(function(s,q){return s+(parseFloat(q.points)||1);},0);
+  var rubricTotal = certificationSections.reduce(function(s,row){return s+(parseFloat(row.points)||0);},0);
   document.getElementById('save-count').textContent =
     questions.length+' question'+(questions.length>1?'s':'')
     +' · '+total.toFixed(1).replace(/\.0$/,'')+' pts';
@@ -449,12 +497,12 @@ function saveGrade(){
   btn.textContent='⏳…'; btn.disabled=true;
   fetch('/api/certifications/save',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({grade_key:currentGradeKey,grade_label:label,questions:questions})
+    body:JSON.stringify({grade_key:currentGradeKey,grade_label:label,pass_pct:parseFloat(document.getElementById('pass-pct').value)||70,sections:certificationSections,questions:questions})
   }).then(function(r){return r.json();}).then(function(d){
     btn.textContent='💾 Sauvegarder'; btn.disabled=false;
     if(d.ok){
       dirty=false;
-      EXAM_BANK[currentGradeKey]={grade_key:currentGradeKey,grade_label:label,questions:JSON.parse(JSON.stringify(questions))};
+      EXAM_BANK[currentGradeKey]={grade_key:currentGradeKey,grade_label:label,pass_pct:parseFloat(document.getElementById('pass-pct').value)||70,sections:JSON.parse(JSON.stringify(certificationSections)),questions:JSON.parse(JSON.stringify(questions))};
       updateGlobalStats();
       renderGradeTabs();
       showToast('Banque sauvegardée ✅');
