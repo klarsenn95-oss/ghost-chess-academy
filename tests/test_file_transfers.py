@@ -175,5 +175,24 @@ class FileTransferTest(unittest.TestCase):
         self.assertIn("Socle inclus mensuel", admin_html)
         self.assertIn("inc-games-used-ghost-user", admin_html)
 
+    def test_elo_sync_returns_small_json_batch(self):
+        data = self.read_data()
+        data["students"][0]["lichess"] = "ghost-test"
+        self.write_data(data)
+        lichess_result = {
+            "elo_blitz": "1500",
+            "games_total": "12",
+            "last_online": "01/07/2026",
+            "field_values": {"elo_li_blitz": "1500"},
+        }
+        with patch.object(ghost_app, "fetch_lichess", return_value=lichess_result):
+            response = self.client.post("/api/sync/all", json={"offset": 0, "batch_size": 6})
+        payload = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["done"])
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["results"]["ok"], 1)
+
 if __name__ == "__main__":
     unittest.main()

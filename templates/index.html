@@ -831,11 +831,23 @@ async function syncAll() {
   document.getElementById('sync-fill').style.width='20%';
   document.getElementById('sync-status').textContent='Sync en cours…';
   try {
-    const r = await fetch('/api/sync/all',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    const d = await r.json().catch(()=>({ok:false,error:'Réponse serveur illisible'}));
-    if(!r.ok || !d.ok) throw new Error(d.error||('Erreur serveur '+r.status));
+    let offset=0,total=0,ok=0,err=0,done=false;
+    while(!done){
+      const r = await fetch('/api/sync/all',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({offset:offset,batch_size:6})});
+      const raw = await r.text();
+      let d;
+      try { d=JSON.parse(raw); } catch(_error) { throw new Error('Le serveur a interrompu la synchronisation (HTTP '+r.status+'). Réessaie dans un instant.'); }
+      if(!r.ok || !d.ok) throw new Error(d.error||('Erreur serveur '+r.status));
+      total=d.total||total;
+      ok+=d.results?.ok||0; err+=d.results?.err||0;
+      offset=d.next_offset||total;
+      done=!!d.done;
+      const percent=total ? Math.max(8,Math.round(offset/total*100)) : 100;
+      document.getElementById('sync-fill').style.width=percent+'%';
+      document.getElementById('sync-status').textContent='Sync '+Math.min(offset,total)+'/'+total+'…';
+    }
     document.getElementById('sync-fill').style.width='100%';
-    document.getElementById('sync-status').textContent=`✅ ${d.results.ok} OK${d.results.err?' ⚠️ '+d.results.err+' erreurs':''}`;
+    document.getElementById('sync-status').textContent=`✅ ${ok} OK${err?' ⚠️ '+err+' erreurs':''}`;
     btn.textContent='🔄 Sync tous'; btn.disabled=false;
     toast('Sync terminé');
     setTimeout(()=>location.reload(),1500);

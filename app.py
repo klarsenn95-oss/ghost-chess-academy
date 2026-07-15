@@ -8,6 +8,7 @@
 
 from flask import Flask, render_template, request, jsonify, redirect, send_from_directory, session
 import json, os, uuid, threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, date
 from functools import wraps
 from urllib.request import urlopen, Request
@@ -2988,9 +2989,18 @@ def sync_chesscom():
 @app.route("/api/sync/all",methods=["POST"])
 def sync_all():
     data = load_data()
+    body = request.get_json(silent=True) or {}
+    requested_offset = max(0, safe_int(body.get("offset"), 0))
+    batch_size = min(6, max(1, safe_int(body.get("batch_size"), 6)))
+    eligible = [i for i, student in enumerate(data.get("students", []))
+                if (student.get("lichess") or "").strip() or (student.get("chesscom") or "").strip()]
+    batch_indexes = eligible[requested_offset:requested_offset + batch_size]
     results = {"ok":0,"err":0,"details":[]}
     today = datetime.now().strftime("%d/%m/%Y")
-    for i,s in enumerate(data["students"]):
+
+    def sync_student(i):
+        outcome = {"ok": 0, "err": 0, "details": []}
+        s = data["students"][i]
         name = s.get("name","?")
         before_rank = snapshot_rank(s)
         hist = s.setdefault("elo_history",[])
@@ -3004,9 +3014,9 @@ def sync_all():
                 li_fields = apply_lichess_result(s, d)
                 today_entry.update({"elo_li":d.get("elo_blitz","")})
                 today_entry.update(li_fields)
-                results["ok"]+=1; results["details"].append(f"✅ {name} (Li)")
+                outcome["ok"]+=1; outcome["details"].append(f"✅ {name} (Li)")
             except Exception as e:
-                results["err"]+=1; results["details"].append(f"❌ {name} Li: {e}")
+                outcome["err"]+=1; outcome["details"].append(f"❌ {name} Li: {e}")
         if s.get("chesscom","").strip():
             try:
                 d = fetch_chesscom(s["chesscom"].strip())
@@ -3016,14 +3026,31 @@ def sync_all():
                 s["cc_games"]=d["games_total"]
                 today_entry.update({"elo_cc":d["elo_blitz"],"elo_cc_blitz":d["elo_blitz"],
                     "elo_cc_bullet":d["elo_bullet"],"elo_cc_rapid":d["elo_rapid"]})
-                results["ok"]+=1; results["details"].append(f"✅ {name} (CC)")
+                outcome["ok"]+=1; outcome["details"].append(f"✅ {name} (CC)")
             except Exception as e:
-                results["err"]+=1; results["details"].append(f"❌ {name} CC: {e}")
+                outcome["err"]+=1; outcome["details"].append(f"❌ {name} CC: {e}")
         s["updated"]=datetime.now().strftime("%d/%m/%Y %H:%M")
-        data["students"][i]=s
-        record_rank_change_if_needed(data, i, before_rank)
-    save_data(data)
-    return jsonify({"ok":True,"results":results})
+        return i, s, before_rank, outcome
+
+    with ThreadPoolExecutor(max_workers=min(4, len(batch_indexes) or 1)) as executor:
+        futures = [executor.submit(sync_student, i) for i in batch_indexes]
+        for future in as_completed(futures):
+            i, student, before_rank, outcome = future.result()
+            data["students"][i] = student
+            record_rank_change_if_needed(data, i, before_rank)
+            results["ok"] += outcome["ok"]
+            results["err"] += outcome["err"]
+            results["details"].extend(outcome["details"])
+    if batch_indexes:
+        save_data(data)
+    next_offset = requested_offset + len(batch_indexes)
+    return jsonify({
+        "ok": True,
+        "results": results,
+        "total": len(eligible),
+        "next_offset": next_offset,
+        "done": next_offset >= len(eligible),
+    })
 
 @app.route("/api/sync/games",methods=["POST"])
 def sync_games():
