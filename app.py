@@ -2601,8 +2601,11 @@ def student_page(idx):
         ranks_pirates=ranks_pirates_data, ranks_marine=ranks_marine_data,
         haki_list=haki_list,
         island=island, islands_list=islands_list,
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
         certifications=student_certification_state(s, data),
         certification_defs=certification_definitions(data),
+        certification_rubric=certification_rubric(),
+        certification_retake_fee=CERTIFICATION_RETAKE_FEE,
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
@@ -2639,6 +2642,18 @@ def islands_page():
         islands=ordered, islands_list=islands_list, all_students=students)
 
 # ── Nouvelles pages ────────────────────────────────────────
+
+@app.route("/bank")
+@app.route("/certifications/bank")
+def bank_page():
+    data = load_data()
+    ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
+    ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
+    return render_template("bank.html",
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
+        certification_defs=certification_definitions(data),
+        ranks_pirates=ranks_pirates_data,
+        ranks_marine=ranks_marine_data)
 
 @app.route("/reports")
 def reports_page():
@@ -3099,6 +3114,99 @@ def save_pairs():
 def get_pairs():
     data = load_data()
     return jsonify({"pairs": data.get("pairs", [])})
+
+@app.route("/api/exams/save", methods=["POST"])
+@app.route("/api/certifications/save", methods=["POST"])
+def save_exam():
+    data = load_data()
+    body = request.json
+    exams = data.setdefault("certification_bank", data.setdefault("exam_bank", {}))
+    grade_key = body.get("grade_key", "")
+    if not grade_key:
+        return jsonify({"ok": False, "error": "no grade_key"})
+    exams[grade_key] = {
+        "grade_key": grade_key,
+        "grade_label": body.get("grade_label", grade_key),
+        "pass_pct": max(0, min(100, safe_int(body.get("pass_pct"), 70))),
+        "sections": normalize_certification_sections(body.get("sections")),
+        "questions": body.get("questions", []),
+        "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    }
+    data["certification_bank"] = exams
+    data["exam_bank"] = exams
+    save_data(data)
+    return jsonify({"ok": True})
+
+@app.route("/api/exams/get", methods=["GET"])
+@app.route("/api/certifications/get", methods=["GET"])
+def get_exams():
+    data = load_data()
+    merge_default_certifications(data)
+    return jsonify({"exam_bank": data.get("certification_bank", data.get("exam_bank", {})), "certifications": certification_definitions(data)})
+
+@app.route("/api/students/exam_result", methods=["POST"])
+@app.route("/api/students/certification_result", methods=["POST"])
+def save_exam_result():
+    data = load_data()
+    body = request.json
+    idx = body.get("student_index")
+    if idx is None or idx >= len(data["students"]):
+        return jsonify({"ok": False})
+    s = data["students"][idx]
+    grade_key = body.get("grade_key", "")
+    grade_label = body.get("grade_label") or certification_label_from_key(grade_key, data)
+    sections = normalize_result_sections(body.get("sections") or certification_sections(data, grade_key))
+    if sections:
+        score = round(sum(float(row.get("score") or 0) for row in sections), 1)
+        total = round(sum(float(row.get("points") or 0) for row in sections), 1) or 100
+        score_100 = round(score / total * 100, 1) if total else 0
+        passed = score_100 >= certification_pass_pct(grade_key, data)
+    else:
+        score = float(body.get("score", 0) or 0)
+        total = float(body.get("total", 0) or 0)
+        score_100 = round(score / total * 100, 1) if total else score
+        passed = bool(body.get("passed", False))
+    documents = body.get("documents") or body.get("attachments") or []
+    result = {
+        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+        "date": datetime.now().strftime("%d/%m/%Y"),
+        "grade_key": grade_key,
+        "grade_label": grade_label,
+        "score": score_100,
+        "total": 100,
+        "raw_score": score,
+        "raw_total": total,
+        "passed": passed,
+        "notes": body.get("notes", ""),
+        "examiner": body.get("examiner", ""),
+        "answers": body.get("answers", []),
+        "sections": sections,
+        "documents": documents,
+        "retake_fee": 0,
+    }
+    if result["passed"]:
+        s["certification_badges"] = s.get("certification_badges", [])
+        if result["grade_key"] not in s["certification_badges"]:
+            s["certification_badges"].append(result["grade_key"])
+        s["exam_grade_unlocked"] = s.get("exam_grade_unlocked", [])
+        if result["grade_key"] not in s["exam_grade_unlocked"]:
+            s["exam_grade_unlocked"].append(result["grade_key"])
+        text = "%s validée avec %s/100." % (grade_label, score_100)
+        if result["notes"]:
+            text += "\n\n" + result["notes"]
+        add_student_feedback(data, idx, "Certification validée", text, "certification", "certification", result["id"], attachments=documents, priority="normal")
+    else:
+        result["retake_fee"] = CERTIFICATION_RETAKE_FEE
+        add_certification_retake_due(data, idx, s, grade_key, grade_label)
+        text = "%s non validée avec %s/100. Rattrapage disponible après paiement de %s FCFA." % (grade_label, score_100, CERTIFICATION_RETAKE_FEE)
+        if result["notes"]:
+            text += "\n\n" + result["notes"]
+        add_student_feedback(data, idx, "Rattrapage certification", text, "payment", "certification_retake", result["id"], attachments=documents, priority="high", action_required=True)
+    s.setdefault("certification_results", []).append(result)
+    s.setdefault("exam_results", []).append(result)
+    data["students"][idx] = s
+    save_data(data)
+    return jsonify({"ok": True, "result": result})
 
 @app.route("/api/students/finance", methods=["POST"])
 def update_finance():
@@ -4693,6 +4801,7 @@ def api_admin_tournament_delete():
     save_data(data)
     return jsonify({"ok": True})
 
+@app.route("/api/client/certification/retake", methods=["POST"])
 def api_client_certification_retake():
     data, user, resp, code = require_client_json()
     if resp: return resp, code
