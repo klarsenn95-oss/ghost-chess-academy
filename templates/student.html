@@ -849,6 +849,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     {% else %}<div style="color:#333;text-align:center;padding:14px">Aucun changement de grade enregistré.</div>{% endfor %}
   </div>
 
+  {% if false %}
   <div class="s-section">
     <div class="s-section-title">📋 Résultat de certification</div>
     <div style="display:flex;justify-content:flex-end;margin:-2px 0 10px"><a href="/certifications/bank" class="btn btn-ghost" style="font-size:11px;text-decoration:none">Configurer les certifications</a></div>
@@ -888,6 +889,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     </div>
   </div>
 
+  {% endif %}
   <!-- Historique des certifications -->
   <div class="s-section">
     <div class="s-section-title">📜 Historique des certifications</div>
@@ -1691,6 +1693,8 @@ window.addEventListener('hashchange',openStudentHash);
 openStudentHash();
 drawGhostRadar();
 
+{% if false %}
+
 // ── CERTIFICATIONS ─────────────────────────────────────────
 function currentCertificationMeta(){
   var select = document.getElementById('cert-grade-select');
@@ -2038,6 +2042,7 @@ function saveBankGrade(){
 }
 
 // ── AGENDA ───────────────────────────────────────────────────
+{% endif %}
 function addAgendaEvent(){
   var d=document.getElementById('ag-date').value;
   var t=document.getElementById('ag-time').value;

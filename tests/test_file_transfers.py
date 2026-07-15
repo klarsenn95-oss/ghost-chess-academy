@@ -175,6 +175,11 @@ class FileTransferTest(unittest.TestCase):
         self.assertIn("Socle inclus mensuel", admin_html)
         self.assertIn("inc-games-used-ghost-user", admin_html)
 
+    def test_legacy_certification_passing_routes_are_not_public(self):
+        self.assertEqual(self.client.get("/certifications").status_code, 404)
+        self.assertEqual(self.client.get("/certifications/bank").status_code, 404)
+        self.assertEqual(self.client.post("/api/students/certification_result", json={}).status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

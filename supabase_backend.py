@@ -9,11 +9,14 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import copy
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 _STATE_CACHE: Optional[dict[str, Any]] = None
+_STATE_CACHE_AT = 0.0
 _CLIENT = None
 
 
@@ -71,9 +74,12 @@ def load_state() -> Optional[dict[str, Any]]:
     is not blocked. In strict mode, errors are raised to make deployment failures
     visible immediately.
     """
-    global _STATE_CACHE
+    global _STATE_CACHE, _STATE_CACHE_AT
     if not supabase_configured():
         return None
+    cache_ttl = max(0, float(os.environ.get("GHOST_STATE_CACHE_SECONDS", "3")))
+    if _STATE_CACHE is not None and time.monotonic() - _STATE_CACHE_AT < cache_ttl:
+        return copy.deepcopy(_STATE_CACHE)
     try:
         client = get_supabase_client()
         res = client.table(state_table()).select("data").eq("id", state_id()).limit(1).execute()
@@ -83,7 +89,8 @@ def load_state() -> Optional[dict[str, Any]]:
         data = rows[0].get("data") or {}
         if isinstance(data, str):
             data = json.loads(data)
-        _STATE_CACHE = data
+        _STATE_CACHE = copy.deepcopy(data)
+        _STATE_CACHE_AT = time.monotonic()
         return data
     except Exception as exc:
         print(f"[GHOST/Supabase] Lecture impossible : {exc}")
@@ -94,7 +101,7 @@ def load_state() -> Optional[dict[str, Any]]:
 
 def save_state(data: dict[str, Any]) -> bool:
     """Save the JSON state to Supabase. Returns True when saved remotely."""
-    global _STATE_CACHE
+    global _STATE_CACHE, _STATE_CACHE_AT
     if not supabase_configured():
         return False
     try:
@@ -105,7 +112,8 @@ def save_state(data: dict[str, Any]) -> bool:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         client.table(state_table()).upsert(payload).execute()
-        _STATE_CACHE = data
+        _STATE_CACHE = copy.deepcopy(data)
+        _STATE_CACHE_AT = time.monotonic()
         return True
     except Exception as exc:
         print(f"[GHOST/Supabase] Sauvegarde impossible : {exc}")

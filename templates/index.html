@@ -36,7 +36,6 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <button class="nav-btn" onclick="showPage('hierarchy',this)">🛡️ Squads</button>
     <a href="/session/live" target="_blank" class="nav-btn nav-live">⚡ Séance en cours</a>
     <a href="/islands" class="nav-btn" style="text-decoration:none">🗺️ Îles</a>
-    <button class="nav-btn" onclick="showPage('students',this)">🎖️ Certifications</button>
     <a href="/reports"  class="nav-btn" style="text-decoration:none">📄 Rapports</a>
     <a href="/workplan" class="nav-btn" style="text-decoration:none">📋 Plan de travail</a>
   </nav>
@@ -130,7 +129,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <div class="crew-scroll">
       {% for s in sorted_students %}
       <a href="/student/{{ s._index }}" class="crew-tile" style="border-color:{{ s._rank.color }}33">
-        <div class="crew-emoji">{{ s._rank.emoji }}</div>
+        {% if s.avatar %}<img class="crew-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<div class="crew-emoji">{{ s._rank.emoji }}</div>{% endif %}
         <div class="crew-name" style="color:{{ s._rank.color }}">{{ s.name or '?' }}</div>
         <div class="crew-title" style="color:{{ s._rank.color }}">{{ s._rank.title }}</div>
         {% if s.rank_locked %}<div style="font-size:9px;color:#666">🔒 manuel</div>{% endif %}
@@ -223,7 +222,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
         <span class="vel-badge" style="background:{{ s._badge_color }}22;color:{{ s._badge_color }};border-color:{{ s._badge_color }}44">{{ s._badge_label }}</span>
       </div>
       {% for h in s._hakis[:2] %}<div class="haki-badge" style="color:{{ h.color }}">{{ h.label }}{% if h.manual %} ✋{% endif %}</div>{% endfor %}
-      <div class="student-name">♟ {{ s.name or 'Sans nom' }}</div>
+      <div class="student-name">{% if s.avatar %}<img class="student-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<span>♟</span>{% endif %} {{ s.name or 'Sans nom' }}</div>
       <div class="student-meta">{{ [s.age~' ans' if s.age, s.city]|select|join(' · ') }}</div>
       {% if s.lichess %}<div class="student-lichess">@ {{ s.lichess }}</div>{% endif %}
       {% if s.style %}<div class="student-style">🎯 {{ s.style }}</div>{% endif %}
@@ -749,10 +748,13 @@ function drawMiniGhostRadar(canvas){
 }
 
 function drawAllMiniGhostRadars(){
-  document.querySelectorAll('.student-mini-radar').forEach(drawMiniGhostRadar);
+  document.querySelectorAll('#page-students.active .student-mini-radar').forEach(drawMiniGhostRadar);
 }
 
-window.addEventListener('DOMContentLoaded',drawAllMiniGhostRadars);
+window.addEventListener('DOMContentLoaded',function(){
+  const draw=function(){window.requestIdleCallback ? requestIdleCallback(drawAllMiniGhostRadars,{timeout:600}) : setTimeout(drawAllMiniGhostRadars,80);};
+  draw();
+});
 
 // ── Filtres branch ────────────────────────────────────────
 var currentBranchFilter = 'all';
@@ -815,6 +817,9 @@ function showPage(page,btn) {
   document.getElementById('page-'+page).classList.add('active');
   if(btn) btn.classList.add('active');
   if(page==='stats') initCompareChart();
+  if(page==='students'){
+    window.requestIdleCallback ? requestIdleCallback(drawAllMiniGhostRadars,{timeout:300}) : setTimeout(drawAllMiniGhostRadars,0);
+  }
 }
 
 async function syncAll() {

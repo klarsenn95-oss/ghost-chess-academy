@@ -240,7 +240,7 @@
         <div class="item">
           <div class="history-row"><span>{{ r.grade_label }} · {{ r.date }}</span><span>{{ r.score }}/{{ r.total }}</span></div>
           {% if r.documents %}<div class="attach-list">{% for doc in r.documents %}<a class="attach" href="{{ doc }}" target="_blank">Document {{ loop.index }}</a>{% endfor %}</div>{% endif %}
-          {% if not r.passed %}
+          {% if false %}
           <div class="muted small" style="margin:8px 0">Rattrapage : 1000 FCFA. Après paiement, demande une nouvelle tentative.</div>
           <button class="btn secondary" onclick="requestCertificationRetake('{{ r.grade_key }}')">J’ai payé, je veux repasser</button><span class="msg" id="retake-msg-{{ r.grade_key }}"></span>
           {% endif %}

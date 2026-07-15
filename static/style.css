@@ -216,6 +216,7 @@ body{display:flex;height:100vh;overflow:hidden;}
 .crew-tile:hover{transform:translateY(-3px);box-shadow:0 8px 24px #00000055;}
 .crew-tile:hover::before{opacity:1;}
 .crew-emoji{font-size:28px;margin-bottom:6px;}
+.crew-avatar{width:40px;height:40px;object-fit:cover;border-radius:50%;margin-bottom:6px;border:1px solid #ffffff33;}
 .crew-name{font-size:13px;font-weight:700;margin-bottom:2px;}
 .crew-title{font-size:10px;margin-bottom:2px;font-family:var(--font-mono);}
 .crew-branch{font-size:10px;margin-bottom:4px;}
@@ -284,7 +285,8 @@ body{display:flex;height:100vh;overflow:hidden;}
   text-shadow:0 0 8px var(--red-glow);
 }
 .haki-badge{font-size:10px;padding:1px 6px;font-family:var(--font-mono);}
-.student-name{font-size:15px;font-weight:700;color:var(--white);padding:10px 13px 2px;}
+.student-name{font-size:15px;font-weight:700;color:var(--white);padding:10px 13px 2px;display:flex;align-items:center;gap:7px;}
+.student-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #ffffff33;}
 .student-meta{font-size:12px;color:var(--text3);padding:0 13px 2px;font-family:var(--font-mono);}
 .student-lichess{font-size:11px;color:#22223a;padding:0 13px;font-family:var(--font-mono);}
 .student-style{font-size:12px;color:#55558a;padding:3px 13px 0;}
