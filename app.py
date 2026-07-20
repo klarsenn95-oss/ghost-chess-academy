@@ -823,10 +823,10 @@ def fetch_lichess_games(username, max_games=30):
 # ─── Data ──────────────────────────────────────────────────
 CERTIFICATION_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 CERTIFICATION_RUBRIC = [
-    {"key": "fundamentals", "label": "Fondamentaux", "points": 30},
+    {"key": "fundamentals", "label": "Fondamentaux", "points": 20},
     {"key": "tactics", "label": "Reconnaissance tactique", "points": 25},
-    {"key": "strategy", "label": "Stratégie", "points": 25},
-    {"key": "blind_tactics", "label": "Tactique à l'aveugle", "points": 20},
+    {"key": "strategy", "label": "Stratégie", "points": 30},
+    {"key": "blind_tactics", "label": "Tactique à l'aveugle", "points": 25},
 ]
 CERTIFICATION_RETAKE_FEE = 1000
 
