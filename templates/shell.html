@@ -96,6 +96,12 @@
       const d = frame.contentDocument || frame.contentWindow.document;
       if(!d) return;
       const body = d.body, html = d.documentElement;
+      // Neutraliser min-height:100vh avant de mesurer pour casser la boucle de
+      // rétroaction qui fait grandir la page sans fin.
+      const prevBodyMinH = body ? body.style.minHeight : '';
+      const prevHtmlMinH = html ? html.style.minHeight : '';
+      if(body) body.style.setProperty('min-height','0','important');
+      if(html) html.style.setProperty('min-height','0','important');
       const h = Math.max(
         window.innerHeight || 800,
         body ? body.scrollHeight : 0,
@@ -103,6 +109,8 @@
         html ? html.scrollHeight : 0,
         html ? html.offsetHeight : 0
       ) + (mobile() ? 720 : 320);
+      if(body) body.style.minHeight = prevBodyMinH;
+      if(html) html.style.minHeight = prevHtmlMinH;
       frame.style.height = h + 'px';
       const fw=document.getElementById('frameWrap');
       if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
@@ -528,6 +536,13 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
     try{
       const d = frame.contentDocument || frame.contentWindow.document;
       if(!d) return;
+      // Neutraliser min-height:100vh avant de mesurer : sinon agrandir l'iframe
+      // agrandit le 100vh interne, qui agrandit scrollHeight, qui ré-agrandit
+      // l'iframe au tick suivant -> croissance infinie ("scroll infini").
+      const b = d.body, h_ = d.documentElement;
+      const prevB = b ? b.style.minHeight : '', prevH = h_ ? h_.style.minHeight : '';
+      if(b) b.style.setProperty('min-height','0','important');
+      if(h_) h_.style.setProperty('min-height','0','important');
       const h = Math.max(
         window.innerHeight || 720,
         d.documentElement.scrollHeight || 0,
@@ -535,6 +550,8 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
         d.body ? d.body.offsetHeight : 0,
         d.documentElement.offsetHeight || 0
       ) + (isMobile()?180:96);
+      if(b) b.style.minHeight = prevB;
+      if(h_) h_.style.minHeight = prevH;
       frame.style.height = h + 'px';
       const fw = document.getElementById('frameWrap');
       if(fw) fw.style.minHeight = Math.min(h, 2600) + 'px';
@@ -570,6 +587,12 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
       const d = frame.contentDocument || frame.contentWindow.document;
       if(!d) return;
       const body = d.body, html = d.documentElement;
+      // Neutraliser min-height:100vh avant de mesurer pour casser la boucle de
+      // rétroaction qui fait grandir la page sans fin.
+      const prevBodyMinH = body ? body.style.minHeight : '';
+      const prevHtmlMinH = html ? html.style.minHeight : '';
+      if(body) body.style.setProperty('min-height','0','important');
+      if(html) html.style.setProperty('min-height','0','important');
       const h = Math.max(
         window.innerHeight || 800,
         body ? body.scrollHeight : 0,
@@ -577,6 +600,8 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
         html ? html.scrollHeight : 0,
         html ? html.offsetHeight : 0
       ) + (mobile() ? 720 : 320);
+      if(body) body.style.minHeight = prevBodyMinH;
+      if(html) html.style.minHeight = prevHtmlMinH;
       frame.style.height = h + 'px';
       const fw=document.getElementById('frameWrap');
       if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
