@@ -14,14 +14,18 @@
  *   board.destroy();
  */
 (function (global) {
-  const WHITE_GLYPH = { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕', k: '♔' };
-  const BLACK_GLYPH = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
+  // Jeu de pièces "cburnett" (Colin M. L. Burnett, CC BY-SA 3.0 / GFDL —
+  // le même jeu utilisé par défaut sur Lichess), self-hosté sous
+  // static/pieces/cburnett/ plutôt que des glyphes Unicode dont le rendu
+  // varie trop d'une police/d'un OS à l'autre pour ressembler à un vrai
+  // plateau.
   const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const PIECE_TYPE_LETTER = { p: 'P', n: 'N', b: 'B', r: 'R', q: 'Q', k: 'K' };
 
-  function glyphFor(piece) {
-    if (!piece) return '';
-    const map = piece.color === 'w' ? WHITE_GLYPH : BLACK_GLYPH;
-    return map[piece.type] || '';
+  function pieceImageUrl(piece) {
+    if (!piece) return null;
+    const code = (piece.color === 'w' ? 'w' : 'b') + PIECE_TYPE_LETTER[piece.type];
+    return '/static/pieces/cburnett/' + code + '.svg';
   }
 
   function squareName(file, rank) {
@@ -84,7 +88,10 @@
         const rank = parseInt(sq[1], 10) - 1;
         const piece = board[7 - rank][file];
         const pieceEl = cell.querySelector('.gpb-piece');
-        if (pieceEl) pieceEl.textContent = glyphFor(piece);
+        if (pieceEl) {
+          const url = pieceImageUrl(piece);
+          pieceEl.style.backgroundImage = url ? `url(${url})` : 'none';
+        }
         cell.classList.toggle('gpb-white-piece', !!piece && piece.color === 'w');
         cell.classList.toggle('gpb-black-piece', !!piece && piece.color === 'b');
         cell.classList.remove('gpb-selected', 'gpb-legal', 'gpb-legal-capture', 'gpb-last-move');

@@ -3691,7 +3691,7 @@ def client_portal():
 
 @app.route("/favicon.ico")
 def favicon():
-    return send_from_directory(app.static_folder, "favicon.svg", mimetype="image/svg+xml")
+    return send_from_directory(app.static_folder, "favicon.png", mimetype="image/png")
 
 @app.route("/client/logout")
 def client_logout():
