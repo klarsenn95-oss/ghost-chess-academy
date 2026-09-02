@@ -92,26 +92,26 @@ class PuzzleFlowTest(unittest.TestCase):
         resp = self.client.post("/api/client/puzzle/solve", json={"puzzle_id": "mate-in-1", "success": True})
         body = resp.get_json()
         self.assertTrue(body["ok"])
-        self.assertEqual(body["xp_gained"], 10)  # Facile
+        self.assertEqual(body["xp_gained"], 5)  # Facile
         self.assertFalse(body["already_solved"])
-        self.assertEqual(body["total_xp"], 10)
+        self.assertEqual(body["total_xp"], 5)
 
         # Solving the same puzzle again must not double-award XP.
         resp = self.client.post("/api/client/puzzle/solve", json={"puzzle_id": "mate-in-1", "success": True})
         body = resp.get_json()
         self.assertEqual(body["xp_gained"], 0)
         self.assertTrue(body["already_solved"])
-        self.assertEqual(body["total_xp"], 10)
+        self.assertEqual(body["total_xp"], 5)
 
         # A harder puzzle awards more XP and adds on top.
         resp = self.client.post("/api/client/puzzle/solve", json={"puzzle_id": "calc-1", "success": True})
         body = resp.get_json()
-        self.assertEqual(body["xp_gained"], 20)  # Intermédiaire
-        self.assertEqual(body["total_xp"], 30)
+        self.assertEqual(body["xp_gained"], 10)  # Intermédiaire
+        self.assertEqual(body["total_xp"], 15)
 
         resp = self.client.get("/api/client/puzzle/list")
         body = resp.get_json()
-        self.assertEqual(body["xp"], 30)
+        self.assertEqual(body["xp"], 15)
         solved_ids = {p["id"] for p in body["puzzles"] if p["solved"]}
         self.assertEqual(solved_ids, {"mate-in-1", "calc-1"})
 
@@ -126,7 +126,7 @@ class PuzzleFlowTest(unittest.TestCase):
         resp = self.client.post("/api/admin/puzzle/create", json={
             "title": "Nouveau",
             "theme": "Fourchette",
-            "difficulty": "Avancé",
+            "difficulty": "Expert",
             "fen": "6k1/5ppp/8/8/8/8/8/R6K w - - 0 1",
             "moves": ["Ra8#"],
         })

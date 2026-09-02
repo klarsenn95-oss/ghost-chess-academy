@@ -27,8 +27,9 @@ except Exception:
 
 from supabase_backend import (
     backend_name, bootstrap_from_local_json, load_state, save_state,
-    storage_configured, upload_bytes
+    storage_configured, upload_bytes, supabase_configured, get_supabase_client
 )
+import puzzle_service
 
 
 # ReportLab
@@ -194,8 +195,16 @@ PUZZLE_THEMES = [
     "Attraction", "Surcharge", "Élimination du défenseur", "Attaque du roi",
     "Finale", "Calcul", "Défense",
 ]
-PUZZLE_DIFFICULTIES = ["Facile", "Intermédiaire", "Avancé"]
-PUZZLE_XP_BY_DIFFICULTY = {"Facile": 10, "Intermédiaire": 20, "Avancé": 35}
+PUZZLE_DIFFICULTIES = ["Facile", "Intermédiaire", "Difficile", "Expert"]
+PUZZLE_XP_BY_DIFFICULTY = {"Facile": 5, "Intermédiaire": 10, "Difficile": 15, "Expert": 20}
+# Bornes de rating Lichess utilisées par l'import pour dériver la difficulté.
+PUZZLE_RATING_BANDS = [(0, 1000, "Facile"), (1000, 1500, "Intermédiaire"), (1500, 2000, "Difficile"), (2000, 99999, "Expert")]
+
+def puzzle_difficulty_for_rating(rating):
+    for lo, hi, label in PUZZLE_RATING_BANDS:
+        if lo <= rating < hi:
+            return label
+    return "Expert"
 
 def puzzle_xp_for(difficulty):
     return PUZZLE_XP_BY_DIFFICULTY.get(difficulty, 15)
@@ -5233,19 +5242,26 @@ def api_admin_puzzle_create():
         return jsonify({"ok": False, "error": "FEN de départ requise."}), 400
     if len(moves) < 1:
         return jsonify({"ok": False, "error": "Ajoute au moins un coup solution."}), 400
-    data = load_data()
-    puzzle = {
-        "id": str(uuid.uuid4()), "title": title, "theme": theme, "difficulty": difficulty,
-        "fen": fen, "moves": moves, "created_at": now_fr(),
-    }
-    data.setdefault("puzzles", []).insert(0, puzzle)
-    save_data(data)
+    if puzzle_service.backend_ready():
+        puzzle = puzzle_service.create_puzzle(title, [theme], difficulty, fen, moves, source="coach")
+    else:
+        data = load_data()
+        puzzle = {
+            "id": str(uuid.uuid4()), "title": title, "theme": theme, "difficulty": difficulty,
+            "fen": fen, "moves": moves, "created_at": now_fr(),
+        }
+        data.setdefault("puzzles", []).insert(0, puzzle)
+        save_data(data)
     return jsonify({"ok": True, "puzzle": puzzle})
 
 @app.route("/api/admin/puzzle/delete", methods=["POST"])
 def api_admin_puzzle_delete():
     body = request.get_json(force=True, silent=True) or {}
     puzzle_id = body.get("puzzle_id")
+    if puzzle_service.backend_ready():
+        if not puzzle_service.delete_puzzle(puzzle_id):
+            return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+        return jsonify({"ok": True})
     data = load_data()
     before = len(data.get("puzzles", []))
     data["puzzles"] = [p for p in data.get("puzzles", []) if p.get("id") != puzzle_id]
@@ -5258,11 +5274,15 @@ def api_admin_puzzle_delete():
 def api_client_puzzle_list():
     data, user, resp, code = require_client_json()
     if resp: return resp, code
+    theme = request.args.get("theme") or None
+    difficulty = request.args.get("difficulty") or None
+    if puzzle_service.backend_ready():
+        result = puzzle_service.list_puzzles(user["id"], theme, difficulty, PUZZLE_XP_BY_DIFFICULTY)
+        stats = puzzle_service.student_puzzle_stats(user["id"])
+        return jsonify({"ok": True, "puzzles": result["puzzles"], "theme_counts": result["theme_counts"], "xp": stats["xp"]})
     idx = user.get("student_index")
     student = data["students"][idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else {}
     solved_ids = set(student.get("puzzle_solved_ids", []))
-    theme = request.args.get("theme") or None
-    difficulty = request.args.get("difficulty") or None
     puzzles = data.get("puzzles", [])
     if theme:
         puzzles = [p for p in puzzles if p.get("theme") == theme]
@@ -5284,6 +5304,11 @@ def api_client_puzzle_start():
     if resp: return resp, code
     body = request.get_json(force=True, silent=True) or {}
     puzzle_id = body.get("puzzle_id")
+    if puzzle_service.backend_ready():
+        puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
+        if not puzzle:
+            return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+        return jsonify({"ok": True, "puzzle": puzzle})
     puzzle = next((p for p in data.get("puzzles", []) if p.get("id") == puzzle_id), None)
     if not puzzle:
         return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
@@ -5296,6 +5321,12 @@ def api_client_puzzle_solve():
     body = request.get_json(force=True, silent=True) or {}
     puzzle_id = body.get("puzzle_id")
     success = bool(body.get("success"))
+    if puzzle_service.backend_ready():
+        puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
+        if not puzzle:
+            return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+        result = puzzle_service.record_attempt(user["id"], puzzle_id, success, puzzle.get("difficulty"), PUZZLE_XP_BY_DIFFICULTY)
+        return jsonify({"ok": True, **result})
     idx = user.get("student_index")
     if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
         return jsonify({"ok": False, "error": "Profil introuvable."}), 404

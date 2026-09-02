@@ -5,3 +5,4 @@ venv/
 static/uploads/
 static/reports/
 *.pyc
+tools/.cache/
