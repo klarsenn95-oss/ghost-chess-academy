@@ -302,6 +302,16 @@ body{padding:8px 8px 72px!important}
 .attention-pill.ok{background:#4ade8012;border-color:#4ade8040;color:#86efac}
 .attention-pill.warn{background:#fbbf2412;border-color:#fbbf2440;color:#fde68a}
 .attention-pill.off{background:#f8717112;border-color:#f8717140;color:#fca5a5}
+/* V39 — menu compact + une seule section visible à la fois, jamais de scroll infini */
+.cc-section{display:none;grid-column:1/-1!important}
+.cc-menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px}
+.cc-menu-btn{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid #ffffff14;background:#0d0d20;border-radius:16px;padding:14px;text-decoration:none;color:inherit;cursor:pointer;position:relative}
+.cc-menu-btn:hover{border-color:#ef444466;background:#16101a}
+.cc-menu-btn .icon{font-size:20px}
+.cc-menu-btn .label{font-weight:900;color:#fff;font-size:13px}
+.cc-menu-btn .count{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:2px 7px;min-width:18px;text-align:center}
+.cc-back-link{display:none;align-items:center;gap:6px;color:#c4b5fd;text-decoration:none;font-weight:800;margin-bottom:14px;border:1px solid #ffffff18;border-radius:999px;padding:9px 14px;background:#ffffff08;cursor:pointer}
+.cc-back-link:hover{border-color:#a78bfa88}
 </style>
 </head>
 <body>
@@ -314,27 +324,26 @@ body{padding:8px 8px 72px!important}
   </div>
 </div>
 
-<div class="cc-dashboard">
-  {% set n_ok = students|selectattr('_attention_status','equalto','ok')|list|length %}
-  {% set n_attention = students|selectattr('_attention_status','equalto','attention')|list|length %}
-  {% set n_inactive = students|selectattr('_attention_status','equalto','inactive')|list|length %}
+{% set n_ok = students|selectattr('_attention_status','equalto','ok')|list|length %}
+{% set n_attention = students|selectattr('_attention_status','equalto','attention')|list|length %}
+{% set n_inactive = students|selectattr('_attention_status','equalto','inactive')|list|length %}
+{% set pending_regs_count = registration_requests|selectattr('status','equalto','pending_validation')|list|length %}
+{% set unread_msg_count = conversations|sum(attribute='unread') %}
+{% set unread_notif_count = notifications|rejectattr('read')|list|length %}
+{% set ns = namespace(hw=0, rdv=0, games=0) %}
+{% for s in students %}
+  {% for d in s.get('devoirs', []) %}{% if d.get('student_submission') or d.status in ['📤 Rendu','🧑‍🏫 À corriger'] %}{% set ns.hw = ns.hw + 1 %}{% endif %}{% endfor %}
+  {% for a in s.get('client_appointments', []) %}{% if a.status in ['demandé','proposition','à revoir'] %}{% set ns.rdv = ns.rdv + 1 %}{% endif %}{% endfor %}
+  {% set ns.games = ns.games + (s.get('client_games', [])|length) %}
+{% endfor %}
+
+<a id="cc-back-link" class="cc-back-link" onclick="ccShowMenu()">← Retour au menu</a>
+
+<div class="cc-dashboard" id="cc-home-menu">
   <div class="attention-strip">
     <div class="attention-pill ok"><b>{{ n_ok }}</b> à jour</div>
     <div class="attention-pill warn"><b>{{ n_attention }}</b> nécessitent attention</div>
     <div class="attention-pill off"><b>{{ n_inactive }}</b> inactifs</div>
-  </div>
-  <div class="cc-dash-head">
-    <div>
-      <div class="ttl" style="margin-bottom:4px">Tableau de bord rapide</div>
-      <div class="muted">Vue compacte : tout l’essentiel sans scroller longtemps.</div>
-    </div>
-    <div class="cc-mini-actions">
-      <a href="#payments">Paiements</a>
-      <a href="#games">Parties</a>
-      <a href="#homework">Devoirs</a>
-      <a href="#appointments">RDV</a>
-      <a href="#accounts">Comptes</a>
-    </div>
   </div>
   <div class="cc-metrics">
     <div class="cc-metric violet"><span>Visites totales</span><b>{{ visit_stats.total or 0 }}</b><small>{{ visit_stats.today_count or 0 }} aujourd’hui</small></div>
@@ -343,14 +352,29 @@ body{padding:8px 8px 72px!important}
     <div class="cc-metric yellow"><span>En attente</span><b>{{ finance.pending_fmt }}</b><small>paiements à confirmer</small></div>
     <div class="cc-metric red"><span>Volume suivi</span><b>{{ finance.total_fmt }}</b><small>validé + attente</small></div>
   </div>
-</div>
-
-<div class="center-nav" aria-label="Navigation rapide centre de commandement">
-  <a href="#messages-inbox">Messages</a><a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#profile-updates">Profils</a><a href="#telegram-setup">Telegram</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
+  <div class="cc-menu-grid" aria-label="Navigation centre de commandement">
+    <a class="cc-menu-btn" data-section="messages-inbox"><span class="icon">💬</span><span class="label">Messages</span>{% if unread_msg_count %}<span class="count">{{ unread_msg_count }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="registration-requests"><span class="icon">🎟️</span><span class="label">Inscriptions</span>{% if pending_regs_count %}<span class="count">{{ pending_regs_count }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="manual-code"><span class="icon">🔑</span><span class="label">Codes manuels</span></a>
+    <a class="cc-menu-btn" data-section="profile-updates"><span class="icon">👤</span><span class="label">Profils</span></a>
+    <a class="cc-menu-btn" data-section="telegram-setup"><span class="icon">📲</span><span class="label">Telegram</span></a>
+    <a class="cc-menu-btn" data-section="payments"><span class="icon">💳</span><span class="label">Paiements</span></a>
+    <a class="cc-menu-btn" data-section="games"><span class="icon">♟</span><span class="label">Parties</span>{% if ns.games %}<span class="count">{{ ns.games }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="homework"><span class="icon">📚</span><span class="label">Devoirs</span>{% if ns.hw %}<span class="count">{{ ns.hw }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="appointments"><span class="icon">📅</span><span class="label">RDV</span>{% if ns.rdv %}<span class="count">{{ ns.rdv }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="client-options"><span class="icon">⚙️</span><span class="label">Options élèves</span></a>
+    <a class="cc-menu-btn" data-section="tournaments"><span class="icon">🏆</span><span class="label">Tournois</span></a>
+    <a class="cc-menu-btn" data-section="exercises"><span class="icon">🎯</span><span class="label">Exercices</span></a>
+    <a class="cc-menu-btn" data-section="included-usage"><span class="icon">📊</span><span class="label">Socle inclus</span></a>
+    <a class="cc-menu-btn" data-section="finance"><span class="icon">💰</span><span class="label">Finances</span></a>
+    <a class="cc-menu-btn" data-section="accounts"><span class="icon">🔐</span><span class="label">Comptes</span></a>
+    <a class="cc-menu-btn" data-section="notifications"><span class="icon">🔔</span><span class="label">Notifications</span>{% if unread_notif_count %}<span class="count">{{ unread_notif_count }}</span>{% endif %}</a>
+    <a class="cc-menu-btn" data-section="codes-generated"><span class="icon">🎫</span><span class="label">Codes générés</span></a>
+  </div>
 </div>
 
 <section class="grid">
-  <div class="card full" id="messages-inbox">
+  <div class="card full cc-section" id="messages-inbox">
     <div class="ttl">💬 Messages</div>
     {% if conversations %}
     <div class="contact-list">
@@ -366,8 +390,8 @@ body{padding:8px 8px 72px!important}
     </div>
     {% else %}<div class="muted">Aucun Ghost pour le moment.</div>{% endif %}
   </div>
-  <div class="card full">
-    <div class="ttl" id="included-usage">Socle inclus mensuel</div>
+  <div class="card full cc-section" id="included-usage">
+    <div class="ttl">Socle inclus mensuel</div>
     <div class="section-note">Mets Ã  jour les jauges visibles par chaque Ghost : parties analysÃ©es et temps standard inclus dans lâ€™inscription. Les options individuelles restent gÃ©rÃ©es dans le panneau Paiements.</div>
     {% for u in included_users %}
       {% set inc = u._included_usage %}
@@ -386,7 +410,7 @@ body{padding:8px 8px 72px!important}
     {% endfor %}
   </div>
 
-  <div class="card full">
+  <div class="card full cc-section" id="finance">
     <div class="ttl">💰 Finances</div>
     <div class="muted">Vue courte des derniers encaissements. Les détails restent dans les fiches Ghost.</div>
     {% if payment_logs %}
@@ -405,7 +429,7 @@ body{padding:8px 8px 72px!important}
     {% else %}<div class="muted" style="margin-top:10px">Aucune ligne d’encaissement enregistrée.</div>{% endif %}
     {% if finance.by_plan %}<details class="compact-section"><summary>Répartition par formule</summary><div class="mini-list">{% for name, amount in finance.by_plan.items() %}<div class="mini-item"><span>{{ name }}</span><b>{{ amount }} FCFA</b></div>{% endfor %}</div></details>{% endif %}
   </div>
-  <div class="card full" id="registration-requests">
+  <div class="card full cc-section" id="registration-requests">
     <div class="ttl">🎟️ Inscriptions Ghost — {{ registration_fee }}</div>
     <div class="section-note">L’élève paie l’inscription unique pour accéder à l’app. Après validation, un code d’inscription est généré : tu peux le lui transmettre.</div>
     {% set pending_regs = registration_requests|selectattr('status','equalto','pending_validation')|list %}
@@ -423,7 +447,7 @@ body{padding:8px 8px 72px!important}
     {% else %}<div class="muted">Aucune demande d’inscription pour le moment.</div>{% endif %}
   </div>
 
-  <div class="card full" id="profile-updates">
+  <div class="card full cc-section" id="profile-updates">
     <div class="ttl">👤 Infos profils Ghost</div>
     {% if profile_updates %}
     <div class="profile-pulse">
@@ -438,7 +462,7 @@ body{padding:8px 8px 72px!important}
     {% else %}<div class="muted">Aucune info personnelle renseignée récemment.</div>{% endif %}
   </div>
 
-  <div class="card" id="telegram-setup">
+  <div class="card cc-section" id="telegram-setup">
     <div class="ttl">Notifications Telegram</div>
     <div class="section-note">Envoie d'abord <b>/start</b> au bot, puis lance la détection. Le token reste proté dans Render.</div>
     <button class="btn secondary" type="button" onclick="discoverTelegramChats()">Détecter les comptes</button>
@@ -448,7 +472,7 @@ body{padding:8px 8px 72px!important}
     <span class="muted" id="telegram-msg"></span>
   </div>
 
-  <div class="card" id="manual-code">
+  <div class="card cc-section" id="manual-code">
     <div class="ttl">Générer un code manuel</div>
     <select class="fi" id="student-index"><option value="">Créer un nouveau profil au moment de l'inscription</option>{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }} · {{ s._rank.title }}</option>{% endfor %}</select>
     <input class="fi" id="email" placeholder="Email prévu optionnel">
@@ -472,8 +496,8 @@ body{padding:8px 8px 72px!important}
     <input type="hidden" id="fb-linked-game-id"><div class="actions"><button class="btn" onclick="sendFeedback()">Envoyer à l'élève</button><span class="muted" id="fb-msg"></span></div>
   </div>
 
-  <div class="card full">
-    <div class="ttl" id="payments">💳 Paiements / accès élèves</div>
+  <div class="card full cc-section" id="payments">
+    <div class="ttl">💳 Paiements / accès élèves</div>
     <div class="section-note">Cette liste affiche uniquement les demandes d’option individuelle, options actives/terminées et paiements à traiter. Un Ghost revenu au socle inclus disparaît automatiquement de cette section.</div>
     {% if users %}
       {% for u in users %}
@@ -498,12 +522,12 @@ body{padding:8px 8px 72px!important}
     {% else %}<div class="muted">Aucun paiement ou option à traiter. Les Ghosts au socle inclus ne sont pas affichés ici.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="games">♟ Parties / analyses reçues</div>
+  <div class="card full cc-section" id="games"><div class="ttl">♟ Parties / analyses reçues</div>
     {% set game_found = [] %}{% for s in students %}{% for g in s.get('client_games', []) %}{% set _ = game_found.append(1) %}<div class="conversation" id="game-{{ g.id }}"><b>{{ s.name or '?' }} — {{ g.url or 'Position / analyse' }}</b><span class="badge warn" style="margin-left:8px">{{ g.status or 'nouveau' }}</span><div class="muted">{{ g.date }}</div>{% if g.note %}<div>{{ g.note }}</div>{% endif %}{% if g.url %}<div class="tools"><a class="tool" href="{{ g.url }}" target="_blank">Ouvrir la partie</a></div>{% endif %}{% if g.position_fen %}<div class="fen">{{ g.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(g.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a></div>{% endif %}{% if g.pgn %}<div class="fen">{{ g.pgn[:600] }}{% if g.pgn|length > 600 %}…{% endif %}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN</a></div>{% endif %}{% if g.attachments %}<div class="attach-list">{% for a in g.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}<div class="actions"><button class="btn secondary" onclick="markGame({{ s._index }},'{{ g.id }}','en analyse')">En analyse</button><button class="btn good" onclick="markGame({{ s._index }},'{{ g.id }}','corrigé')">Corrigé</button><button class="btn" onclick="prefillFeedback({{ s._index }},'Analyse de partie','{{ g.id }}')">Répondre avec feedback</button><button class="btn danger" onclick="deleteGame({{ s._index }},'{{ g.id }}')">Supprimer</button></div></div>{% endfor %}{% endfor %}{% if not game_found %}<div class="muted">Aucune partie reçue.</div>{% endif %}
   </div>
 
-  <div class="card full">
-    <div class="ttl" id="homework">📚 Devoirs rendus à corriger</div>
+  <div class="card full cc-section" id="homework">
+    <div class="ttl">📚 Devoirs rendus à corriger</div>
     {% set hw_found = [] %}
     {% for s in students %}{% for d in s.get('devoirs', []) %}{% if d.get('student_submission') or d.status in ['📤 Rendu','🧑‍🏫 À corriger'] %}{% set _ = hw_found.append(1) %}
       <div class="homework">
@@ -519,31 +543,15 @@ body{padding:8px 8px 72px!important}
     {% if not hw_found %}<div class="muted">Aucun devoir rendu en attente.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="appointments">📅 RDV demandés par les élèves</div>
+  <div class="card full cc-section" id="appointments"><div class="ttl">📅 RDV demandés par les élèves</div>
     {% set found = [] %}{% for s in students %}{% for a in s.get('client_appointments', []) %}{% if a.status in ['demandé','proposition','à revoir'] %}{% set _ = found.append(1) %}
     <div class="appt"><div class="appt-title"><b>{{ s.name or '?' }}</b><span class="badge warn">{{ a.status }}</span><span class="muted">{{ a.day }} · {{ a.time }}</span></div><div class="muted">{{ a.reason or 'Sans précision' }}</div>{% if a.coach_reply %}<div style="margin-top:6px;color:#c4b5fd">Réponse coach : {{ a.coach_reply }}</div>{% endif %}{% if a.student_response %}<div style="margin-top:6px;color:#fbbf24">Réponse élève : {{ a.student_response }}</div>{% endif %}<div class="mini-grid" style="margin-top:10px"><input class="fi" id="msg-{{ a.id }}" placeholder="Message optionnel"><input class="fi" id="day-{{ a.id }}" type="date"><input class="fi" id="time-{{ a.id }}" type="time"></div><div class="actions"><button class="btn good" onclick="apptAction({{ s._index }},'{{ a.id }}','accept')">Valider</button><button class="btn warn" onclick="apptAction({{ s._index }},'{{ a.id }}','reject')">Refuser</button><button class="btn secondary" onclick="apptAction({{ s._index }},'{{ a.id }}','propose')">Proposer cette date</button></div></div>
     {% endif %}{% endfor %}{% endfor %}{% if not found %}<div class="muted">Aucune demande de RDV en attente.</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl">Options visibles côté élève</div><div class="section-note">Ajoute le nombre de séances incluses : 1 pour séance simple, 4 pour pack, 8 pour mensuel, etc.</div><div id="plans-editor">{% for p in price_plans %}<div class="plan-table"><input class="fi plan-key" placeholder="clé" value="{{ p.key }}"><input class="fi plan-name" placeholder="nom" value="{{ p.name }}"><input class="fi plan-price" placeholder="prix" value="{{ p.price }}"><input class="fi plan-period" placeholder="période" value="{{ p.period }}"><input class="fi plan-sessions" type="number" min="1" placeholder="séances" value="{{ p.sessions_total or 1 }}"><input class="fi plan-desc" placeholder="description" value="{{ p.desc }}"></div>{% endfor %}</div><button class="btn secondary" onclick="addPlanRow()">+ Option</button><button class="btn" onclick="savePlans()">Sauvegarder les options</button><span class="muted" id="plans-msg"></span></div>
+  <div class="card full cc-section" id="client-options"><div class="ttl">Options visibles côté élève</div><div class="section-note">Ajoute le nombre de séances incluses : 1 pour séance simple, 4 pour pack, 8 pour mensuel, etc.</div><div id="plans-editor">{% for p in price_plans %}<div class="plan-table"><input class="fi plan-key" placeholder="clé" value="{{ p.key }}"><input class="fi plan-name" placeholder="nom" value="{{ p.name }}"><input class="fi plan-price" placeholder="prix" value="{{ p.price }}"><input class="fi plan-period" placeholder="période" value="{{ p.period }}"><input class="fi plan-sessions" type="number" min="1" placeholder="séances" value="{{ p.sessions_total or 1 }}"><input class="fi plan-desc" placeholder="description" value="{{ p.desc }}"></div>{% endfor %}</div><button class="btn secondary" onclick="addPlanRow()">+ Option</button><button class="btn" onclick="savePlans()">Sauvegarder les options</button><span class="muted" id="plans-msg"></span></div>
 
-  <div class="card full dashboard-deprecated"><div class="ttl">💬 Échanges récents feedbacks/devoirs</div>
-    {% set conv_found = [] %}
-    {% for s in students %}
-      {% for f in s.get('client_feedback', []) %}
-        {% if f.get('replies') and (f.get('kind') or 'feedback') in ['feedback','game','homework','analysis','lesson'] %}{% set _ = conv_found.append(1) %}
-        <div class="conversation" id="thread-{{ f.id }}"><b>{{ s.name or '?' }} — {{ f.title }}</b><div class="muted">{{ f.date }} · {{ f.kind }}</div><div>{{ f.text }}</div>{% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Lichess</a></div>{% endif %}
-          {% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><b>{{ 'Élève' if r.author=='student' else 'Coach' }}</b> · {{ r.date }}<br>{{ r.text }}</div>{% endfor %}
-          <div class="reply-row"><textarea class="ta" id="coach-reply-{{ f.id }}" placeholder="Répondre dans ce fil..."></textarea><button class="btn secondary" onclick="replyCoachFeedback({{ s._index }},'{{ f.id }}')">Répondre au Ghost</button><span class="muted" id="coach-reply-msg-{{ f.id }}"></span></div>
-        </div>
-        {% endif %}
-      {% endfor %}
-    {% endfor %}
-    {% if not conv_found %}<div class="muted">Aucun échange récent.</div>{% endif %}
-  </div>
-
-
-  <div class="card full"><div class="ttl" id="tournaments">🏆 Tournois / événements</div>
+  <div class="card full cc-section" id="tournaments"><div class="ttl">🏆 Tournois / événements</div>
     <div class="mini-grid"><input class="fi" id="tour-title" placeholder="Nom du tournoi / événement"><input class="fi" id="tour-link" placeholder="Lien optionnel"><input class="fi" type="date" id="tour-day"><input class="fi" type="time" id="tour-time"><input class="fi" id="tour-format" placeholder="Format / cadence (ex. Arena 5+3)"><input class="fi" id="tour-cash-amount" placeholder="Montant du cash prize"></div>
     <textarea class="ta" id="tour-desc" placeholder="Description : cadence, niveau, objectif, infos pratiques…"></textarea>
     <textarea class="ta" id="tour-prep" placeholder="Préparation recommandée : ouvertures, tactiques, gestion du temps…"></textarea>
@@ -568,11 +576,7 @@ body{padding:8px 8px 72px!important}
     </div>{% endfor %}</div>{% endif %}
   </div>
 
-  <div class="card full dashboard-deprecated"><div class="ttl" id="messages">💬 Messages / échanges élèves</div>
-    {% if messages %}{% for m in messages[:20] %}<div class="msgbox" id="student-msg-{{ m.id }}"><b>{{ m.from_name }}</b>{% if m.target_label %}<span class="badge" style="margin-left:8px">{{ m.target_label }}</span>{% endif %}<div class="muted">{{ m.date }}</div><div>{{ m.text }}</div>{% if m.url %}<a class="attach" href="{{ m.url }}" target="_blank">Lien partagé</a>{% endif %}{% if m.fen %}<div class="fen">{{ m.fen }}</div><a class="tool" href="{{ lichess_analysis_url(m.fen) }}" target="_blank">Ouvrir sur Lichess</a>{% endif %}{% if m.replies %}<div class="thread">{% for r in m.replies %}<div class="bubble"><b>{{ 'Coach' if r.author=='coach' else 'Élève' }}</b> · {{ r.date }}<br>{{ r.text }}</div>{% endfor %}</div>{% endif %}<div class="reply-row"><textarea class="ta" id="msg-reply-{{ m.id }}" placeholder="Répondre au Ghost..."></textarea><button class="btn secondary" onclick="replyStudentMessage('{{ m.id }}')">Répondre</button><span class="muted" id="msg-reply-status-{{ m.id }}"></span></div></div>{% endfor %}{% else %}<div class="muted">Aucun échange élève pour le moment.</div>{% endif %}
-  </div>
-
-  <div class="card full" id="exercises"><div class="ttl">Exercices ciblés</div>
+  <div class="card full cc-section" id="exercises"><div class="ttl">Exercices ciblés</div>
     <div class="section-note">Envoie un exercice à tous les Ghosts ou à une sélection. Il apparaîtra aussi comme devoir dans leur fiche.</div>
     <div class="exercise-admin">
       <input class="fi" id="ex-title" placeholder="Titre de l'exercice">
@@ -586,12 +590,12 @@ body{padding:8px 8px 72px!important}
     {% if exercises %}<div class="exercise-history">{% for e in exercises[:10] %}<div class="mini-item"><span><b>{{ e.title }}</b><br><span class="muted">{{ e.date }} · {{ e.level }} · {{ e.targets|length if e.targets else 'tous' }} cible(s)</span></span><span><span class="pill">{{ e.status or 'envoyé' }}</span> <button class="btn danger tiny" onclick="deleteExercise('{{ e.id }}','{{ e.title|replace("'", "") }}')">Annuler chez tous</button></span></div>{% endfor %}</div>{% endif %}
   </div>
 
-  <div class="card full"><div class="ttl" id="accounts">🔐 Comptes / accès</div>
+  <div class="card full cc-section" id="accounts"><div class="ttl">🔐 Comptes / accès</div>
     {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} · {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">Réinitialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">Réactiver</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
   </div>
 
-  <div class="card full"><div class="ttl" id="notifications">Notifications élèves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
-  <div class="card full"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes[:18] %}<div class="code-row"><div class="code">{{ c.code }}</div><div class="code-owner"><b>{{ c.student_name or c.request_name or 'Profil à créer' }}</b><small>{% if c.used_by_name %}utilisé par {{ c.used_by_name }}{% elif c.request_name %}demande : {{ c.request_name }}{% else %}{{ c.email_hint or c.request_email or 'email non précisé' }}{% endif %}</small></div><div>{{ c.access_label or ('Inscription offerte' if c.free_access else 'Inscription Ghost - 5 000 FCFA') }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
+  <div class="card full cc-section" id="notifications"><div class="ttl">Notifications élèves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
+  <div class="card full cc-section" id="codes-generated"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes[:18] %}<div class="code-row"><div class="code">{{ c.code }}</div><div class="code-owner"><b>{{ c.student_name or c.request_name or 'Profil à créer' }}</b><small>{% if c.used_by_name %}utilisé par {{ c.used_by_name }}{% elif c.request_name %}demande : {{ c.request_name }}{% else %}{{ c.email_hint or c.request_email or 'email non précisé' }}{% endif %}</small></div><div>{{ c.access_label or ('Inscription offerte' if c.free_access else 'Inscription Ghost - 5 000 FCFA') }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
 </section>
 <script>
 const $ = (id)=>document.getElementById(id);
@@ -652,42 +656,46 @@ document.addEventListener('DOMContentLoaded', function(){
     controls.innerHTML=`<select class="fi" id="reg-student-${id}"><option value="">Créer un nouveau profil au moment de l'inscription</option>${ADMIN_STUDENTS.map(function(name,i){return '<option value="'+i+'">'+(name||'?')+'</option>';}).join('')}</select><select class="fi" id="reg-access-${id}"><option value="paid_registration">Paiement reçu - 5 000 FCFA</option><option value="free_registration">Inscription offerte</option></select>`;
     card.appendChild(controls);
   });
-  const cards = Array.from(document.querySelectorAll('section.grid > .card.full, section.grid > .card[id]'));
-  const keepOpenIds = new Set(['registration-requests', 'manual-code', 'profile-updates', 'telegram-setup', 'messages-inbox']);
-  cards.forEach(function(card, index){
-    if(card.classList.contains('cc-panel')) return;
-    const ttl = card.querySelector(':scope > .ttl');
-    if(!ttl) return;
-    const body = document.createElement('div');
-    body.className = 'cc-panel-body';
-    let node = ttl.nextSibling;
-    while(node){ const next = node.nextSibling; body.appendChild(node); node = next; }
-    card.appendChild(body);
-    card.classList.add('cc-panel');
-    if(index === 0) card.classList.add('cc-wide');
-    if(!keepOpenIds.has(card.id)) card.classList.add('is-collapsed');
-    ttl.setAttribute('role','button');
-    ttl.setAttribute('tabindex','0');
-    const toggle = function(){ card.classList.toggle('is-collapsed'); };
-    ttl.addEventListener('click', toggle);
-    ttl.addEventListener('keydown', function(e){ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }});
-  });
-  function revealAdminHash(hash){
-    const id = (hash || '').replace('#', '');
-    if(!id) return;
+
+  // V39 — menu compact : une seule section visible à la fois (ou le menu), jamais
+  // plusieurs panneaux empilés à défiler. Remplace l'ancien système d'accordéons.
+  const menu = document.getElementById('cc-home-menu');
+  const backLink = document.getElementById('cc-back-link');
+  const sections = Array.from(document.querySelectorAll('.cc-section'));
+
+  function showSection(id){
     const target = document.getElementById(id);
-    if(!target) return;
-    const panel = target.closest('.cc-panel') || target.closest('.card') || target;
-    panel.classList.remove('is-collapsed');
-    setTimeout(function(){
-      const scrollTarget = target.closest('.cc-panel') || target;
-      scrollTarget.scrollIntoView({behavior:'smooth', block:'start'});
-      target.classList.add('cc-flash');
-      setTimeout(function(){ target.classList.remove('cc-flash'); }, 1400);
-    }, 80);
+    if(!target) return false;
+    sections.forEach(function(s){ s.style.display = (s.id === id) ? 'block' : 'none'; });
+    if(menu) menu.style.display = 'none';
+    if(backLink) backLink.style.display = 'inline-flex';
+    window.scrollTo(0, 0);
+    return true;
   }
-  revealAdminHash(window.location.hash);
-  window.addEventListener('hashchange', function(){ revealAdminHash(window.location.hash); });
+  function showMenu(){
+    sections.forEach(function(s){ s.style.display = 'none'; });
+    if(menu) menu.style.display = '';
+    if(backLink) backLink.style.display = 'none';
+    window.scrollTo(0, 0);
+  }
+  window.ccShowMenu = function(){
+    if(location.hash) history.pushState(null, '', location.pathname + location.search);
+    showMenu();
+  };
+  document.querySelectorAll('.cc-menu-btn[data-section]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const id = btn.getAttribute('data-section');
+      history.pushState(null, '', '#' + id);
+      showSection(id);
+    });
+  });
+  window.addEventListener('popstate', function(){
+    const id = (location.hash || '').replace('#', '');
+    if(!id || !showSection(id)) showMenu();
+  });
+
+  const initial = (location.hash || '').replace('#', '');
+  if(!initial || !showSection(initial)) showMenu();
 });
 </script>
 
