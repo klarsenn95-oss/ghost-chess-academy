@@ -107,8 +107,8 @@ def get_puzzle_with_solution(puzzle_id: str) -> Optional[dict]:
     themes = row.get("themes") or []
     return {
         "id": row["id"], "title": row.get("title") or "",
-        "theme": themes[0] if themes else "", "difficulty": row.get("difficulty"),
-        "fen": row.get("fen"), "moves": row.get("solution_moves") or [],
+        "theme": themes[0] if themes else "", "themes": themes, "difficulty": row.get("difficulty"),
+        "rating": row.get("rating"), "fen": row.get("fen"), "moves": row.get("solution_moves") or [],
     }
 
 
@@ -132,7 +132,7 @@ def delete_puzzle(puzzle_id: str) -> bool:
 
 
 def browse_puzzles(theme: Optional[str], difficulty: Optional[str], search: Optional[str],
-                    page: int = 1, page_size: int = 20) -> dict:
+                    page: int = 1, page_size: int = 20, sort: str = "rating_asc") -> dict:
     """Paginated browse of the full puzzle bank for the coach — 'send this
     specific puzzle to this student', not the random theme picker students
     use."""
@@ -153,14 +153,15 @@ def browse_puzzles(theme: Optional[str], difficulty: Optional[str], search: Opti
     page = max(1, page)
     offset = (page - 1) * page_size
     row_q = _apply(client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating"))
-    rows = row_q.order("rating").range(offset, offset + page_size - 1).execute().data or []
+    row_q = row_q.order("rating", desc=(sort == "rating_desc"))
+    rows = row_q.range(offset, offset + page_size - 1).execute().data or []
     return {
         "puzzles": [
             {"id": r["id"], "title": r.get("title") or "", "themes": r.get("themes") or [],
              "difficulty": r.get("difficulty"), "rating": r.get("rating")}
             for r in rows
         ],
-        "total": total, "page": page, "page_size": page_size,
+        "total": total, "page": page, "page_size": page_size, "sort": sort,
     }
 
 
@@ -182,19 +183,27 @@ def _solved_puzzle_ids(user_id: str) -> set:
 
 
 def _current_streak(attempts_newest_first: list[dict]) -> int:
-    """Consecutive successful attempts counting back from the most recent
-    one. Multiple attempts on the same puzzle within the streak don't break
-    it or double-count — only the first attempt per puzzle (going backwards)
-    is considered, so retrying a failed puzzle until it's solved doesn't
-    artificially inflate the streak."""
-    streak = 0
-    seen_puzzle_ids = set()
+    """Consecutive puzzles solved on the FIRST try, counting back from the
+    most recently attempted puzzle. A puzzle only counts towards the streak
+    if its very first attempt succeeded — failing it and finding the
+    solution on a retry breaks the streak, it doesn't extend it, even
+    though the puzzle ends up solved."""
+    # attempts_newest_first is ordered newest -> oldest, so for a given
+    # puzzle the LAST time we see it in this loop is its oldest (first
+    # ever) attempt — overwriting the dict on every occurrence lands us on
+    # that first attempt's outcome once the loop finishes.
+    first_attempt_success = {}
+    order = []
+    seen = set()
     for a in attempts_newest_first:
         pid = a.get("puzzle_id")
-        if pid in seen_puzzle_ids:
-            continue
-        seen_puzzle_ids.add(pid)
-        if a.get("success"):
+        if pid not in seen:
+            seen.add(pid)
+            order.append(pid)
+        first_attempt_success[pid] = a.get("success")
+    streak = 0
+    for pid in order:
+        if first_attempt_success.get(pid):
             streak += 1
         else:
             break
@@ -228,7 +237,7 @@ def coach_puzzle_overview(user_id: str) -> dict:
     raw XP number."""
     attempts = _user_attempts(user_id)
     if not attempts:
-        return {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": []}
+        return {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
     puzzle_ids = list({a["puzzle_id"] for a in attempts})
     client = get_supabase_client()
     puzzles = {}
@@ -260,6 +269,7 @@ def coach_puzzle_overview(user_id: str) -> dict:
         "xp": xp, "solved_count": len(solved_ids), "streak": _current_streak(attempts),
         "attempts_count": len(attempts), "by_theme": by_theme,
         "avg_duration_seconds": _avg_duration(attempts),
+        "solved_ids": list(solved_ids),
     }
 
 

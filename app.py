@@ -2161,7 +2161,7 @@ def student_puzzle_overview(data, student_index):
     et taux de réussite par thème pour repérer les points faibles réels
     (pas juste 'il a fait X puzzles') sans obliger le coach à éplucher
     l'historique brut."""
-    empty = {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": []}
+    empty = {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
     if not puzzle_service.backend_ready():
         return empty
     user = next((u for u in data.get("users", []) if u.get("student_index") == student_index), None)
@@ -2357,7 +2357,7 @@ def public_student_payload(student):
                 "text": f.get("text") or "",
                 "date": f.get("date") or "",
                 "kind": k,
-                "target_tab": "feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers"))),
+                "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers")))),
             })
     return {
         "name": student.get("name", "Ghost"),
@@ -2670,6 +2670,13 @@ def student_page(idx):
     if idx >= len(data["students"]): return redirect("/")
     s = dict(data["students"][idx])
     s["_card_stats"] = ghost_card_stats(s)
+    puzzle_overview = student_puzzle_overview(data, idx)
+    if s.get("devoirs"):
+        solved_ids = set(puzzle_overview.get("solved_ids") or [])
+        s["devoirs"] = [
+            {**d, "solved": d.get("puzzle_id") in solved_ids} if d.get("type") == "puzzle" else d
+            for d in s["devoirs"]
+        ]
     rank = get_rank(s)
     hakis = get_hakis(s)
     vel,badge_color,badge_label,delta = get_progression_velocity(s)
@@ -2720,7 +2727,7 @@ def student_page(idx):
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
         students=enrich_students(data["students"]),
-        puzzle_stats=student_puzzle_overview(data, idx))
+        puzzle_stats=puzzle_overview)
 
 @app.route("/islands")
 def islands_page():
@@ -3651,6 +3658,10 @@ def client_portal():
         student_payload["puzzle_xp"] = live_stats["xp"]
         student_payload["puzzle_solved_count"] = live_stats["solved_count"]
         student_payload["puzzle_streak"] = live_stats["streak"]
+        solved_ids = set(live_stats["solved_ids"])
+        for d in student_payload.get("devoirs", []):
+            if d.get("type") == "puzzle":
+                d["solved"] = d.get("puzzle_id") in solved_ids
     return render_template(
         "client_dashboard.html",
         user=user,
@@ -5310,11 +5321,14 @@ def api_admin_puzzle_browse():
     theme = request.args.get("theme") or None
     difficulty = request.args.get("difficulty") or None
     search = request.args.get("search") or None
+    sort = request.args.get("sort") or "rating_asc"
+    if sort not in ("rating_asc", "rating_desc"):
+        sort = "rating_asc"
     try:
         page = int(request.args.get("page") or 1)
     except ValueError:
         page = 1
-    result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page)
+    result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page, sort=sort)
     return jsonify({"ok": True, **result})
 
 @app.route("/api/admin/puzzle/assign", methods=["POST"])
@@ -5335,11 +5349,25 @@ def api_admin_puzzle_assign():
     if idx < 0 or idx >= len(data.get("students", [])):
         return jsonify({"ok": False, "error": "Élève introuvable."}), 404
     puzzle_service.assign_puzzle(puzzle_id, idx, note)
-    title = f"🧩 Puzzle envoyé — {puzzle.get('theme') or puzzle.get('difficulty') or ''}".strip(" —")
-    text = note or "Ton coach t'a envoyé un puzzle à résoudre."
-    entry = add_student_feedback(data, idx, title, text, kind="puzzle", linked_type="puzzle", linked_id=puzzle_id)
+    theme_label = puzzle.get("theme") or puzzle.get("difficulty") or ""
+    devoir = {
+        "id": str(uuid.uuid4()),
+        "type": "puzzle",
+        "title": f"🧩 Puzzle — {theme_label}".strip(" —"),
+        "status": "🧩 À résoudre",
+        "note": note,
+        "puzzle_id": puzzle_id,
+        "theme": puzzle.get("theme"),
+        "difficulty": puzzle.get("difficulty"),
+        "rating": puzzle.get("rating"),
+        "created_at": now_fr(),
+    }
+    data["students"][idx].setdefault("devoirs", []).insert(0, devoir)
+    title = f"🧩 Nouveau puzzle — {theme_label}".strip(" —")
+    text = note or "Ton coach t'a envoyé un puzzle à résoudre. Retrouve-le dans tes devoirs."
+    entry = add_student_feedback(data, idx, title, text, kind="homework", linked_type="puzzle_devoir", linked_id=puzzle_id)
     save_data(data)
-    return jsonify({"ok": True, "feedback": entry})
+    return jsonify({"ok": True, "feedback": entry, "devoir": devoir})
 
 @app.route("/api/client/puzzle/list")
 def api_client_puzzle_list():

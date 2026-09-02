@@ -531,6 +531,15 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   </div>
   <div id="devoirs-list">
     {% for d in s.get('devoirs',[]) %}
+    {% if d.type == 'puzzle' %}
+    <div class="dev-item" id="devoir-{{ d.id }}">
+      <span class="dev-title">🧩 {{ d.title }}</span>
+      <span class="dev-due">{{ d.rating or '?' }} elo</span>
+      <span class="pill" style="background:{{ '#1a3a1a' if d.solved else '#2a1a10' }};color:{{ '#4ade80' if d.solved else '#fbbf24' }}">{{ '✅ Résolu' if d.solved else '🧩 À résoudre' }}</span>
+      <button class="btn btn-danger btn-xs" onclick="deleteDevoir({{ loop.index0 }})">🗑</button>
+      {% if d.note %}<div class="dev-note">{{ d.note }}</div>{% endif %}
+    </div>
+    {% else %}
     <div class="dev-item" id="devoir-{{ d.id }}">
       <span class="dev-title">{{ d.title }}</span>
       {% if d.due %}<span class="dev-due">📅 {{ d.due }}</span>{% endif %}
@@ -543,6 +552,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       {% if d.student_submission %}<div class="dev-note"><b>Rendu Ghost</b> - {{ d.student_submission.date }}<br>{{ d.student_submission.text }}{% if d.student_submission.url %}<br><a href="{{ d.student_submission.url }}" target="_blank">Lien du rendu</a>{% endif %}</div>{% if d.student_submission.attachments %}<div class="student-attachments">{% for a in d.student_submission.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img src="{{ a }}" alt="Image rendue par le Ghost" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Rendu {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% endif %}
       {% if d.coach_correction %}<div class="dev-note"><b>Correction coach</b> - {{ d.coach_correction.date }}<br>{{ d.coach_correction.text }}{% if d.coach_correction.position_fen %}<div class="fen">{{ d.coach_correction.position_fen }}</div>{% endif %}</div>{% if d.coach_correction.attachments %}<div class="student-attachments">{% for a in d.coach_correction.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img src="{{ a }}" alt="Image de correction" loading="lazy"></a>{% else %}<a href="{{ a }}" target="_blank">Correction {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% endif %}
     </div>
+    {% endif %}
     {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun devoir.</div>{% endfor %}
   </div>
 </div>

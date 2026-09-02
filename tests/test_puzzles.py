@@ -177,13 +177,25 @@ class PuzzleStreakTest(unittest.TestCase):
         attempts_newest_first = [{"puzzle_id": "a", "success": False}, {"puzzle_id": "b", "success": True}]
         self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 0)
 
-    def test_streak_ignores_repeat_attempts_on_the_same_puzzle(self):
+    def test_streak_breaks_on_a_puzzle_failed_then_solved_on_retry(self):
         import puzzle_service
-        # Retrying a failed puzzle until solved shouldn't inflate the streak:
-        # only the first (most recent) attempt per puzzle counts.
+        # Failing a puzzle first and finding the solution on a retry must
+        # break the streak, not extend it — only puzzles solved on the very
+        # first attempt count.
         attempts_newest_first = [
-            {"puzzle_id": "a", "success": True},   # eventually solved
-            {"puzzle_id": "a", "success": False},  # earlier failed attempt, same puzzle - ignored
+            {"puzzle_id": "a", "success": True},   # retry: eventually solved
+            {"puzzle_id": "a", "success": False},  # first attempt on "a": failed
+            {"puzzle_id": "b", "success": True},   # solved on first try
+        ]
+        self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 0)
+
+    def test_streak_counts_puzzle_solved_on_first_try_despite_later_retries(self):
+        import puzzle_service
+        # A puzzle solved on the first attempt still counts even if the
+        # student kept practicing it afterwards (extra successful retries).
+        attempts_newest_first = [
+            {"puzzle_id": "a", "success": True},   # extra retry, still solved
+            {"puzzle_id": "a", "success": True},   # first attempt: solved
             {"puzzle_id": "b", "success": True},
         ]
         self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 2)
