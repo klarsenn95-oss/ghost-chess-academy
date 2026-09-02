@@ -422,6 +422,7 @@
           {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ f.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}
           {% if f.pgn %}<div class="fen">{{ f.pgn }}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN sur Lichess</a><button class="tool" onclick="copyText(`{{ f.pgn|replace('`','') }}`)">Copier PGN</button></div>{% endif %}
           {% if f.tags %}<div class="tags">{% for t in f.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>{% endif %}
+          {% if f.linked_type == 'puzzle' and f.linked_id %}<div class="tools"><button class="tool" onclick="openAssignedPuzzle('{{ f.linked_id }}')">🧩 Ouvrir le puzzle</button></div>{% endif %}
           {% if f.replies %}{% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><div class="date">{{ r.date }} · {{ 'Moi' if r.author=='student' else 'Coach' }}</div>{{ r.text }}</div>{% endfor %}{% endif %}
           <div class="reply-row"><textarea class="ta" id="reply-{{ f.id }}" placeholder="Répondre au coach…"></textarea><button class="btn secondary" onclick="replyFeedback('{{ f.id }}')">Répondre</button></div>
           <span class="msg" id="reply-msg-{{ f.id }}"></span>
@@ -724,7 +725,15 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script src="/static/puzzle-board.js"></script>
 <script>
 // V41 — Puzzles façon Lichess : plateau interactif, coup à coup, par thème.
-let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '';
+let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '', pzStartTs = 0;
+
+async function openAssignedPuzzle(puzzleId){
+  showTab('puzzles');
+  document.getElementById('pz-solver-theme').textContent = 'Envoyé par ton coach';
+  document.getElementById('pz-picker').style.display = 'none';
+  document.getElementById('pz-solver').style.display = 'block';
+  await openPuzzle(puzzleId);
+}
 
 async function loadPuzzleThemeCounts(){
   try{
@@ -784,6 +793,7 @@ async function openPuzzle(puzzleId){
   document.getElementById('pz-solver-status').className = 'pz-status';
   document.getElementById('pz-giveup-btn').style.display = '';
   document.getElementById('pz-next-btn').style.display = 'none';
+  pzStartTs = Date.now();
 }
 
 function addMoveToList(san){
@@ -825,7 +835,8 @@ async function finishPuzzle(success){
   pzBoard.setInteractive(false);
   document.getElementById('pz-giveup-btn').style.display = 'none';
   document.getElementById('pz-next-btn').style.display = '';
-  const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success});
+  const duration_seconds = pzStartTs ? Math.max(1, Math.round((Date.now() - pzStartTs) / 1000)) : null;
+  const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success, duration_seconds});
   const status = document.getElementById('pz-solver-status');
   if(success){
     const streakBit = d.ok && d.streak > 1 ? ` · 🔥 série de ${d.streak}` : '';

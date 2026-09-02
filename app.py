@@ -3745,6 +3745,7 @@ def admin_clients():
         puzzles=data.get("puzzles", [])[:100],
         puzzle_themes=PUZZLE_THEMES,
         puzzle_difficulties=PUZZLE_DIFFICULTIES,
+        puzzle_bank_total=puzzle_service.browse_puzzles(None, None, None, page=1, page_size=1)["total"] if puzzle_service.backend_ready() else 0,
     )
 
 @app.route("/api/client/registration/request", methods=["POST"])
@@ -5302,6 +5303,44 @@ def api_admin_puzzle_delete():
     save_data(data)
     return jsonify({"ok": True})
 
+@app.route("/api/admin/puzzle/browse")
+def api_admin_puzzle_browse():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    theme = request.args.get("theme") or None
+    difficulty = request.args.get("difficulty") or None
+    search = request.args.get("search") or None
+    try:
+        page = int(request.args.get("page") or 1)
+    except ValueError:
+        page = 1
+    result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page)
+    return jsonify({"ok": True, **result})
+
+@app.route("/api/admin/puzzle/assign", methods=["POST"])
+def api_admin_puzzle_assign():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = body.get("puzzle_id")
+    note = (body.get("note") or "").strip()
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+    puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
+    if not puzzle:
+        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+    data = load_data()
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    puzzle_service.assign_puzzle(puzzle_id, idx, note)
+    title = f"🧩 Puzzle envoyé — {puzzle.get('theme') or puzzle.get('difficulty') or ''}".strip(" —")
+    text = note or "Ton coach t'a envoyé un puzzle à résoudre."
+    entry = add_student_feedback(data, idx, title, text, kind="puzzle", linked_type="puzzle", linked_id=puzzle_id)
+    save_data(data)
+    return jsonify({"ok": True, "feedback": entry})
+
 @app.route("/api/client/puzzle/list")
 def api_client_puzzle_list():
     data, user, resp, code = require_client_json()
@@ -5358,11 +5397,15 @@ def api_client_puzzle_solve():
     body = request.get_json(force=True, silent=True) or {}
     puzzle_id = body.get("puzzle_id")
     success = bool(body.get("success"))
+    try:
+        duration_seconds = int(body.get("duration_seconds") or 0) or None
+    except (TypeError, ValueError):
+        duration_seconds = None
     if puzzle_service.backend_ready():
         puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
         if not puzzle:
             return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
-        result = puzzle_service.record_attempt(user["id"], puzzle_id, success, puzzle.get("difficulty"), PUZZLE_XP_BY_DIFFICULTY)
+        result = puzzle_service.record_attempt(user["id"], puzzle_id, success, puzzle.get("difficulty"), PUZZLE_XP_BY_DIFFICULTY, duration_seconds)
         return jsonify({"ok": True, **result})
     idx = user.get("student_index")
     if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):

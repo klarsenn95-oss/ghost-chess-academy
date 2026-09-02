@@ -316,7 +316,9 @@ body{padding:8px 8px 72px!important}
 .puzzle-preview{background:#0a0a1a;border:1px solid #ffffff14;border-radius:16px;padding:12px}
 .puzzle-preview-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:11px}
 .puzzle-list{margin-top:16px;border-top:1px solid #ffffff0e;padding-top:10px}
-@media(max-width:760px){.puzzle-editor-grid{grid-template-columns:1fr}}
+.puzzle-browse-filters{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:8px;align-items:center}
+.puzzle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #ffffff0e}
+@media(max-width:760px){.puzzle-editor-grid{grid-template-columns:1fr}.puzzle-browse-filters{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -598,6 +600,20 @@ body{padding:8px 8px 72px!important}
 
   <div class="card full cc-section" id="puzzles">
     <div class="ttl">🧩 Puzzles</div>
+    <div class="section-note">Parcours la banque de {{ '{:,}'.format(puzzle_bank_total).replace(',', ' ') if puzzle_bank_total else 'milliers de' }} puzzles et envoie-en un précis à un élève, avec un mot optionnel. L'élève reçoit une notification qui ouvre directement ce puzzle, et vous pouvez échanger dessus comme pour n'importe quel feedback.</div>
+    <div class="puzzle-browse-filters">
+      <select class="fi" id="pzb-student">{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }}</option>{% endfor %}</select>
+      <select class="fi" id="pzb-theme"><option value="">Tous les thèmes</option>{% for t in puzzle_themes %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+      <select class="fi" id="pzb-difficulty"><option value="">Toutes difficultés</option>{% for d in puzzle_difficulties %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+      <input class="fi" id="pzb-search" placeholder="Rechercher un titre…">
+      <button class="btn secondary" type="button" onclick="browsePuzzles(1)">🔎 Rechercher</button>
+    </div>
+    <input class="fi" id="pzb-note" placeholder="Mot pour l'élève (optionnel) — envoyé avec chaque puzzle sélectionné" style="margin-top:8px">
+    <div class="puzzle-list" id="pzb-results" style="margin-top:10px"></div>
+    <div class="actions" id="pzb-pagination" style="justify-content:center;margin-top:8px"></div>
+    <span class="muted" id="pzb-msg"></span>
+
+    <div class="ttl" style="margin-top:22px">Créer un puzzle manuel</div>
     <div class="section-note">Colle une position de départ (FEN, copiable depuis Lichess/Chess.com) et les coups solution en notation SAN séparés par des espaces (ex. <code>Qxd5 Bxd5 Rxd5</code>). Utilise l'aperçu pour rejouer le puzzle et vérifier qu'il est correct avant de l'enregistrer.</div>
     <div class="puzzle-editor-grid">
       <div>
@@ -709,6 +725,57 @@ async function deletePuzzle(puzzle_id){
   const d = await postJSON('/api/admin/puzzle/delete', {puzzle_id});
   if(d.ok) location.reload(); else alert(d.error || 'Erreur.');
 }
+
+let pzbPage = 1;
+async function browsePuzzles(page){
+  pzbPage = page || 1;
+  const msg = document.getElementById('pzb-msg');
+  const results = document.getElementById('pzb-results');
+  msg.textContent = 'Recherche…';
+  const params = new URLSearchParams({
+    theme: document.getElementById('pzb-theme').value,
+    difficulty: document.getElementById('pzb-difficulty').value,
+    search: document.getElementById('pzb-search').value.trim(),
+    page: pzbPage,
+  });
+  const r = await fetch('/api/admin/puzzle/browse?' + params.toString());
+  const d = await r.json();
+  if(!d.ok){ msg.textContent = d.error || 'Erreur.'; results.innerHTML = ''; return; }
+  msg.textContent = `${d.total} puzzle(s) trouvé(s).`;
+  if(!d.puzzles.length){
+    results.innerHTML = '<div class="muted">Aucun puzzle pour ces filtres.</div>';
+  } else {
+    results.innerHTML = d.puzzles.map(p => `
+      <div class="puzzle-row">
+        <span><b>${p.title || (p.themes[0] || 'Puzzle')}</b><br><span class="muted">${(p.themes||[]).join(', ')} · ${p.difficulty || '?'} · ${p.rating || '?'} elo</span></span>
+        <button class="btn secondary tiny" type="button" onclick="sendPuzzleTo('${p.id}', this)">📤 Envoyer</button>
+      </div>`).join('');
+  }
+  const totalPages = Math.max(1, Math.ceil(d.total / d.page_size));
+  const pag = document.getElementById('pzb-pagination');
+  pag.innerHTML = '';
+  if(totalPages > 1){
+    const prev = document.createElement('button');
+    prev.className = 'btn secondary tiny'; prev.textContent = '◀'; prev.disabled = pzbPage <= 1;
+    prev.onclick = () => browsePuzzles(pzbPage - 1);
+    const info = document.createElement('span');
+    info.className = 'muted'; info.style.margin = '0 10px'; info.textContent = `Page ${pzbPage}/${totalPages}`;
+    const next = document.createElement('button');
+    next.className = 'btn secondary tiny'; next.textContent = '▶'; next.disabled = pzbPage >= totalPages;
+    next.onclick = () => browsePuzzles(pzbPage + 1);
+    pag.appendChild(prev); pag.appendChild(info); pag.appendChild(next);
+  }
+}
+async function sendPuzzleTo(puzzle_id, btn){
+  const student_index = document.getElementById('pzb-student').value;
+  if(student_index === ''){ alert('Choisis un élève.'); return; }
+  const note = document.getElementById('pzb-note').value.trim();
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  const d = await postJSON('/api/admin/puzzle/assign', {puzzle_id, student_index, note});
+  btn.textContent = d.ok ? '✅ Envoyé' : (d.error || 'Erreur');
+  if(!d.ok) btn.disabled = false;
+}
+if(document.getElementById('pzb-results')) browsePuzzles(1);
 </script>
 <script>
 const $ = (id)=>document.getElementById(id);

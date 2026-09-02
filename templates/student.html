@@ -1089,7 +1089,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 <div id="tab-puzzles" class="s-tab-content">
   <div class="s-section">
     <div class="s-section-title">🧩 Puzzles</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">
       <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:#fbbf24">{{ puzzle_stats.xp }}</div>
         <div style="font-size:10px;color:#444;margin-top:2px">XP</div>
@@ -1106,6 +1106,10 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div style="font-size:22px;font-weight:700;color:#93c5fd">{{ puzzle_stats.attempts_count }}</div>
         <div style="font-size:10px;color:#444;margin-top:2px">Tentatives</div>
       </div>
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#c084fc">{{ puzzle_stats.avg_duration_seconds and (puzzle_stats.avg_duration_seconds ~ 's') or '—' }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Temps moyen</div>
+      </div>
     </div>
     {% if puzzle_stats.by_theme %}
     <div class="s-section-title">Performance par thème</div>
@@ -1116,7 +1120,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <div style="flex:1;height:8px;background:#151528;border-radius:999px;overflow:hidden">
         <span style="display:block;height:100%;width:{{ t.rate }}%;background:{% if t.rate < 50 %}#f87171{% elif t.rate < 75 %}#fbbf24{% else %}#4ade80{% endif %};border-radius:999px"></span>
       </div>
-      <span style="width:90px;font-size:11px;color:#666;text-align:right">{{ t.rate }}% · {{ t.solved }}/{{ t.attempts }}</span>
+      <span style="width:120px;font-size:11px;color:#666;text-align:right">{{ t.rate }}% · {{ t.solved }}/{{ t.attempts }}{% if t.avg_duration_seconds %} · {{ t.avg_duration_seconds }}s{% endif %}</span>
     </div>
     {% endfor %}
     {% else %}

@@ -38,8 +38,27 @@ create table if not exists public.ghost_puzzle_attempts (
   puzzle_id uuid not null references public.ghost_puzzles(id) on delete cascade,
   success boolean not null,
   xp_awarded integer not null default 0,
+  duration_seconds integer,
   created_at timestamptz not null default now()
 );
+
+-- Ajouté après coup pour le chronométrage : sûr à relancer même si la table
+-- existe déjà (add column if not exists).
+alter table public.ghost_puzzle_attempts add column if not exists duration_seconds integer;
+
+-- Table d'envoi de puzzle coach → élève, pour "Puzzles" dans le Centre de
+-- commandement : parcourir la banque et envoyer un puzzle précis à un élève,
+-- avec un mot du coach. Les échanges/commentaires réutilisent le système de
+-- feedback existant (client_feedback dans le blob JSON), pas une nouvelle
+-- table de messagerie.
+create table if not exists public.ghost_puzzle_assignments (
+  id uuid primary key default gen_random_uuid(),
+  puzzle_id uuid not null references public.ghost_puzzles(id) on delete cascade,
+  student_index integer not null,
+  coach_note text,
+  created_at timestamptz not null default now()
+);
+create index if not exists ghost_puzzle_assignments_student_idx on public.ghost_puzzle_assignments (student_index);
 
 create index if not exists ghost_puzzle_attempts_user_idx on public.ghost_puzzle_attempts (user_id);
 
@@ -52,5 +71,6 @@ create unique index if not exists ghost_puzzle_attempts_one_reward_idx
 
 alter table public.ghost_puzzles enable row level security;
 alter table public.ghost_puzzle_attempts enable row level security;
+alter table public.ghost_puzzle_assignments enable row level security;
 -- Le backend Flask utilise la SERVICE ROLE KEY côté serveur (bypass RLS).
 -- Le navigateur ne touche jamais directement ces tables.
