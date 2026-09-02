@@ -84,77 +84,16 @@
     <div class="yt-mini"><div id="yt-player"></div></div>
   </section>
 
-<script src="https://www.youtube.com/iframe_api">
-
-// V37 — fix scroll infini : la mesure neutralise TOUTE règle min-height basée sur vh
-// dans le document embarqué (pas seulement body/html) avant de lire scrollHeight.
-// Sans ça, un élément comme `.main{min-height:100vh}` grandit avec l'iframe, ce qui
-// fait grandir la mesure au tick suivant, qui fait grandir l'iframe encore, etc.
-// (boucle de rétroaction = croissance infinie observée par l'utilisateur).
-(function(){
-  const mobile = () => matchMedia('(max-width: 860px)').matches;
-  function measureContentHeight(d){
-    let neutralizer = d.getElementById('__ghostMeasureNeutralizer');
-    if(!neutralizer){
-      neutralizer = d.createElement('style');
-      neutralizer.id = '__ghostMeasureNeutralizer';
-      // V38 hardening: `min-height:0` alone missed pages whose body/wrapper uses a
-      // FIXED `height:100vh` (e.g. static/style.css's `body{height:100vh}`, loaded
-      // by nearly every embedded page). A fixed vh height is just as capable of
-      // feeding the runaway loop as min-height, so both are neutralized here.
-      // V38 hardening: `min-height:0` alone missed pages whose body/wrapper uses a
-      // FIXED `height:100vh` (e.g. static/style.css's `body{height:100vh}`, loaded
-      // by nearly every embedded page). A fixed vh height is just as capable of
-      // feeding the runaway loop as min-height, so both are neutralized here.
-      neutralizer.textContent = '*{min-height:0 !important;height:auto !important;}';
-      (d.head || d.documentElement).appendChild(neutralizer);
-    }
-    neutralizer.disabled = false;
-    const body = d.body, html = d.documentElement;
-    const h = Math.max(
-      body ? body.scrollHeight : 0,
-      body ? body.offsetHeight : 0,
-      html ? html.scrollHeight : 0,
-      html ? html.offsetHeight : 0
-    );
-    neutralizer.disabled = true;
-    return h;
-  }
-  function resizeDeep(){
-    if(!frame) return;
-    try{
-      const d = frame.contentDocument || frame.contentWindow.document;
-      if(!d || !d.body) return;
-      const measured = measureContentHeight(d);
-      const target = Math.min(
-        Math.max(window.innerHeight || 800, measured) + (mobile() ? 96 : 48),
-        8000
-      );
-      const current = parseInt(frame.style.height, 10) || 0;
-      // Hysteresis: ne réécrit le style que si l'écart est réel, pour éviter de
-      // provoquer un reflow forcé à chaque tick sans raison.
-      if(Math.abs(target - current) > 24){
-        frame.style.height = target + 'px';
-        const fw = document.getElementById('frameWrap');
-        if(fw){ fw.style.minHeight = target + 'px'; fw.style.overflow = 'visible'; }
-      }
-      if(mobile()){
-        document.documentElement.style.overflowY = 'auto';
-        document.body.style.overflowY = 'auto';
-        const sm = document.querySelector('.shell-main');
-        if(sm){ sm.style.height = 'auto'; sm.style.overflow = 'visible'; }
-      }
-    }catch(e){}
-  }
-  window.__ghostResizeDeep = resizeDeep;
-  setInterval(resizeDeep, 4000);
-  window.addEventListener('load', resizeDeep);
-  window.addEventListener('resize', resizeDeep, {passive:true});
-  window.addEventListener('orientationchange', ()=>setTimeout(resizeDeep,500), {passive:true});
-})();
-
-</script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
+// V40 cleanup — this `<script src="...">` tag used to also carry ~80 lines of
+// inline resize logic (resizeDeep/measureContentHeight). A `<script>` element
+// with a `src` attribute never executes its inline text content (browsers fetch
+// and run the external file only) — so that entire block was silently dead code
+// since it was first written, on every version of this page. The resize/scroll
+// fix actually running is `enforceFrameScroll`/`resizeFrameToContent`/
+// `settleFrameSize` below. Removed rather than left in place to avoid the next
+// person (human or Claude) spending an hour debugging a fix that can never run.
 
 
 const TACTICS = [
@@ -392,12 +331,18 @@ function enforceFrameScroll(){
     if(!d) return;
     const st = d.createElement('style');
     st.id = 'ghost-shell-scroll-fix';
+    // V40 — retiré : `.main{min-height:100vh}` et `.page.active{min-height:100vh}`
+    // forçaient CHAQUE page embarquée à occuper au moins la hauteur de l'iframe.
+    // Combiné à la mesure ci-dessous (qui inclut alors cette même hauteur), ça
+    // formait une boucle qui ne pouvait que grandir ou stagner, jamais rétrécir
+    // pour une page courte (ex. le menu compact du Centre de commandement) — la
+    // cause du "grand vide scrollable en bas" et du scroll qui grandit sans fin.
     st.textContent = `
-      html, body { height:auto !important; min-height:100% !important; overflow:visible !important; }
-      body { padding-bottom:92px !important; background:transparent !important; }
-      .main { height:auto !important; min-height:100vh !important; overflow:visible !important; }
-      .page.active { min-height:100vh !important; padding-bottom:104px !important; }
-      .page-frame-safe, .rp-wrap, .live-wrap, .ex-wrap, .wp-wrap, .bk-wrap, .tc-wrap, .rr-wrap, .s-main, .rp-wrap, .bk-wrap { padding-bottom:112px !important; }
+      html, body { height:auto !important; min-height:0 !important; overflow:visible !important; }
+      body { padding-bottom:24px !important; background:transparent !important; }
+      .main { height:auto !important; min-height:0 !important; overflow:visible !important; }
+      .page.active { padding-bottom:24px !important; }
+      .page-frame-safe, .rp-wrap, .live-wrap, .ex-wrap, .wp-wrap, .bk-wrap, .tc-wrap, .rr-wrap, .s-main, .rp-wrap, .bk-wrap { padding-bottom:24px !important; }
       .modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(2,2,10,.58)!important;filter:none!important;z-index:999999!important;overflow:auto!important;padding:64px 20px 160px!important;align-items:flex-start!important;}
       .modal-overlay.open{display:flex!important;}
       .modal-overlay:not(.open){display:none!important;}
@@ -416,10 +361,16 @@ function resizeFrameToContent(){
   try{
     const d = frame.contentDocument || frame.contentWindow.document;
     if(!d) return;
-    const candidates = [d.documentElement.scrollHeight, d.body.scrollHeight, d.body.offsetHeight, d.documentElement.offsetHeight];
-    const h = Math.max(720, ...candidates.filter(Boolean)) + 96;
+    // V40 — `document.documentElement.scrollHeight`/`offsetHeight` is defined by
+    // the browser to be at least the CURRENT viewport height (here: the iframe's
+    // own current rendered height), so including it made this measurement
+    // self-referential: once the iframe grew, it could never read back a smaller
+    // value, even for a much shorter page. `body.scrollHeight`/`offsetHeight`
+    // reflect actual content only — use those exclusively.
+    const candidates = [d.body.scrollHeight, d.body.offsetHeight];
+    const h = Math.max(200, ...candidates.filter(Boolean)) + 40;
     frame.style.height = h + 'px';
-  }catch(e){ frame.style.height = '1200px'; }
+  }catch(e){ frame.style.height = '600px'; }
 }
 function settleFrameSize(){
   enforceFrameScroll();
@@ -553,30 +504,25 @@ document.getElementById('shuffleBtn').addEventListener('click',()=>{
 });
 window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo();}catch(e){} } }, {once:true});
 
-// V30 mobile stabilizer: right after navigating on phones, resize a few times in
-// quick succession so the menu/scroll stay reliable without waiting for the next
-// interval tick. Delegates the actual measurement to the shared resizeDeep below
-// (see V37) to avoid duplicating (and re-breaking) the anti-runaway-growth logic.
+// V40 — mobile extras only: navigation/resize resizing itself is already handled
+// by settleFrameSize (see frame 'load' listener and the window 'resize' listener
+// above, both wired to the real resizeFrameToContent). This just adds a periodic
+// safety-net refresh on phones (content can change height without a navigation,
+// e.g. an accordion) and scrolls back to top after tapping a nav link.
 (function(){
   const isMobile = () => window.matchMedia('(max-width: 820px)').matches;
   let mobileHeightTimer = null;
-  function hardResizeFrame(){ if(window.__ghostResizeDeep) window.__ghostResizeDeep(); }
-  function bindMobileScrollFix(){
+  function bindMobileRefresh(){
     clearInterval(mobileHeightTimer);
-    hardResizeFrame();
-    [80,250,600,1200,2200,4200].forEach(ms=>setTimeout(hardResizeFrame,ms));
-    if(isMobile()) mobileHeightTimer = setInterval(hardResizeFrame, 4000);
+    if(isMobile()) mobileHeightTimer = setInterval(resizeFrameToContent, 4000);
   }
-  if(frame){ frame.addEventListener('load', bindMobileScrollFix); }
-  window.addEventListener('resize', bindMobileScrollFix, {passive:true});
-  window.addEventListener('orientationchange', ()=>setTimeout(bindMobileScrollFix,450), {passive:true});
   document.querySelectorAll('.shell-link').forEach(btn=>{
     btn.addEventListener('touchend', ()=>setTimeout(()=>{
       try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
-      bindMobileScrollFix();
     },120), {passive:true});
   });
-  bindMobileScrollFix();
+  bindMobileRefresh();
+  window.addEventListener('resize', bindMobileRefresh, {passive:true});
 })();
 
 </script>
