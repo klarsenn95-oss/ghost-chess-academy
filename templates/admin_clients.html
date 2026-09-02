@@ -281,6 +281,20 @@ body{padding:8px 8px 72px!important}
 .included-meter{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin-top:6px}
 .included-meter span{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#fbbf24);border-radius:999px}
 @media(max-width:980px){.included-row{grid-template-columns:1fr}}
+/* V37 — liste de contacts (messagerie) : un élève par ligne, non-lus en évidence */
+.contact-list{display:flex;flex-direction:column;gap:2px}
+.contact-row{display:grid;grid-template-columns:10px 140px 1fr auto auto;gap:12px;align-items:center;padding:10px 8px;border-radius:12px;text-decoration:none;color:inherit}
+.contact-row:hover{background:#ffffff08}
+.contact-row.has-unread{background:#fbbf2410}
+.contact-row.has-unread .contact-name{color:#fff;font-weight:900}
+.contact-dot{width:9px;height:9px;border-radius:50%}
+.contact-dot.red{background:#f87171;box-shadow:0 0 8px #f8717188}
+.contact-dot.green{background:#4ade80}
+.contact-name{font-weight:700;color:#d8d2ef}
+.contact-preview{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:2px 8px;min-width:20px;text-align:center}
+.contact-date{font-size:11px;white-space:nowrap}
+@media(max-width:700px){.contact-row{grid-template-columns:10px 1fr auto;grid-template-areas:"dot name badge" "dot preview preview" "dot date date";row-gap:2px}.contact-preview{grid-area:preview}.contact-date{grid-area:date}}
 /* V37 — vue d'ensemble "à jour / attention / inactif" en tête de dashboard */
 .attention-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .attention-pill{flex:1;min-width:150px;border-radius:16px;padding:12px 16px;font-weight:800;font-size:13px;border:1px solid}
@@ -332,10 +346,26 @@ body{padding:8px 8px 72px!important}
 </div>
 
 <div class="center-nav" aria-label="Navigation rapide centre de commandement">
-  <a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#profile-updates">Profils</a><a href="#telegram-setup">Telegram</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
+  <a href="#messages-inbox">Messages</a><a href="#registration-requests">Inscriptions</a><a href="#manual-code">Codes</a><a href="#profile-updates">Profils</a><a href="#telegram-setup">Telegram</a><a href="#payments">Paiements</a><a href="#games">Parties</a><a href="#homework">Devoirs</a><a href="#appointments">RDV</a><a href="#exercises">Exercices</a><a href="#accounts">Comptes</a>
 </div>
 
 <section class="grid">
+  <div class="card full" id="messages-inbox">
+    <div class="ttl">💬 Messages</div>
+    {% if conversations %}
+    <div class="contact-list">
+      {% for c in conversations %}
+      <a class="contact-row {{ 'has-unread' if c.unread else '' }}" href="/student/{{ c.index }}#echanges">
+        <span class="contact-dot {{ 'red' if c.unread else 'green' }}"></span>
+        <span class="contact-name">{{ c.name }}</span>
+        <span class="contact-preview muted">{{ c.last_text|truncate(60) if c.last_text else 'Aucun message' }}</span>
+        {% if c.unread %}<span class="contact-badge">{{ c.unread }}</span>{% endif %}
+        <span class="contact-date muted">{{ c.last_date }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}<div class="muted">Aucun Ghost pour le moment.</div>{% endif %}
+  </div>
   <div class="card full">
     <div class="ttl" id="included-usage">Socle inclus mensuel</div>
     <div class="section-note">Mets Ã  jour les jauges visibles par chaque Ghost : parties analysÃ©es et temps standard inclus dans lâ€™inscription. Les options individuelles restent gÃ©rÃ©es dans le panneau Paiements.</div>
@@ -623,7 +653,7 @@ document.addEventListener('DOMContentLoaded', function(){
     card.appendChild(controls);
   });
   const cards = Array.from(document.querySelectorAll('section.grid > .card.full, section.grid > .card[id]'));
-  const keepOpenIds = new Set(['registration-requests', 'manual-code', 'profile-updates', 'telegram-setup']);
+  const keepOpenIds = new Set(['registration-requests', 'manual-code', 'profile-updates', 'telegram-setup', 'messages-inbox']);
   cards.forEach(function(card, index){
     if(card.classList.contains('cc-panel')) return;
     const ttl = card.querySelector(':scope > .ttl');

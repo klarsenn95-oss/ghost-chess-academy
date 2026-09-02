@@ -2088,6 +2088,35 @@ def get_user_payment_state(user):
         "active_plan_status": active_status,
     }
 
+def student_conversation_summary(s):
+    """Résumé 'dernier message + non-lus' pour la liste de contacts du Centre de
+    commandement (V37) : évite de forcer le coach à ouvrir chaque fiche pour savoir
+    qui lui a écrit."""
+    unread = 0
+    latest_dt = None
+    latest_text = ""
+    for f in s.get("client_feedback", []):
+        for r in f.get("replies", []):
+            if not r.get("read_by_coach", True):
+                unread += 1
+            try:
+                dt = datetime.strptime(r.get("date", ""), "%d/%m/%Y %H:%M")
+            except Exception:
+                dt = None
+            if dt and (latest_dt is None or dt > latest_dt):
+                latest_dt, latest_text = dt, r.get("text", "")
+        try:
+            dt = datetime.strptime(f.get("date", ""), "%d/%m/%Y %H:%M")
+        except Exception:
+            dt = None
+        if dt and (latest_dt is None or dt > latest_dt):
+            latest_dt, latest_text = dt, (f.get("text") or f.get("title") or "")
+    return {
+        "unread": unread,
+        "last_text": latest_text,
+        "last_date": latest_dt.strftime("%d/%m %H:%M") if latest_dt else "",
+    }
+
 def add_student_feedback(data, student_index, title, text, kind="feedback", linked_type="manual", linked_id=None, image_url="", position_fen="", pgn="", tags=None, priority="normal", action_required=False, attachments=None):
     if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
         return None
@@ -3611,9 +3640,17 @@ def admin_clients():
             row["student_name"] = row.get("request_name") or student_name_from_index(data, row.get("student_index"))
         payment_logs.append(row)
     codes = [enrich_registration_code(data, c) for c in data.get("registration_codes", [])]
+    conversations = sorted(
+        (
+            {"index": s["_index"], "name": s.get("name", "Ghost"), **student_conversation_summary(s)}
+            for s in students
+        ),
+        key=lambda c: (-c["unread"], c["last_date"] or ""),
+    )
     return render_template(
         "admin_clients.html",
         students=students,
+        conversations=conversations,
         users=payment_users,
         all_users=users,
         included_users=users,
