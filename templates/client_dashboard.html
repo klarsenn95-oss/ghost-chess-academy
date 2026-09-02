@@ -111,6 +111,10 @@
 .pz-move-list{display:flex;flex-wrap:wrap;gap:6px;min-height:32px}
 .pz-move-list span{border:1px solid #ffffff1c;background:#ffffff08;border-radius:8px;padding:4px 9px;font-size:12px;font-family:var(--font-mono,monospace)}
 .pz-solver-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.pz-replay{margin-top:16px;padding-top:14px;border-top:1px solid #ffffff0e}
+#pz-timer{color:#c4b5fd}
+@keyframes ghHighlightFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px #fbbf24aa}}
+.highlight-flash{animation:ghHighlightFlash 1.8s ease}
 @media(max-width:760px){.pz-solver-grid{grid-template-columns:1fr}}
 /* V37 — conversation continue au lieu de cartes isolées par sujet */
 .chat-thread{display:flex;flex-direction:column;gap:4px}
@@ -365,6 +369,7 @@
       <div class="pz-solver-head">
         <button class="btn secondary tiny" type="button" onclick="exitPuzzleSolver()">← Retour aux thèmes</button>
         <span class="pill" id="pz-solver-theme"></span>
+        <span class="pill" id="pz-timer">⏱ 0:00</span>
         <span id="pz-solver-status" class="pz-status"></span>
       </div>
       <div class="pz-solver-grid">
@@ -375,6 +380,13 @@
           <div class="pz-solver-actions">
             <button class="btn secondary tiny" type="button" onclick="giveUpPuzzle()" id="pz-giveup-btn">Voir la solution</button>
             <button class="btn tiny" type="button" onclick="nextPuzzle()" id="pz-next-btn" style="display:none">Puzzle suivant ▶</button>
+          </div>
+          <div class="pz-replay" id="pz-replay" style="display:none">
+            <div class="pz-solver-actions">
+              <button class="btn secondary tiny" type="button" onclick="pzReplayStepFn(-1)">◀ Coup précédent</button>
+              <button class="btn secondary tiny" type="button" onclick="pzReplayStepFn(1)">Coup suivant ▶</button>
+            </div>
+            <div class="muted small" id="pz-replay-status" style="margin-top:6px">Revois les coups du puzzle.</div>
           </div>
         </div>
       </div>
@@ -387,7 +399,7 @@
     <div class="card full"><div class="ttl">♟ Mes parties envoyées</div>{% if student and student.client_games %}{% for g in student.client_games %}<div class="item game-card"><b>{{ g.url or 'Position / analyse envoyée' }}</b> <span class="badge warn">{{ g.status or 'nouveau' }}</span><div class="date">{{ g.date }}</div>{% if g.note %}<div>{{ g.note }}</div>{% endif %}{% if g.url %}<div class="tools"><a class="tool" href="{{ g.url }}" target="_blank">Ouvrir lien</a></div>{% endif %}{% if g.position_fen %}<div class="fen">{{ g.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(g.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ g.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}{% if g.pgn %}<div class="fen">{{ g.pgn[:500] }}{% if g.pgn|length > 500 %}…{% endif %}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN</a><button class="tool" onclick="copyText(`{{ g.pgn|replace('`','') }}`)">Copier PGN</button></div>{% endif %}{% if g.attachments %}<div class="attach-list">{% for a in g.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}</div>{% endfor %}{% else %}<div class="empty">Aucune partie envoyée pour le moment.</div>{% endif %}</div>
   </section>
   <section id="tab-homework" class="panel">
-<div class="card full"><div class="ttl">📚 Mes devoirs</div>{% if student and student.devoirs %}{% for d in student.devoirs %}{% if d.type == 'puzzle' %}<div class="item"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.solved else 'warn' }}">{{ '✅ Résolu' if d.solved else d.status }}</span><div class="date">{{ d.created_at }}{% if d.rating %} · {{ d.rating }} elo{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}<div class="tools"><button class="tool" onclick="openAssignedPuzzle('{{ d.puzzle_id }}')">🧩 {{ 'Rejouer le puzzle' if d.solved else 'Ouvrir le puzzle' }}</button></div></div>{% else %}<div class="item"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.status in ['✅ Corrigé','✅ Fait'] else 'warn' }}">{{ d.status }}</span><div class="date">{% if d.due %}À rendre : {{ d.due }}{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}{% if d.attachments %}<div class="attach-list">{% for a in d.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img class="preview-img" src="{{ a }}" alt="Image du devoir" loading="lazy"></a>{% else %}<a class="attach" href="{{ a }}" target="_blank">📎 consigne {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% if d.student_submission %}<div class="submission"><b>Ton rendu</b><div class="date">{{ d.student_submission.date }}</div><div>{{ d.student_submission.text }}</div>{% if d.student_submission.url %}<a class="attach" href="{{ d.student_submission.url }}" target="_blank">Lien rendu</a>{% endif %}{% if d.student_submission.image_url and is_image_url(d.student_submission.image_url) %}<img class="preview-img" src="{{ d.student_submission.image_url }}" onerror="this.remove()">{% endif %}{% if d.student_submission.attachments %}<div class="attach-list">{% for a in d.student_submission.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}</div>{% endif %}{% if d.coach_correction %}<div class="coach-reply"><b>Correction coach</b><div>{{ d.coach_correction.text }}</div>{% if d.coach_correction.image_url and is_image_url(d.coach_correction.image_url) %}<img class="preview-img" src="{{ d.coach_correction.image_url }}" onerror="this.remove()">{% endif %}{% if d.coach_correction.attachments %}<div class="attach-list">{% for a in d.coach_correction.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 correction {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% if d.coach_correction.position_fen %}<div class="fen">{{ d.coach_correction.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(d.coach_correction.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ d.coach_correction.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}</div>{% endif %}<div class="submission"><textarea class="ta" id="hw-text-{{ loop.index0 }}" placeholder="Ta réponse / ce que tu as compris…"></textarea><input class="fi" id="hw-url-{{ loop.index0 }}" placeholder="Lien optionnel (partie, étude Lichess…)"><input class="fi" type="file" id="hw-file-{{ loop.index0 }}" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'hw-file-count-{{ loop.index0 }}')"><div class="file-count" id="hw-file-count-{{ loop.index0 }}"></div><button class="btn" onclick="submitHomework({{ loop.index0 }})" {% if payment.restricted %}disabled{% endif %}>📤 Rendre / mettre à jour</button><span class="msg" id="hw-msg-{{ loop.index0 }}"></span></div></div>{% endif %}{% endfor %}{% else %}<div class="empty">Aucun devoir donné pour le moment.</div>{% endif %}</div>
+<div class="card full"><div class="ttl">📚 Mes devoirs</div>{% if student and student.devoirs %}{% for d in student.devoirs %}{% if d.type == 'puzzle' %}<div class="item devoir-puzzle-card" id="devoir-puzzle-{{ d.puzzle_id }}" data-puzzle-id="{{ d.puzzle_id }}"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.solved else 'warn' }}" data-devoir-badge>{{ '✅ Résolu' if d.solved else d.status }}</span><div class="date">{{ d.created_at }}{% if d.rating %} · {{ d.rating }} elo{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}<div class="tools"><button class="tool" onclick="openAssignedPuzzle('{{ d.puzzle_id }}')" data-devoir-open-btn>🧩 {{ 'Rejouer le puzzle' if d.solved else 'Ouvrir le puzzle' }}</button>{% if d.feedback_id %}<button class="tool" onclick="openPuzzleDiscussion('{{ d.feedback_id }}')">💬 Discuter avec le coach</button>{% endif %}</div></div>{% else %}<div class="item"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.status in ['✅ Corrigé','✅ Fait'] else 'warn' }}">{{ d.status }}</span><div class="date">{% if d.due %}À rendre : {{ d.due }}{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}{% if d.attachments %}<div class="attach-list">{% for a in d.attachments %}{% if is_image_url(a) %}<a href="{{ a }}" target="_blank"><img class="preview-img" src="{{ a }}" alt="Image du devoir" loading="lazy"></a>{% else %}<a class="attach" href="{{ a }}" target="_blank">📎 consigne {{ loop.index }}</a>{% endif %}{% endfor %}</div>{% endif %}{% if d.student_submission %}<div class="submission"><b>Ton rendu</b><div class="date">{{ d.student_submission.date }}</div><div>{{ d.student_submission.text }}</div>{% if d.student_submission.url %}<a class="attach" href="{{ d.student_submission.url }}" target="_blank">Lien rendu</a>{% endif %}{% if d.student_submission.image_url and is_image_url(d.student_submission.image_url) %}<img class="preview-img" src="{{ d.student_submission.image_url }}" onerror="this.remove()">{% endif %}{% if d.student_submission.attachments %}<div class="attach-list">{% for a in d.student_submission.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}</div>{% endif %}{% if d.coach_correction %}<div class="coach-reply"><b>Correction coach</b><div>{{ d.coach_correction.text }}</div>{% if d.coach_correction.image_url and is_image_url(d.coach_correction.image_url) %}<img class="preview-img" src="{{ d.coach_correction.image_url }}" onerror="this.remove()">{% endif %}{% if d.coach_correction.attachments %}<div class="attach-list">{% for a in d.coach_correction.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 correction {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% if d.coach_correction.position_fen %}<div class="fen">{{ d.coach_correction.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(d.coach_correction.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ d.coach_correction.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}</div>{% endif %}<div class="submission"><textarea class="ta" id="hw-text-{{ loop.index0 }}" placeholder="Ta réponse / ce que tu as compris…"></textarea><input class="fi" id="hw-url-{{ loop.index0 }}" placeholder="Lien optionnel (partie, étude Lichess…)"><input class="fi" type="file" id="hw-file-{{ loop.index0 }}" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'hw-file-count-{{ loop.index0 }}')"><div class="file-count" id="hw-file-count-{{ loop.index0 }}"></div><button class="btn" onclick="submitHomework({{ loop.index0 }})" {% if payment.restricted %}disabled{% endif %}>📤 Rendre / mettre à jour</button><span class="msg" id="hw-msg-{{ loop.index0 }}"></span></div></div>{% endif %}{% endfor %}{% else %}<div class="empty">Aucun devoir donné pour le moment.</div>{% endif %}</div>
   </section>
 
   <section id="tab-rdv" class="panel">
@@ -402,7 +414,7 @@
       {% if student and student.client_feedback %}
       <div class="chat-thread">
         {% for f in student.client_feedback|reverse %}
-        <div class="chat-msg">
+        <div class="chat-msg" id="feedback-{{ f.id }}">
           <div class="chat-msg-head">
             <b>Coach</b>
             {% if f.title %}<span class="chat-msg-topic">{{ f.title }}</span>{% endif %}
@@ -720,6 +732,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>
 // V41 — Puzzles façon Lichess : plateau interactif, coup à coup, par thème.
 let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '', pzStartTs = 0;
+let pzTimerInterval = null, pzHadMistake = false, pzReplayFen = '', pzPlayedMoves = [], pzReplayStep = 0;
 
 async function openAssignedPuzzle(puzzleId){
   showTab('puzzles');
@@ -727,6 +740,45 @@ async function openAssignedPuzzle(puzzleId){
   document.getElementById('pz-picker').style.display = 'none';
   document.getElementById('pz-solver').style.display = 'block';
   await openPuzzle(puzzleId);
+}
+
+function openPuzzleDiscussion(feedbackId){
+  showTab('feedback');
+  setTimeout(()=>{
+    const el = document.getElementById('feedback-'+feedbackId);
+    if(!el) return;
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.classList.add('highlight-flash');
+    setTimeout(()=>el.classList.remove('highlight-flash'), 1800);
+  }, 60);
+}
+
+function updateDevoirCardSolved(puzzleId){
+  const card = document.querySelector('.devoir-puzzle-card[data-puzzle-id="'+puzzleId+'"]');
+  if(!card) return;
+  const badge = card.querySelector('[data-devoir-badge]');
+  if(badge){ badge.textContent = '✅ Résolu'; badge.classList.remove('warn'); badge.classList.add('ok'); }
+  const openBtn = card.querySelector('[data-devoir-open-btn]');
+  if(openBtn) openBtn.textContent = '🧩 Rejouer le puzzle';
+}
+
+function formatDuration(sec){
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+function startPzTimer(){
+  stopPzTimer();
+  const el = document.getElementById('pz-timer');
+  if(el) el.textContent = '⏱ 0:00';
+  pzTimerInterval = setInterval(()=>{
+    if(!pzStartTs || !el) return;
+    el.textContent = '⏱ ' + formatDuration(Math.floor((Date.now() - pzStartTs) / 1000));
+  }, 1000);
+}
+
+function stopPzTimer(){
+  if(pzTimerInterval){ clearInterval(pzTimerInterval); pzTimerInterval = null; }
 }
 
 async function loadPuzzleThemeCounts(){
@@ -777,6 +829,10 @@ async function openPuzzle(puzzleId){
   pzGame = new Chess(p.fen);
   pzSolution = p.moves || [];
   pzSolutionIdx = 0;
+  pzHadMistake = false;
+  pzReplayFen = p.fen;
+  pzPlayedMoves = [];
+  pzReplayStep = 0;
   const orientation = pzGame.turn() === 'w' ? 'white' : 'black';
   const el = document.getElementById('pz-solver-board');
   if(pzBoard) pzBoard.destroy();
@@ -787,10 +843,13 @@ async function openPuzzle(puzzleId){
   document.getElementById('pz-solver-status').className = 'pz-status';
   document.getElementById('pz-giveup-btn').style.display = '';
   document.getElementById('pz-next-btn').style.display = 'none';
+  document.getElementById('pz-replay').style.display = 'none';
   pzStartTs = Date.now();
+  startPzTimer();
 }
 
 function addMoveToList(san){
+  pzPlayedMoves.push(san);
   const list = document.getElementById('pz-move-list');
   const span = document.createElement('span');
   span.textContent = san;
@@ -808,6 +867,13 @@ function handlePuzzleMove(from, to, promotion){
     pzBoard.flashSquare(to, 'bad');
     document.getElementById('pz-solver-status').textContent = 'Ce n\'est pas le bon coup, réessaie.';
     document.getElementById('pz-solver-status').className = 'pz-status bad';
+    if(!pzHadMistake){
+      // Une erreur casse la "série" même si le puzzle est résolu ensuite —
+      // on enregistre tout de suite une tentative ratée (sans attendre la
+      // fin du puzzle) pour que le calcul de série côté serveur la voie.
+      pzHadMistake = true;
+      postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success: false, mistake_only: true}).catch(()=>{});
+    }
     return;
   }
   pzBoard.setFen(pzGame.fen(), {from, to});
@@ -827,6 +893,7 @@ function handlePuzzleMove(from, to, promotion){
 
 async function finishPuzzle(success){
   pzBoard.setInteractive(false);
+  stopPzTimer();
   document.getElementById('pz-giveup-btn').style.display = 'none';
   document.getElementById('pz-next-btn').style.display = '';
   const duration_seconds = pzStartTs ? Math.max(1, Math.round((Date.now() - pzStartTs) / 1000)) : null;
@@ -836,11 +903,33 @@ async function finishPuzzle(success){
     const streakBit = d.ok && d.streak > 1 ? ` · 🔥 série de ${d.streak}` : '';
     status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP${streakBit}` : `Puzzle résolu !${streakBit}`;
     status.className = 'pz-status good';
+    updateDevoirCardSolved(pzCurrentId);
   } else {
     status.textContent = 'Solution révélée.';
     status.className = 'pz-status bad';
   }
   if(d.ok) updatePuzzleSummary(d.total_xp, d.solved_count || 0, d.streak || 0);
+  pzReplayStep = pzPlayedMoves.length;
+  document.getElementById('pz-replay').style.display = pzPlayedMoves.length ? 'block' : 'none';
+  updatePzReplayStatus();
+}
+
+function pzReplayStepFn(dir){
+  if(!pzPlayedMoves.length) return;
+  pzReplayStep = Math.max(0, Math.min(pzPlayedMoves.length, pzReplayStep + dir));
+  const chess = new Chess(pzReplayFen);
+  let lastMv = null;
+  for(let i = 0; i < pzReplayStep; i++) lastMv = chess.move(pzPlayedMoves[i], {sloppy:true});
+  pzBoard.setFen(chess.fen(), lastMv ? {from: lastMv.from, to: lastMv.to} : null);
+  updatePzReplayStatus();
+}
+
+function updatePzReplayStatus(){
+  const el = document.getElementById('pz-replay-status');
+  if(!el) return;
+  el.textContent = pzReplayStep === 0
+    ? `Position de départ · ${pzPlayedMoves.length} coup(s) joué(s)`
+    : `Après ${pzReplayStep}/${pzPlayedMoves.length} : ${pzPlayedMoves[pzReplayStep - 1]}`;
 }
 
 function giveUpPuzzle(){
@@ -870,6 +959,7 @@ function nextPuzzle(){
 }
 
 function exitPuzzleSolver(){
+  stopPzTimer();
   document.getElementById('pz-solver').style.display = 'none';
   document.getElementById('pz-picker').style.display = '';
   loadPuzzleThemeCounts();

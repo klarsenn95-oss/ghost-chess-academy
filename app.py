@@ -5350,6 +5350,9 @@ def api_admin_puzzle_assign():
         return jsonify({"ok": False, "error": "Élève introuvable."}), 404
     puzzle_service.assign_puzzle(puzzle_id, idx, note)
     theme_label = puzzle.get("theme") or puzzle.get("difficulty") or ""
+    title = f"🧩 Nouveau puzzle — {theme_label}".strip(" —")
+    text = note or "Ton coach t'a envoyé un puzzle à résoudre. Retrouve-le dans tes devoirs."
+    entry = add_student_feedback(data, idx, title, text, kind="homework", linked_type="puzzle_devoir", linked_id=puzzle_id)
     devoir = {
         "id": str(uuid.uuid4()),
         "type": "puzzle",
@@ -5360,12 +5363,10 @@ def api_admin_puzzle_assign():
         "theme": puzzle.get("theme"),
         "difficulty": puzzle.get("difficulty"),
         "rating": puzzle.get("rating"),
+        "feedback_id": entry.get("id") if entry else None,
         "created_at": now_fr(),
     }
     data["students"][idx].setdefault("devoirs", []).insert(0, devoir)
-    title = f"🧩 Nouveau puzzle — {theme_label}".strip(" —")
-    text = note or "Ton coach t'a envoyé un puzzle à résoudre. Retrouve-le dans tes devoirs."
-    entry = add_student_feedback(data, idx, title, text, kind="homework", linked_type="puzzle_devoir", linked_id=puzzle_id)
     save_data(data)
     return jsonify({"ok": True, "feedback": entry, "devoir": devoir})
 
