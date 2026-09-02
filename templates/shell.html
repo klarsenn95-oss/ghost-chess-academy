@@ -86,42 +86,60 @@
 
 <script src="https://www.youtube.com/iframe_api">
 
-// V32: responsive runtime stabilizer. Sur mobile, l'iframe est redimensionnée en continu
-// pour éviter les menus qui semblent ne pas répondre ou les pages impossibles à scroller.
+// V37 — fix scroll infini : la mesure neutralise TOUTE règle min-height basée sur vh
+// dans le document embarqué (pas seulement body/html) avant de lire scrollHeight.
+// Sans ça, un élément comme `.main{min-height:100vh}` grandit avec l'iframe, ce qui
+// fait grandir la mesure au tick suivant, qui fait grandir l'iframe encore, etc.
+// (boucle de rétroaction = croissance infinie observée par l'utilisateur).
 (function(){
   const mobile = () => matchMedia('(max-width: 860px)').matches;
+  function measureContentHeight(d){
+    let neutralizer = d.getElementById('__ghostMeasureNeutralizer');
+    if(!neutralizer){
+      neutralizer = d.createElement('style');
+      neutralizer.id = '__ghostMeasureNeutralizer';
+      neutralizer.textContent = '*{min-height:0 !important;}';
+      (d.head || d.documentElement).appendChild(neutralizer);
+    }
+    neutralizer.disabled = false;
+    const body = d.body, html = d.documentElement;
+    const h = Math.max(
+      body ? body.scrollHeight : 0,
+      body ? body.offsetHeight : 0,
+      html ? html.scrollHeight : 0,
+      html ? html.offsetHeight : 0
+    );
+    neutralizer.disabled = true;
+    return h;
+  }
   function resizeDeep(){
     if(!frame) return;
     try{
       const d = frame.contentDocument || frame.contentWindow.document;
-      if(!d) return;
-      const body = d.body, html = d.documentElement;
-      // Neutraliser min-height:100vh avant de mesurer pour casser la boucle de
-      // rétroaction qui fait grandir la page sans fin.
-      const prevBodyMinH = body ? body.style.minHeight : '';
-      const prevHtmlMinH = html ? html.style.minHeight : '';
-      if(body) body.style.setProperty('min-height','0','important');
-      if(html) html.style.setProperty('min-height','0','important');
-      const h = Math.max(
-        window.innerHeight || 800,
-        body ? body.scrollHeight : 0,
-        body ? body.offsetHeight : 0,
-        html ? html.scrollHeight : 0,
-        html ? html.offsetHeight : 0
-      ) + (mobile() ? 720 : 320);
-      if(body) body.style.minHeight = prevBodyMinH;
-      if(html) html.style.minHeight = prevHtmlMinH;
-      frame.style.height = h + 'px';
-      const fw=document.getElementById('frameWrap');
-      if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
+      if(!d || !d.body) return;
+      const measured = measureContentHeight(d);
+      const target = Math.min(
+        Math.max(window.innerHeight || 800, measured) + (mobile() ? 96 : 48),
+        8000
+      );
+      const current = parseInt(frame.style.height, 10) || 0;
+      // Hysteresis: ne réécrit le style que si l'écart est réel, pour éviter de
+      // provoquer un reflow forcé à chaque tick sans raison.
+      if(Math.abs(target - current) > 24){
+        frame.style.height = target + 'px';
+        const fw = document.getElementById('frameWrap');
+        if(fw){ fw.style.minHeight = target + 'px'; fw.style.overflow = 'visible'; }
+      }
       if(mobile()){
-        document.documentElement.style.overflowY='auto';
-        document.body.style.overflowY='auto';
-        const sm=document.querySelector('.shell-main'); if(sm){ sm.style.height='auto'; sm.style.overflow='visible'; }
+        document.documentElement.style.overflowY = 'auto';
+        document.body.style.overflowY = 'auto';
+        const sm = document.querySelector('.shell-main');
+        if(sm){ sm.style.height = 'auto'; sm.style.overflow = 'visible'; }
       }
     }catch(e){}
   }
-  setInterval(resizeDeep, 1300);
+  window.__ghostResizeDeep = resizeDeep;
+  setInterval(resizeDeep, 4000);
   window.addEventListener('load', resizeDeep);
   window.addEventListener('resize', resizeDeep, {passive:true});
   window.addEventListener('orientationchange', ()=>setTimeout(resizeDeep,500), {passive:true});
@@ -453,7 +471,7 @@ async function pollShellNotifications(){
     if(d.ok) renderShellNotifications(d.notifications||[]);
   }catch(e){}
 }
-setInterval(pollShellNotifications,7000);
+setInterval(pollShellNotifications,25000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollShellNotifications();});
 
 let ytPlayer;
@@ -527,41 +545,19 @@ document.getElementById('shuffleBtn').addEventListener('click',()=>{
 });
 window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo();}catch(e){} } }, {once:true});
 
-// V30 mobile stabilizer: keeps iframe tall enough and makes menu reliable on phones.
+// V30 mobile stabilizer: right after navigating on phones, resize a few times in
+// quick succession so the menu/scroll stay reliable without waiting for the next
+// interval tick. Delegates the actual measurement to the shared resizeDeep below
+// (see V37) to avoid duplicating (and re-breaking) the anti-runaway-growth logic.
 (function(){
   const isMobile = () => window.matchMedia('(max-width: 820px)').matches;
   let mobileHeightTimer = null;
-  function hardResizeFrame(){
-    if(!frame) return;
-    try{
-      const d = frame.contentDocument || frame.contentWindow.document;
-      if(!d) return;
-      // Neutraliser min-height:100vh avant de mesurer : sinon agrandir l'iframe
-      // agrandit le 100vh interne, qui agrandit scrollHeight, qui ré-agrandit
-      // l'iframe au tick suivant -> croissance infinie ("scroll infini").
-      const b = d.body, h_ = d.documentElement;
-      const prevB = b ? b.style.minHeight : '', prevH = h_ ? h_.style.minHeight : '';
-      if(b) b.style.setProperty('min-height','0','important');
-      if(h_) h_.style.setProperty('min-height','0','important');
-      const h = Math.max(
-        window.innerHeight || 720,
-        d.documentElement.scrollHeight || 0,
-        d.body ? d.body.scrollHeight : 0,
-        d.body ? d.body.offsetHeight : 0,
-        d.documentElement.offsetHeight || 0
-      ) + (isMobile()?180:96);
-      if(b) b.style.minHeight = prevB;
-      if(h_) h_.style.minHeight = prevH;
-      frame.style.height = h + 'px';
-      const fw = document.getElementById('frameWrap');
-      if(fw) fw.style.minHeight = Math.min(h, 2600) + 'px';
-    }catch(e){ if(isMobile()) frame.style.height='2200px'; }
-  }
+  function hardResizeFrame(){ if(window.__ghostResizeDeep) window.__ghostResizeDeep(); }
   function bindMobileScrollFix(){
     clearInterval(mobileHeightTimer);
     hardResizeFrame();
     [80,250,600,1200,2200,4200].forEach(ms=>setTimeout(hardResizeFrame,ms));
-    if(isMobile()) mobileHeightTimer = setInterval(hardResizeFrame, 1600);
+    if(isMobile()) mobileHeightTimer = setInterval(hardResizeFrame, 4000);
   }
   if(frame){ frame.addEventListener('load', bindMobileScrollFix); }
   window.addEventListener('resize', bindMobileScrollFix, {passive:true});
@@ -573,49 +569,6 @@ window.addEventListener('pointerdown',()=>{ if(ytPlayer){ try{ytPlayer.playVideo
     },120), {passive:true});
   });
   bindMobileScrollFix();
-})();
-
-
-
-// V32: responsive runtime stabilizer. Sur mobile, l'iframe est redimensionnée en continu
-// pour éviter les menus qui semblent ne pas répondre ou les pages impossibles à scroller.
-(function(){
-  const mobile = () => matchMedia('(max-width: 860px)').matches;
-  function resizeDeep(){
-    if(!frame) return;
-    try{
-      const d = frame.contentDocument || frame.contentWindow.document;
-      if(!d) return;
-      const body = d.body, html = d.documentElement;
-      // Neutraliser min-height:100vh avant de mesurer pour casser la boucle de
-      // rétroaction qui fait grandir la page sans fin.
-      const prevBodyMinH = body ? body.style.minHeight : '';
-      const prevHtmlMinH = html ? html.style.minHeight : '';
-      if(body) body.style.setProperty('min-height','0','important');
-      if(html) html.style.setProperty('min-height','0','important');
-      const h = Math.max(
-        window.innerHeight || 800,
-        body ? body.scrollHeight : 0,
-        body ? body.offsetHeight : 0,
-        html ? html.scrollHeight : 0,
-        html ? html.offsetHeight : 0
-      ) + (mobile() ? 720 : 320);
-      if(body) body.style.minHeight = prevBodyMinH;
-      if(html) html.style.minHeight = prevHtmlMinH;
-      frame.style.height = h + 'px';
-      const fw=document.getElementById('frameWrap');
-      if(fw){ fw.style.minHeight = h + 'px'; fw.style.overflow='visible'; }
-      if(mobile()){
-        document.documentElement.style.overflowY='auto';
-        document.body.style.overflowY='auto';
-        const sm=document.querySelector('.shell-main'); if(sm){ sm.style.height='auto'; sm.style.overflow='visible'; }
-      }
-    }catch(e){}
-  }
-  setInterval(resizeDeep, 1300);
-  window.addEventListener('load', resizeDeep);
-  window.addEventListener('resize', resizeDeep, {passive:true});
-  window.addEventListener('orientationchange', ()=>setTimeout(resizeDeep,500), {passive:true});
 })();
 
 </script>

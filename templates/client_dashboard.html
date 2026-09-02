@@ -456,7 +456,7 @@ async function pollGhostNotifications(){
     if(d.ok) renderGhostNotifications(d.notifications||[]);
   }catch(e){}
 }
-setInterval(pollGhostNotifications,7000);
+setInterval(pollGhostNotifications,25000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollGhostNotifications();});
 function copyText(txt){navigator.clipboard?.writeText(txt); alert('Copié.')}
 async function replyFeedback(id){const el=document.getElementById('reply-'+id);const msg=document.getElementById('reply-msg-'+id);msg.textContent='Envoi…';const d=await postJSON('/api/client/feedback/reply',{feedback_id:id,text:el.value});msg.textContent=d.ok?'Réponse envoyée au coach.':(d.error||'Erreur');if(d.ok)setTimeout(()=>location.reload(),700)}
