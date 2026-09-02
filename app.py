@@ -2298,6 +2298,8 @@ def public_student_payload(student):
         "badge_label": badge_label,
         "delta": delta,
         "devoirs": student.get("devoirs", [])[-20:],
+        "work_plan": student.get("work_plan", {}),
+        "recurring_errors": student.get("recurring_errors", []),
         "workplans": student.get("workplans", [])[-5:],
         "agenda": student.get("agenda", [])[-8:],
         "client_games": student.get("client_games", [])[:20],

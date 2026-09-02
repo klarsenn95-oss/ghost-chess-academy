@@ -79,6 +79,14 @@
 .tab-group:hover{border-color:#a78bfa55}
 .tab-group.active{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#0a0a16;border-color:transparent}
 @media(max-width:760px){.tab-groups{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.tab-group{flex:0 0 auto;white-space:nowrap}}
+.todo-list{display:flex;flex-direction:column;gap:8px}
+.todo-item{display:block;border:1px solid #ffffff16;background:#09091a;border-radius:16px;padding:12px 14px;text-decoration:none;color:#fff}
+.todo-item:hover{border-color:#fbbf2466}
+.todo-item b{display:block;margin-bottom:3px}
+.todo-item .date{display:block;margin-top:4px;font-size:11px;color:#6f6a8f}
+.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.theme-pill{display:inline-flex;align-items:center;border:1px solid #a78bfa55;background:#a78bfa15;color:#c4b5fd;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
+.theme-pill.warn{border-color:#f8717155;background:#f8717115;color:#fca5a5}
 </style>
 </head>
 <body>
@@ -166,6 +174,41 @@
   <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active">
+    <div class="card full home-todo">
+      <div class="ttl">🎯 À faire</div>
+      {% if student and student.client_notifications %}
+        <div class="todo-list">
+        {% for n in student.client_notifications[:5] %}
+          <a class="todo-item" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}')">
+            <b>{{ n.title }}</b>
+            <span class="muted small">{{ n.text|truncate(90) }}</span>
+            <span class="date">{{ n.date }}</span>
+          </a>
+        {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">Rien en attente pour l’instant — tu es à jour. 🎉</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="ttl">⚡ Ta progression</div>
+      <div class="statrow" style="grid-template-columns:1fr 1fr">
+        <div class="stat"><b>{{ student.avg_elo or '—' }}</b><span class="muted">ELO moyen</span></div>
+        <div class="stat"><b style="color:{{ student.badge_color }}">{{ student.badge_label }}</b><span class="muted">{% if student.delta %}{{ '%+d'|format(student.delta) }} sur 4 semaines{% else %}Pas assez d’historique{% endif %}</span></div>
+      </div>
+      <div class="muted small" style="margin-top:12px">Rang : <b style="color:#fff">{{ student.rank.title }}</b> · Île : <b style="color:#fff">{{ student.island.name if student.island else '—' }}</b></div>
+      <a class="btn secondary" style="margin-top:12px" onclick="showTab('elo',document.querySelector(`[onclick*='elo']`))">Voir le détail ELO</a>
+    </div>
+
+    {% if student and (student.work_plan.themes or student.recurring_errors) %}
+    <div class="card">
+      <div class="ttl">🧠 Points à travailler</div>
+      {% if student.work_plan.themes %}<div class="pill-row">{% for t in student.work_plan.themes[:8] %}<span class="theme-pill">{{ t }}</span>{% endfor %}</div>{% endif %}
+      {% if student.recurring_errors %}<div class="muted small" style="margin-top:10px">Erreurs récurrentes suivies :</div><div class="pill-row">{% for e in student.recurring_errors[:8] %}<span class="theme-pill warn">{{ e }}</span>{% endfor %}</div>{% endif %}
+    </div>
+    {% endif %}
+
     <div class="card full">
       <div class="ttl">Actions rapides</div>
       <div class="home-actions">
@@ -175,7 +218,6 @@
         <a class="home-action" href="#rdv" onclick="showTab('rdv')"><b>Demander un RDV</b><span>Créneau, sujet et suivi.</span></a>
       </div>
     </div>
-    <div class="card"><div class="ttl">📚 Devoirs à suivre</div>{% if student and student.devoirs %}{% for d in student.devoirs[:5] %}<div class="item"><b>{{ d.title }}</b> <span class="badge {{ 'ok' if d.status in ['✅ Corrigé','✅ Fait'] else 'warn' }}">{{ d.status }}</span><div class="date">{% if d.due %}À rendre : {{ d.due }}{% endif %}</div>{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}</div>{% endfor %}{% else %}<div class="empty">Aucun devoir visible pour le moment.</div>{% endif %}</div>
     <div class="card"><div class="ttl">🤝 Binômes / coach assigné</div>{% if client_pairs %}<div class="pair-grid">{% for p in client_pairs %}<div class="pair-card"><b>{% if p.type=='mentor' %}🎓{% elif p.type=='rival' %}⚔️{% elif p.type=='project' %}📚{% else %}🤝{% endif %} {{ p.partner }}</b><div class="muted">{{ p.type }}{% if p.note %} · {{ p.note }}{% endif %}</div></div>{% endfor %}</div>{% else %}<div class="empty">Aucun binôme assigné pour le moment. Le coach peut t’en attribuer depuis le centre de commandement.</div>{% endif %}</div>
     <div class="card full"><div class="ttl">💬 Derniers feedbacks</div>{% if student and student.client_feedback %}{% for f in student.client_feedback[:4] %}<div class="feed"><h4>{{ f.title }} {% if f.action_required %}<span class="badge warn">action</span>{% endif %}</h4><div class="date">{{ f.date }} · {{ f.kind }}</div><div>{{ f.text }}</div>{% if f.image_url and is_image_url(f.image_url) %}<img class="preview-img" src="{{ f.image_url }}" onerror="this.remove()">{% endif %}{% if f.attachments %}<div class="attach-list">{% for a in f.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Lichess</a></div>{% endif %}</div>{% endfor %}{% else %}<div class="empty">Aucun feedback coach pour le moment.</div>{% endif %}</div>
   </section>
