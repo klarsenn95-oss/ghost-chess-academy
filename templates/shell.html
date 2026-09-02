@@ -98,7 +98,15 @@
     if(!neutralizer){
       neutralizer = d.createElement('style');
       neutralizer.id = '__ghostMeasureNeutralizer';
-      neutralizer.textContent = '*{min-height:0 !important;}';
+      // V38 hardening: `min-height:0` alone missed pages whose body/wrapper uses a
+      // FIXED `height:100vh` (e.g. static/style.css's `body{height:100vh}`, loaded
+      // by nearly every embedded page). A fixed vh height is just as capable of
+      // feeding the runaway loop as min-height, so both are neutralized here.
+      // V38 hardening: `min-height:0` alone missed pages whose body/wrapper uses a
+      // FIXED `height:100vh` (e.g. static/style.css's `body{height:100vh}`, loaded
+      // by nearly every embedded page). A fixed vh height is just as capable of
+      // feeding the runaway loop as min-height, so both are neutralized here.
+      neutralizer.textContent = '*{min-height:0 !important;height:auto !important;}';
       (d.head || d.documentElement).appendChild(neutralizer);
     }
     neutralizer.disabled = false;
