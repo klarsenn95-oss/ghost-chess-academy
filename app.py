@@ -1191,6 +1191,26 @@ def enrich_students(students):
             start = min(hist_elos) if hist_elos else best
             elo_target_pct = min(100,max(0,int((best-start)/(target-start)*100))) if target!=start else 100
         s["_elo_target_pct"] = elo_target_pct
+        # Classification "à jour / attention / inactif" pour le Centre de commandement.
+        # 'attention' = quelque chose attend une action du coach (devoir rendu, RDV
+        # demandé, réponse élève non lue). 'inactive' = aucune activité pédagogique
+        # jamais enregistrée sur ce profil. Sinon 'ok'.
+        needs_devoir = any(d.get("status") in ("📤 Rendu", "🧑‍🏫 À corriger") for d in s.get("devoirs", []))
+        needs_rdv = any(a.get("status") == "demandé" for a in s.get("client_appointments", []))
+        needs_reply = any(
+            not r.get("read_by_coach", True)
+            for f in s.get("client_feedback", [])
+            for r in f.get("replies", [])
+        )
+        has_activity = bool(
+            s.get("devoirs") or s.get("client_feedback") or s.get("client_games") or s.get("client_appointments")
+        )
+        if needs_devoir or needs_rdv or needs_reply:
+            s["_attention_status"] = "attention"
+        elif not has_activity:
+            s["_attention_status"] = "inactive"
+        else:
+            s["_attention_status"] = "ok"
         result.append(s)
     return result
 
