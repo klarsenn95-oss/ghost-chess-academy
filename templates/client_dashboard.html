@@ -223,7 +223,7 @@
         <div class="stat"><b style="color:{{ student.badge_color }}">{{ student.badge_label }}</b><span class="muted">{% if student.delta %}{{ '%+d'|format(student.delta) }} sur 4 semaines{% else %}Pas assez d’historique{% endif %}</span></div>
       </div>
       <div class="muted small" style="margin-top:12px">Rang : <b style="color:#fff">{{ student.rank.title }}</b> · Île : <b style="color:#fff">{{ student.island.name if student.island else '—' }}</b></div>
-      {% if student.puzzle_xp %}<div class="muted small" style="margin-top:6px">🧩 <b style="color:#fbbf24">{{ student.puzzle_xp }} XP</b> · {{ student.puzzle_solved_count }} puzzle(s) résolu(s)</div>{% endif %}
+      {% if student.puzzle_xp %}<div class="muted small" style="margin-top:6px">🧩 <b style="color:#fbbf24">{{ student.puzzle_xp }} XP</b> · {{ student.puzzle_solved_count }} puzzle(s) résolu(s){% if student.puzzle_streak and student.puzzle_streak > 1 %} · 🔥 série de {{ student.puzzle_streak }}{% endif %}</div>{% endif %}
       <a class="btn secondary" style="margin-top:12px" onclick="showTab('elo',document.querySelector(`[onclick*='elo']`))">Voir le détail ELO</a>
     </div>
 
@@ -739,7 +739,13 @@ async function loadPuzzleThemeCounts(){
       total += n;
     });
     document.getElementById('pz-empty-msg').style.display = total ? 'none' : 'block';
+    updatePuzzleSummary(d.xp || 0, d.solved_count || 0, d.streak || 0);
   }catch(e){}
+}
+
+function updatePuzzleSummary(xp, solvedCount, streak){
+  const summary = document.getElementById('pz-xp-summary');
+  if(summary) summary.textContent = `— ${xp} XP · ${solvedCount} résolu(s)${streak > 1 ? ' · 🔥 ' + streak + ' d’affilée' : ''}`;
 }
 
 async function startPuzzleTheme(theme){
@@ -800,7 +806,7 @@ function handlePuzzleMove(from, to, promotion){
     document.getElementById('pz-solver-status').className = 'pz-status bad';
     return;
   }
-  pzBoard.setFen(pzGame.fen());
+  pzBoard.setFen(pzGame.fen(), {from, to});
   pzBoard.flashSquare(to, 'good');
   addMoveToList(mv.san);
   pzSolutionIdx++;
@@ -810,7 +816,7 @@ function handlePuzzleMove(from, to, promotion){
   const reply = pzSolution[pzSolutionIdx];
   setTimeout(()=>{
     const rm = pzGame.move(reply, {sloppy:true});
-    if(rm){ pzBoard.setFen(pzGame.fen()); addMoveToList(rm.san); pzSolutionIdx++; }
+    if(rm){ pzBoard.setFen(pzGame.fen(), {from: rm.from, to: rm.to}); addMoveToList(rm.san); pzSolutionIdx++; }
     if(pzSolutionIdx >= pzSolution.length) finishPuzzle(true);
   }, 450);
 }
@@ -822,16 +828,14 @@ async function finishPuzzle(success){
   const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success});
   const status = document.getElementById('pz-solver-status');
   if(success){
-    status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP` : 'Puzzle résolu !';
+    const streakBit = d.ok && d.streak > 1 ? ` · 🔥 série de ${d.streak}` : '';
+    status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP${streakBit}` : `Puzzle résolu !${streakBit}`;
     status.className = 'pz-status good';
   } else {
     status.textContent = 'Solution révélée.';
     status.className = 'pz-status bad';
   }
-  if(d.ok){
-    const summary = document.getElementById('pz-xp-summary');
-    if(summary) summary.textContent = `— ${d.total_xp} XP · résolu(s)`;
-  }
+  if(d.ok) updatePuzzleSummary(d.total_xp, d.solved_count || 0, d.streak || 0);
 }
 
 function giveUpPuzzle(){
@@ -841,7 +845,11 @@ function giveUpPuzzle(){
   const playNext = ()=>{
     if(i >= remaining.length){ finishPuzzle(false); return; }
     const rm = pzGame.move(remaining[i], {sloppy:true});
-    if(rm){ pzBoard.setFen(pzGame.fen()); addMoveToList(rm.san); }
+    if(rm){
+      pzBoard.setFen(pzGame.fen(), {from: rm.from, to: rm.to});
+      pzBoard.showArrow(rm.from, rm.to);
+      addMoveToList(rm.san);
+    }
     i++;
     setTimeout(playNext, 400);
   };

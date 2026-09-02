@@ -11,6 +11,7 @@ storage (data["puzzles"]) for local dev without Supabase.
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any, Optional
 
 from supabase_backend import supabase_configured, get_supabase_client
@@ -99,8 +100,9 @@ def _user_attempts(user_id: str) -> list[dict]:
     client = get_supabase_client()
     res = (
         client.table(TABLE_ATTEMPTS)
-        .select("puzzle_id,success,xp_awarded")
+        .select("puzzle_id,success,xp_awarded,created_at")
         .eq("user_id", user_id)
+        .order("created_at", desc=True)
         .limit(20000)
         .execute()
     )
@@ -111,11 +113,76 @@ def _solved_puzzle_ids(user_id: str) -> set:
     return {a["puzzle_id"] for a in _user_attempts(user_id) if a.get("success")}
 
 
+def _current_streak(attempts_newest_first: list[dict]) -> int:
+    """Consecutive successful attempts counting back from the most recent
+    one. Multiple attempts on the same puzzle within the streak don't break
+    it or double-count — only the first attempt per puzzle (going backwards)
+    is considered, so retrying a failed puzzle until it's solved doesn't
+    artificially inflate the streak."""
+    streak = 0
+    seen_puzzle_ids = set()
+    for a in attempts_newest_first:
+        pid = a.get("puzzle_id")
+        if pid in seen_puzzle_ids:
+            continue
+        seen_puzzle_ids.add(pid)
+        if a.get("success"):
+            streak += 1
+        else:
+            break
+    return streak
+
+
 def student_puzzle_stats(user_id: str) -> dict:
-    attempts = _user_attempts(user_id)
+    attempts = _user_attempts(user_id)  # newest first
     xp = sum(a.get("xp_awarded") or 0 for a in attempts)
     solved_ids = {a["puzzle_id"] for a in attempts if a.get("success")}
-    return {"xp": xp, "solved_count": len(solved_ids), "solved_ids": list(solved_ids)}
+    failed_attempts = sum(1 for a in attempts if not a.get("success"))
+    return {
+        "xp": xp,
+        "solved_count": len(solved_ids),
+        "solved_ids": list(solved_ids),
+        "streak": _current_streak(attempts),
+        "attempts_count": len(attempts),
+        "failed_count": failed_attempts,
+    }
+
+
+def coach_puzzle_overview(user_id: str) -> dict:
+    """Per-theme success rate for a single student, for the coach dashboard /
+    fiche élève — surfaces which themes still need work rather than just a
+    raw XP number."""
+    attempts = _user_attempts(user_id)
+    if not attempts:
+        return {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": []}
+    puzzle_ids = list({a["puzzle_id"] for a in attempts})
+    client = get_supabase_client()
+    puzzles = {}
+    for i in range(0, len(puzzle_ids), 200):
+        chunk = puzzle_ids[i : i + 200]
+        res = client.table(TABLE_PUZZLES).select("id,themes").in_("id", chunk).execute()
+        for row in res.data or []:
+            puzzles[row["id"]] = row.get("themes") or []
+    theme_stats: dict[str, dict] = defaultdict(lambda: {"attempts": 0, "solved": 0})
+    for a in attempts:
+        for t in puzzles.get(a["puzzle_id"], []):
+            theme_stats[t]["attempts"] += 1
+            if a.get("success"):
+                theme_stats[t]["solved"] += 1
+    by_theme = sorted(
+        (
+            {"theme": t, "attempts": s["attempts"], "solved": s["solved"],
+             "rate": round(100 * s["solved"] / s["attempts"]) if s["attempts"] else 0}
+            for t, s in theme_stats.items()
+        ),
+        key=lambda r: r["rate"],
+    )
+    xp = sum(a.get("xp_awarded") or 0 for a in attempts)
+    solved_ids = {a["puzzle_id"] for a in attempts if a.get("success")}
+    return {
+        "xp": xp, "solved_count": len(solved_ids), "streak": _current_streak(attempts),
+        "attempts_count": len(attempts), "by_theme": by_theme,
+    }
 
 
 def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str, xp_by_difficulty) -> dict:
@@ -141,4 +208,7 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
         # ne casse pas la réponse pour l'élève.
         xp_gained = 0
     stats = student_puzzle_stats(user_id)
-    return {"xp_gained": xp_gained, "total_xp": stats["xp"], "already_solved": already_rewarded}
+    return {
+        "xp_gained": xp_gained, "total_xp": stats["xp"], "already_solved": already_rewarded,
+        "solved_count": stats["solved_count"], "streak": stats["streak"],
+    }

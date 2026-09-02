@@ -678,8 +678,9 @@ function puzzlePreviewStep(dir){
   pzPreviewStep = Math.max(0, Math.min(pzPreviewMoves.length, pzPreviewStep + dir));
   const chess = new Chess();
   chess.load(pzPreviewFen);
-  for(let i=0;i<pzPreviewStep;i++) chess.move(pzPreviewMoves[i].san, {sloppy:true});
-  board.setFen(chess.fen());
+  let lastMv = null;
+  for(let i=0;i<pzPreviewStep;i++) lastMv = chess.move(pzPreviewMoves[i].san, {sloppy:true});
+  board.setFen(chess.fen(), lastMv ? {from: lastMv.from, to: lastMv.to} : null);
   const status = document.getElementById('pz-preview-status');
   status.textContent = pzPreviewStep === 0
     ? `Position de départ · ${pzPreviewMoves.length} coup(s) à rejouer`

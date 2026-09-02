@@ -157,5 +157,37 @@ class PuzzleFlowTest(unittest.TestCase):
         self.assertFalse(resp.get_json()["ok"])
 
 
+class PuzzleStreakTest(unittest.TestCase):
+    """_current_streak() is pure (no Supabase I/O), so it's tested directly
+    rather than through the JSON-blob fallback route, which doesn't track a
+    chronological attempt log at all."""
+
+    def test_streak_counts_consecutive_successes_from_most_recent(self):
+        import puzzle_service
+        attempts_newest_first = [
+            {"puzzle_id": "c", "success": True},
+            {"puzzle_id": "b", "success": True},
+            {"puzzle_id": "a", "success": False},
+            {"puzzle_id": "z", "success": True},
+        ]
+        self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 2)
+
+    def test_streak_zero_when_most_recent_failed(self):
+        import puzzle_service
+        attempts_newest_first = [{"puzzle_id": "a", "success": False}, {"puzzle_id": "b", "success": True}]
+        self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 0)
+
+    def test_streak_ignores_repeat_attempts_on_the_same_puzzle(self):
+        import puzzle_service
+        # Retrying a failed puzzle until solved shouldn't inflate the streak:
+        # only the first (most recent) attempt per puzzle counts.
+        attempts_newest_first = [
+            {"puzzle_id": "a", "success": True},   # eventually solved
+            {"puzzle_id": "a", "success": False},  # earlier failed attempt, same puzzle - ignored
+            {"puzzle_id": "b", "success": True},
+        ]
+        self.assertEqual(puzzle_service._current_streak(attempts_newest_first), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

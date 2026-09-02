@@ -36,6 +36,7 @@
     let interactive = opts.interactive !== false;
     let selected = null;
     let legalTargets = [];
+    let lastMove = null;
     const onAttemptMove = typeof opts.onAttemptMove === 'function' ? opts.onAttemptMove : function () {};
 
     container.classList.add('gpb-board');
@@ -53,12 +54,22 @@
 
     function buildGrid() {
       container.innerHTML = '';
-      squareOrder().forEach(([f, r]) => {
+      const files = orientation === 'white' ? FILES : [...FILES].reverse();
+      const ranks = orientation === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
+      squareOrder().forEach(([f, r], i) => {
         const sq = squareName(f, r);
         const cell = document.createElement('button');
         cell.type = 'button';
         cell.className = 'gpb-square ' + ((f + r) % 2 === 0 ? 'gpb-dark' : 'gpb-light');
         cell.dataset.square = sq;
+        // Coordonnées : lettres sur la dernière rangée (bas), chiffres sur la
+        // première colonne (gauche) — comme un vrai plateau physique.
+        const col = i % 8, row = Math.floor(i / 8);
+        if (row === 7) { const f2 = document.createElement('span'); f2.className = 'gpb-coord gpb-coord-file'; f2.textContent = files[col]; cell.appendChild(f2); }
+        if (col === 0) { const r2 = document.createElement('span'); r2.className = 'gpb-coord gpb-coord-rank'; r2.textContent = ranks[row]; cell.appendChild(r2); }
+        const pieceEl = document.createElement('span');
+        pieceEl.className = 'gpb-piece';
+        cell.appendChild(pieceEl);
         cell.addEventListener('click', () => onSquareClick(sq));
         container.appendChild(cell);
         squaresEls[sq] = cell;
@@ -72,11 +83,16 @@
         const file = FILES.indexOf(sq[0]);
         const rank = parseInt(sq[1], 10) - 1;
         const piece = board[7 - rank][file];
-        cell.textContent = glyphFor(piece);
+        const pieceEl = cell.querySelector('.gpb-piece');
+        if (pieceEl) pieceEl.textContent = glyphFor(piece);
         cell.classList.toggle('gpb-white-piece', !!piece && piece.color === 'w');
         cell.classList.toggle('gpb-black-piece', !!piece && piece.color === 'b');
-        cell.classList.remove('gpb-selected', 'gpb-legal', 'gpb-legal-capture');
+        cell.classList.remove('gpb-selected', 'gpb-legal', 'gpb-legal-capture', 'gpb-last-move');
       });
+      if (lastMove) {
+        squaresEls[lastMove.from] && squaresEls[lastMove.from].classList.add('gpb-last-move');
+        squaresEls[lastMove.to] && squaresEls[lastMove.to].classList.add('gpb-last-move');
+      }
       if (selected) squaresEls[selected] && squaresEls[selected].classList.add('gpb-selected');
       legalTargets.forEach(t => {
         const cell = squaresEls[t.to];
@@ -137,16 +153,22 @@
     render();
 
     return {
-      setFen(fen) {
+      setFen(fen, moveJustPlayed) {
         chess.load(fen);
+        if (moveJustPlayed) lastMove = moveJustPlayed;
         clearSelection();
         render();
       },
       setPosition(fenOrChess) {
         this.setFen(fenOrChess);
       },
+      setLastMove(from, to) {
+        lastMove = from && to ? { from, to } : null;
+        render();
+      },
       applyMove(from, to, promotion) {
         const mv = chess.move({ from, to, promotion: promotion || 'q' });
+        if (mv) lastMove = { from, to };
         clearSelection();
         render();
         return mv;

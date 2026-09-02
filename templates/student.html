@@ -228,6 +228,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <button class="s-tab" onclick="showTab('grade',this)">🎖️ Passage de Grade</button>
     <button class="s-tab" onclick="showTab('agenda',this)">📅 Agenda</button>
     <button class="s-tab" onclick="showTab('finances',this)">💰 Finances</button>
+    <button class="s-tab" onclick="showTab('puzzles',this)">🧩 Puzzles</button>
   </div>
 </aside>
 
@@ -1081,6 +1082,45 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     {% endfor %}
     {% else %}
     <div style="color:#333;text-align:center;padding:20px">Aucun paiement enregistré.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div id="tab-puzzles" class="s-tab-content">
+  <div class="s-section">
+    <div class="s-section-title">🧩 Puzzles</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#fbbf24">{{ puzzle_stats.xp }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">XP</div>
+      </div>
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#4ade80">{{ puzzle_stats.solved_count }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Résolus</div>
+      </div>
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#f87171">🔥 {{ puzzle_stats.streak }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Série en cours</div>
+      </div>
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#93c5fd">{{ puzzle_stats.attempts_count }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Tentatives</div>
+      </div>
+    </div>
+    {% if puzzle_stats.by_theme %}
+    <div class="s-section-title">Performance par thème</div>
+    <div class="muted small" style="margin-bottom:10px">Triée du point le plus faible au plus fort — c'est là qu'un envoi de puzzles ciblés aidera le plus.</div>
+    {% for t in puzzle_stats.by_theme %}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="width:150px;font-size:12px;color:#ccc">{{ t.theme }}</span>
+      <div style="flex:1;height:8px;background:#151528;border-radius:999px;overflow:hidden">
+        <span style="display:block;height:100%;width:{{ t.rate }}%;background:{% if t.rate < 50 %}#f87171{% elif t.rate < 75 %}#fbbf24{% else %}#4ade80{% endif %};border-radius:999px"></span>
+      </div>
+      <span style="width:90px;font-size:11px;color:#666;text-align:right">{{ t.rate }}% · {{ t.solved }}/{{ t.attempts }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color:#333;text-align:center;padding:20px">Aucun puzzle tenté pour le moment.</div>
     {% endif %}
   </div>
 </div>

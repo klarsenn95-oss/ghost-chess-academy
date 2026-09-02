@@ -2156,6 +2156,22 @@ def student_conversation_summary(s):
         "last_date": latest_dt.strftime("%d/%m %H:%M") if latest_dt else "",
     }
 
+def student_puzzle_overview(data, student_index):
+    """Progression puzzles d'un élève pour le coach (fiche élève) : XP, série,
+    et taux de réussite par thème pour repérer les points faibles réels
+    (pas juste 'il a fait X puzzles') sans obliger le coach à éplucher
+    l'historique brut."""
+    empty = {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": []}
+    if not puzzle_service.backend_ready():
+        return empty
+    user = next((u for u in data.get("users", []) if u.get("student_index") == student_index), None)
+    if not user:
+        return empty
+    try:
+        return puzzle_service.coach_puzzle_overview(user["id"])
+    except Exception:
+        return empty
+
 def add_student_feedback(data, student_index, title, text, kind="feedback", linked_type="manual", linked_id=None, image_url="", position_fen="", pgn="", tags=None, priority="normal", action_required=False, attachments=None):
     if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
         return None
@@ -2389,6 +2405,7 @@ def public_student_payload(student):
         "work_plan": student.get("work_plan", {}),
         "puzzle_xp": int(student.get("puzzle_xp", 0)),
         "puzzle_solved_count": len(student.get("puzzle_solved_ids", [])),
+        "puzzle_streak": 0,
         "recurring_errors": student.get("recurring_errors", []),
         "workplans": student.get("workplans", [])[-5:],
         "agenda": student.get("agenda", [])[-8:],
@@ -2702,7 +2719,8 @@ def student_page(idx):
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
-        students=enrich_students(data["students"]))
+        students=enrich_students(data["students"]),
+        puzzle_stats=student_puzzle_overview(data, idx))
 
 @app.route("/islands")
 def islands_page():
@@ -3619,10 +3637,24 @@ def client_portal():
     plans = data.get("client_price_plans") or default_client_price_plans()
     selected_plan = find_client_plan(data, user.get("plan"))
     price_grid = default_price_grid()
+    student_payload = public_student_payload(student)
+    # public_student_payload() reads puzzle_xp/puzzle_solved_count off the
+    # student blob, which is only ever written by the local-JSON fallback
+    # puzzle path — when the real Supabase puzzle bank is active, XP lives in
+    # ghost_puzzle_attempts instead, so the blob field is permanently stale
+    # (this was the "XP resets to 0 on refresh" bug: the puzzle tab updated
+    # it live via JS after solving, but a fresh page load always re-read the
+    # never-updated blob value). Override with the live figures here so both
+    # the home card and the puzzle tab's initial render are correct.
+    if student_payload and puzzle_service.backend_ready():
+        live_stats = puzzle_service.student_puzzle_stats(user["id"])
+        student_payload["puzzle_xp"] = live_stats["xp"]
+        student_payload["puzzle_solved_count"] = live_stats["solved_count"]
+        student_payload["puzzle_streak"] = live_stats["streak"]
     return render_template(
         "client_dashboard.html",
         user=user,
-        student=public_student_payload(student),
+        student=student_payload,
         payment=get_user_payment_state(user),
         included_usage=get_included_usage_state(user, data),
         registration_fee_label=price_grid.get("registration_fee_label", "5 000 FCFA"),
@@ -5279,7 +5311,10 @@ def api_client_puzzle_list():
     if puzzle_service.backend_ready():
         result = puzzle_service.list_puzzles(user["id"], theme, difficulty, PUZZLE_XP_BY_DIFFICULTY)
         stats = puzzle_service.student_puzzle_stats(user["id"])
-        return jsonify({"ok": True, "puzzles": result["puzzles"], "theme_counts": result["theme_counts"], "xp": stats["xp"]})
+        return jsonify({
+            "ok": True, "puzzles": result["puzzles"], "theme_counts": result["theme_counts"],
+            "xp": stats["xp"], "solved_count": stats["solved_count"], "streak": stats["streak"],
+        })
     idx = user.get("student_index")
     student = data["students"][idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else {}
     solved_ids = set(student.get("puzzle_solved_ids", []))
@@ -5296,6 +5331,8 @@ def api_client_puzzle_list():
         "puzzles": [public_puzzle_payload(p, solved_ids) for p in puzzles],
         "theme_counts": theme_counts,
         "xp": student.get("puzzle_xp", 0),
+        "solved_count": len(solved_ids),
+        "streak": 0,  # no chronological attempt log in the local JSON fallback
     })
 
 @app.route("/api/client/puzzle/start", methods=["POST"])
@@ -5342,7 +5379,10 @@ def api_client_puzzle_solve():
         student["puzzle_xp"] = int(student.get("puzzle_xp", 0)) + xp_gained
         solved_ids.append(puzzle_id)
     save_data(data)
-    return jsonify({"ok": True, "xp_gained": xp_gained, "total_xp": student.get("puzzle_xp", 0), "already_solved": already_solved})
+    return jsonify({
+        "ok": True, "xp_gained": xp_gained, "total_xp": student.get("puzzle_xp", 0),
+        "already_solved": already_solved, "solved_count": len(solved_ids), "streak": 0,
+    })
 
 @app.route("/api/admin/backup/export")
 def api_admin_backup_export():
