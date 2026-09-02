@@ -87,6 +87,15 @@
 .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .theme-pill{display:inline-flex;align-items:center;border:1px solid #a78bfa55;background:#a78bfa15;color:#c4b5fd;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .theme-pill.warn{border-color:#f8717155;background:#f8717115;color:#fca5a5}
+/* V37 — conversation continue au lieu de cartes isolées par sujet */
+.chat-thread{display:flex;flex-direction:column;gap:4px}
+.chat-msg{border-top:1px solid #ffffff0b;padding:14px 0}
+.chat-msg:first-child{border-top:0;padding-top:0}
+.chat-msg-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
+.chat-msg-head b{color:#fbbf24}
+.chat-msg-topic{font-size:12px;color:#8a82a6}
+.chat-msg-head .date{margin:0 0 0 auto}
+.chat-msg-body{line-height:1.5}
 </style>
 </head>
 <body>
@@ -342,7 +351,34 @@
   </section>
 
   <section id="tab-feedback" class="panel">
-    <div class="card full"><div class="ttl">💬 Feedbacks du coach</div>{% if student and student.client_feedback %}{% for f in student.client_feedback %}<div class="feed"><h4>{{ f.title }} {% if not f.read_by_student %}<span class="badge warn">nouveau</span>{% endif %}{% if f.priority == 'urgent' %}<span class="badge danger">urgent</span>{% elif f.priority == 'high' %}<span class="badge warn">important</span>{% endif %}</h4><div class="date">{{ f.date }} · {{ f.kind }}</div><div>{{ f.text }}</div>{% if f.image_url and is_image_url(f.image_url) %}<img class="preview-img" src="{{ f.image_url }}" onerror="this.remove()">{% endif %}{% if f.attachments %}<div class="attach-list">{% for a in f.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}{% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ f.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}{% if f.pgn %}<div class="fen">{{ f.pgn }}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN sur Lichess</a><button class="tool" onclick="copyText(`{{ f.pgn|replace('`','') }}`)">Copier PGN</button></div>{% endif %}{% if f.tags %}<div class="tags">{% for t in f.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>{% endif %}<div class="thread">{% if f.replies %}{% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><div class="date">{{ r.date }} · {{ 'Moi' if r.author=='student' else 'Coach' }}</div>{{ r.text }}</div>{% endfor %}{% endif %}<div class="reply-row"><textarea class="ta" id="reply-{{ f.id }}" placeholder="Répondre au coach…"></textarea><button class="btn secondary" onclick="replyFeedback('{{ f.id }}')">Répondre</button></div><span class="msg" id="reply-msg-{{ f.id }}"></span></div></div>{% endfor %}{% else %}<div class="empty">Ici tu verras les réponses, corrections et remarques du coach.</div>{% endif %}<button class="btn secondary" onclick="markFeedbackRead()">Marquer comme lu</button></div>
+    <div class="card full">
+      <div class="ttl">💬 Conversation avec ton coach</div>
+      {% if student and student.client_feedback %}
+      <div class="chat-thread">
+        {% for f in student.client_feedback|reverse %}
+        <div class="chat-msg">
+          <div class="chat-msg-head">
+            <b>Coach</b>
+            {% if f.title %}<span class="chat-msg-topic">{{ f.title }}</span>{% endif %}
+            {% if not f.read_by_student %}<span class="badge warn">nouveau</span>{% endif %}
+            {% if f.priority == 'urgent' %}<span class="badge danger">urgent</span>{% elif f.priority == 'high' %}<span class="badge warn">important</span>{% endif %}
+            <span class="date">{{ f.date }}</span>
+          </div>
+          <div class="chat-msg-body">{{ f.text }}</div>
+          {% if f.image_url and is_image_url(f.image_url) %}<img class="preview-img" src="{{ f.image_url }}" onerror="this.remove()">{% endif %}
+          {% if f.attachments %}<div class="attach-list">{% for a in f.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
+          {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ f.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}
+          {% if f.pgn %}<div class="fen">{{ f.pgn }}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN sur Lichess</a><button class="tool" onclick="copyText(`{{ f.pgn|replace('`','') }}`)">Copier PGN</button></div>{% endif %}
+          {% if f.tags %}<div class="tags">{% for t in f.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>{% endif %}
+          {% if f.replies %}{% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><div class="date">{{ r.date }} · {{ 'Moi' if r.author=='student' else 'Coach' }}</div>{{ r.text }}</div>{% endfor %}{% endif %}
+          <div class="reply-row"><textarea class="ta" id="reply-{{ f.id }}" placeholder="Répondre au coach…"></textarea><button class="btn secondary" onclick="replyFeedback('{{ f.id }}')">Répondre</button></div>
+          <span class="msg" id="reply-msg-{{ f.id }}"></span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="empty">Ici tu verras les réponses, corrections et remarques du coach.</div>{% endif %}
+      <button class="btn secondary" onclick="markFeedbackRead()">Marquer comme lu</button>
+    </div>
   </section>
 
   <section id="tab-grandline" class="panel">
