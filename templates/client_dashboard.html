@@ -87,6 +87,22 @@
 .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .theme-pill{display:inline-flex;align-items:center;border:1px solid #a78bfa55;background:#a78bfa15;color:#c4b5fd;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .theme-pill.warn{border-color:#f8717155;background:#f8717115;color:#fca5a5}
+/* V41 — puzzles façon Lichess */
+.pz-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.pz-theme-btn{display:flex;flex-direction:column;gap:4px;align-items:flex-start;border:1px solid #ffffff16;background:#09091a;border-radius:14px;padding:12px;cursor:pointer;color:#fff;text-align:left}
+.pz-theme-btn:hover{border-color:#fbbf2466}
+.pz-theme-name{font-weight:900;font-size:13px}
+.pz-theme-count{font-size:11px}
+.pz-solver-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pz-status{font-weight:900;font-size:13px}
+.pz-status.good{color:#4ade80}
+.pz-status.bad{color:#f87171}
+.pz-solver-grid{display:grid;grid-template-columns:minmax(240px,420px) 1fr;gap:20px;align-items:start}
+.pz-instruction{font-weight:800;margin-bottom:10px}
+.pz-move-list{display:flex;flex-wrap:wrap;gap:6px;min-height:32px}
+.pz-move-list span{border:1px solid #ffffff1c;background:#ffffff08;border-radius:8px;padding:4px 9px;font-size:12px;font-family:var(--font-mono,monospace)}
+.pz-solver-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+@media(max-width:760px){.pz-solver-grid{grid-template-columns:1fr}}
 /* V37 — conversation continue au lieu de cartes isolées par sujet */
 .chat-thread{display:flex;flex-direction:column;gap:4px}
 .chat-msg{border-top:1px solid #ffffff0b;padding:14px 0}
@@ -180,7 +196,7 @@
     <button class="tab-group" data-group="calendrier">📅 Calendrier</button>
     <button class="tab-group" data-group="profil">👤 Profil</button>
   </nav>
-  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
+  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active">
     <div class="card full home-todo">
@@ -207,6 +223,7 @@
         <div class="stat"><b style="color:{{ student.badge_color }}">{{ student.badge_label }}</b><span class="muted">{% if student.delta %}{{ '%+d'|format(student.delta) }} sur 4 semaines{% else %}Pas assez d’historique{% endif %}</span></div>
       </div>
       <div class="muted small" style="margin-top:12px">Rang : <b style="color:#fff">{{ student.rank.title }}</b> · Île : <b style="color:#fff">{{ student.island.name if student.island else '—' }}</b></div>
+      {% if student.puzzle_xp %}<div class="muted small" style="margin-top:6px">🧩 <b style="color:#fbbf24">{{ student.puzzle_xp }} XP</b> · {{ student.puzzle_solved_count }} puzzle(s) résolu(s)</div>{% endif %}
       <a class="btn secondary" style="margin-top:12px" onclick="showTab('elo',document.querySelector(`[onclick*='elo']`))">Voir le détail ELO</a>
     </div>
 
@@ -334,6 +351,41 @@
   </section>
 
   <section id="tab-squad" class="panel"><div class="card full"><div class="ttl">🛡️ Ma Squad</div>{% if client_squad.name %}<h2>{{ client_squad.name }}</h2><div class="muted" style="margin-bottom:14px">Ton équipe d'entraînement et de compétition.</div><div class="squad-grid">{% for m in client_squad.members %}<div class="squad-member {{ 'me' if m.is_me else '' }}"><img class="member-avatar" src="{{ m.avatar or '/static/favicon.svg' }}"><div><b>{{ m.name }}{{ ' · Moi' if m.is_me else '' }}</b><div class="muted small">{{ m.rank or 'Ghost' }} · {{ m.avg_elo or '—' }} ELO</div></div></div>{% endfor %}</div>{% else %}<div class="empty">Tu n'es pas encore affecté à une Squad. Le coach pourra bientôt te placer dans ton équipe.</div>{% endif %}</div></section>
+
+  <section id="tab-puzzles" class="panel">
+    <div class="card full" id="pz-picker">
+      <div class="ttl">🧩 Puzzles <span id="pz-xp-summary" class="muted small">— {{ student.puzzle_xp if student else 0 }} XP · {{ student.puzzle_solved_count if student else 0 }} résolu(s)</span></div>
+      <div class="pz-theme-grid" id="pz-theme-grid">
+        {% for t in puzzle_themes %}
+        <button class="pz-theme-btn" type="button" data-theme="{{ t }}" onclick="startPuzzleTheme('{{ t }}')">
+          <span class="pz-theme-name">{{ t }}</span>
+          <span class="pz-theme-count muted" data-theme-count="{{ t }}">—</span>
+        </button>
+        {% endfor %}
+      </div>
+      <button class="btn secondary" style="margin-top:14px" type="button" onclick="startPuzzleTheme('')">🎲 Puzzle aléatoire — tous thèmes</button>
+      <div class="muted small" id="pz-empty-msg" style="margin-top:10px;display:none">Ton coach n'a pas encore ajouté de puzzle. Reviens bientôt !</div>
+    </div>
+
+    <div class="card full" id="pz-solver" style="display:none">
+      <div class="pz-solver-head">
+        <button class="btn secondary tiny" type="button" onclick="exitPuzzleSolver()">← Retour aux thèmes</button>
+        <span class="pill" id="pz-solver-theme"></span>
+        <span id="pz-solver-status" class="pz-status"></span>
+      </div>
+      <div class="pz-solver-grid">
+        <div id="pz-solver-board"></div>
+        <div class="pz-solver-side">
+          <div class="pz-instruction" id="pz-instruction">Trouve le meilleur coup.</div>
+          <div class="pz-move-list" id="pz-move-list"></div>
+          <div class="pz-solver-actions">
+            <button class="btn secondary tiny" type="button" onclick="giveUpPuzzle()" id="pz-giveup-btn">Voir la solution</button>
+            <button class="btn tiny" type="button" onclick="nextPuzzle()" id="pz-next-btn" style="display:none">Puzzle suivant ▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section id="tab-send" class="panel">
     <div class="card {{ 'locked' if payment.restricted }}"><div class="ttl">♟ Ajouter une partie / image</div><input class="fi" id="game-url" placeholder="URL Lichess / Chess.com"><textarea class="ta" id="game-note" placeholder="Ce que tu veux que le coach regarde : ouverture, erreur, moment critique…"></textarea><input class="fi" id="game-fen" placeholder="Position FEN optionnelle"><textarea class="ta" id="game-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea><input class="fi" type="file" id="game-file" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'game-file-count')"><div class="file-count" id="game-file-count"></div><button class="btn" onclick="sendGame()" {% if payment.restricted %}disabled{% endif %}>📤 Envoyer au coach</button><span class="msg" id="game-msg"></span></div>
@@ -667,6 +719,150 @@ document.addEventListener('DOMContentLoaded',()=>{
     link.replaceWith(box);box.append(video,link);
   });
 });
+</script>
+<script src="/static/chess.min.js"></script>
+<script src="/static/puzzle-board.js"></script>
+<script>
+// V41 — Puzzles façon Lichess : plateau interactif, coup à coup, par thème.
+let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '';
+
+async function loadPuzzleThemeCounts(){
+  try{
+    const r = await fetch('/api/client/puzzle/list');
+    const d = await r.json();
+    if(!d.ok) return;
+    const counts = d.theme_counts || {};
+    let total = 0;
+    document.querySelectorAll('[data-theme-count]').forEach(el=>{
+      const n = counts[el.dataset.themeCount] || 0;
+      el.textContent = n ? (n + ' puzzle' + (n>1?'s':'')) : 'bientôt';
+      total += n;
+    });
+    document.getElementById('pz-empty-msg').style.display = total ? 'none' : 'block';
+  }catch(e){}
+}
+
+async function startPuzzleTheme(theme){
+  pzCurrentTheme = theme;
+  const url = theme ? ('/api/client/puzzle/list?theme=' + encodeURIComponent(theme)) : '/api/client/puzzle/list';
+  const r = await fetch(url);
+  const d = await r.json();
+  if(!d.ok || !d.puzzles || !d.puzzles.length){
+    alert(theme ? `Aucun puzzle "${theme}" pour le moment.` : "Aucun puzzle disponible pour le moment.");
+    return;
+  }
+  pzPool = d.puzzles;
+  const unsolved = pzPool.filter(p => !p.solved);
+  const pick = (unsolved.length ? unsolved : pzPool)[Math.floor(Math.random() * (unsolved.length ? unsolved.length : pzPool.length))];
+  document.getElementById('pz-solver-theme').textContent = theme || 'Aléatoire';
+  document.getElementById('pz-picker').style.display = 'none';
+  document.getElementById('pz-solver').style.display = 'block';
+  await openPuzzle(pick.id);
+}
+
+async function openPuzzle(puzzleId){
+  const d = await postJSON('/api/client/puzzle/start', {puzzle_id: puzzleId});
+  if(!d.ok){ alert(d.error || 'Erreur.'); return; }
+  const p = d.puzzle;
+  pzCurrentId = p.id;
+  pzGame = new Chess(p.fen);
+  pzSolution = p.moves || [];
+  pzSolutionIdx = 0;
+  const orientation = pzGame.turn() === 'w' ? 'white' : 'black';
+  const el = document.getElementById('pz-solver-board');
+  if(pzBoard) pzBoard.destroy();
+  pzBoard = createPuzzleBoard(el, { fen: p.fen, orientation, interactive: true, onAttemptMove: handlePuzzleMove });
+  document.getElementById('pz-move-list').innerHTML = '';
+  document.getElementById('pz-instruction').textContent = (orientation === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le meilleur coup.';
+  document.getElementById('pz-solver-status').textContent = '';
+  document.getElementById('pz-solver-status').className = 'pz-status';
+  document.getElementById('pz-giveup-btn').style.display = '';
+  document.getElementById('pz-next-btn').style.display = 'none';
+}
+
+function addMoveToList(san){
+  const list = document.getElementById('pz-move-list');
+  const span = document.createElement('span');
+  span.textContent = san;
+  list.appendChild(span);
+}
+
+function handlePuzzleMove(from, to, promotion){
+  if(!pzGame || pzSolutionIdx >= pzSolution.length) return;
+  const mv = pzGame.move({from, to, promotion: promotion || 'q'});
+  if(!mv) return;
+  const expected = pzSolution[pzSolutionIdx];
+  if(mv.san !== expected){
+    pzGame.undo();
+    pzBoard.setFen(pzGame.fen());
+    pzBoard.flashSquare(to, 'bad');
+    document.getElementById('pz-solver-status').textContent = 'Ce n\'est pas le bon coup, réessaie.';
+    document.getElementById('pz-solver-status').className = 'pz-status bad';
+    return;
+  }
+  pzBoard.setFen(pzGame.fen());
+  pzBoard.flashSquare(to, 'good');
+  addMoveToList(mv.san);
+  pzSolutionIdx++;
+  document.getElementById('pz-solver-status').textContent = '';
+  if(pzSolutionIdx >= pzSolution.length){ finishPuzzle(true); return; }
+  // Coup de réponse automatique de l'adversaire.
+  const reply = pzSolution[pzSolutionIdx];
+  setTimeout(()=>{
+    const rm = pzGame.move(reply, {sloppy:true});
+    if(rm){ pzBoard.setFen(pzGame.fen()); addMoveToList(rm.san); pzSolutionIdx++; }
+    if(pzSolutionIdx >= pzSolution.length) finishPuzzle(true);
+  }, 450);
+}
+
+async function finishPuzzle(success){
+  pzBoard.setInteractive(false);
+  document.getElementById('pz-giveup-btn').style.display = 'none';
+  document.getElementById('pz-next-btn').style.display = '';
+  const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success});
+  const status = document.getElementById('pz-solver-status');
+  if(success){
+    status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP` : 'Puzzle résolu !';
+    status.className = 'pz-status good';
+  } else {
+    status.textContent = 'Solution révélée.';
+    status.className = 'pz-status bad';
+  }
+  if(d.ok){
+    const summary = document.getElementById('pz-xp-summary');
+    if(summary) summary.textContent = `— ${d.total_xp} XP · résolu(s)`;
+  }
+}
+
+function giveUpPuzzle(){
+  if(!pzGame || pzSolutionIdx >= pzSolution.length) return;
+  const remaining = pzSolution.slice(pzSolutionIdx);
+  let i = 0;
+  const playNext = ()=>{
+    if(i >= remaining.length){ finishPuzzle(false); return; }
+    const rm = pzGame.move(remaining[i], {sloppy:true});
+    if(rm){ pzBoard.setFen(pzGame.fen()); addMoveToList(rm.san); }
+    i++;
+    setTimeout(playNext, 400);
+  };
+  pzSolutionIdx = pzSolution.length;
+  playNext();
+}
+
+function nextPuzzle(){
+  const unsolved = pzPool.filter(p => p.id !== pzCurrentId);
+  if(!unsolved.length){ startPuzzleTheme(pzCurrentTheme); return; }
+  const pick = unsolved[Math.floor(Math.random() * unsolved.length)];
+  openPuzzle(pick.id);
+}
+
+function exitPuzzleSolver(){
+  document.getElementById('pz-solver').style.display = 'none';
+  document.getElementById('pz-picker').style.display = '';
+  loadPuzzleThemeCounts();
+}
+
+document.addEventListener('DOMContentLoaded', loadPuzzleThemeCounts);
 </script>
 </body>
 </html>

@@ -312,6 +312,11 @@ body{padding:8px 8px 72px!important}
 .cc-menu-btn .count{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;font-size:11px;font-weight:900;border-radius:999px;padding:2px 7px;min-width:18px;text-align:center}
 .cc-back-link{display:none;align-items:center;gap:6px;color:#c4b5fd;text-decoration:none;font-weight:800;margin-bottom:14px;border:1px solid #ffffff18;border-radius:999px;padding:9px 14px;background:#ffffff08;cursor:pointer}
 .cc-back-link:hover{border-color:#a78bfa88}
+.puzzle-editor-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-top:12px;align-items:start}
+.puzzle-preview{background:#0a0a1a;border:1px solid #ffffff14;border-radius:16px;padding:12px}
+.puzzle-preview-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:11px}
+.puzzle-list{margin-top:16px;border-top:1px solid #ffffff0e;padding-top:10px}
+@media(max-width:760px){.puzzle-editor-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -365,6 +370,7 @@ body{padding:8px 8px 72px!important}
     <a class="cc-menu-btn" data-section="client-options"><span class="icon">⚙️</span><span class="label">Options élèves</span></a>
     <a class="cc-menu-btn" data-section="tournaments"><span class="icon">🏆</span><span class="label">Tournois</span></a>
     <a class="cc-menu-btn" data-section="exercises"><span class="icon">🎯</span><span class="label">Exercices</span></a>
+    <a class="cc-menu-btn" data-section="puzzles"><span class="icon">🧩</span><span class="label">Puzzles</span></a>
     <a class="cc-menu-btn" data-section="included-usage"><span class="icon">📊</span><span class="label">Socle inclus</span></a>
     <a class="cc-menu-btn" data-section="finance"><span class="icon">💰</span><span class="label">Finances</span></a>
     <a class="cc-menu-btn" data-section="accounts"><span class="icon">🔐</span><span class="label">Comptes</span></a>
@@ -590,6 +596,41 @@ body{padding:8px 8px 72px!important}
     {% if exercises %}<div class="exercise-history">{% for e in exercises[:10] %}<div class="mini-item"><span><b>{{ e.title }}</b><br><span class="muted">{{ e.date }} · {{ e.level }} · {{ e.targets|length if e.targets else 'tous' }} cible(s)</span></span><span><span class="pill">{{ e.status or 'envoyé' }}</span> <button class="btn danger tiny" onclick="deleteExercise('{{ e.id }}','{{ e.title|replace("'", "") }}')">Annuler chez tous</button></span></div>{% endfor %}</div>{% endif %}
   </div>
 
+  <div class="card full cc-section" id="puzzles">
+    <div class="ttl">🧩 Puzzles</div>
+    <div class="section-note">Colle une position de départ (FEN, copiable depuis Lichess/Chess.com) et les coups solution en notation SAN séparés par des espaces (ex. <code>Qxd5 Bxd5 Rxd5</code>). Utilise l'aperçu pour rejouer le puzzle et vérifier qu'il est correct avant de l'enregistrer.</div>
+    <div class="puzzle-editor-grid">
+      <div>
+        <input class="fi" id="pz-title" placeholder="Titre (optionnel)">
+        <select class="fi" id="pz-theme">{% for t in puzzle_themes %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+        <select class="fi" id="pz-difficulty">{% for d in puzzle_difficulties %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+        <input class="fi" id="pz-fen" placeholder="FEN de départ (position où l'élève doit trouver le coup)">
+        <input class="fi" id="pz-moves" placeholder="Coups solution en SAN, séparés par des espaces">
+        <div class="actions">
+          <button class="btn secondary" type="button" onclick="previewPuzzle()">👁 Prévisualiser</button>
+          <button class="btn" type="button" onclick="savePuzzle()">Enregistrer le puzzle</button>
+        </div>
+        <span class="muted" id="pz-msg"></span>
+      </div>
+      <div class="puzzle-preview">
+        <div id="pz-preview-board"></div>
+        <div class="puzzle-preview-controls">
+          <button class="btn secondary tiny" type="button" onclick="puzzlePreviewStep(-1)">◀ Coup précédent</button>
+          <span class="muted" id="pz-preview-status">Prévisualise pour voir le plateau</span>
+          <button class="btn secondary tiny" type="button" onclick="puzzlePreviewStep(1)">Coup suivant ▶</button>
+        </div>
+      </div>
+    </div>
+    <div class="puzzle-list">
+      {% if puzzles %}{% for p in puzzles %}
+      <div class="mini-item">
+        <span><b>{{ p.title or (p.theme ~ ' · ' ~ p.difficulty) }}</b><br><span class="muted">{{ p.theme }} · {{ p.difficulty }} · {{ p.moves|length }} coup(s)</span></span>
+        <span><button class="btn danger tiny" onclick="deletePuzzle('{{ p.id }}')">Supprimer</button></span>
+      </div>
+      {% endfor %}{% else %}<div class="muted">Aucun puzzle créé pour le moment.</div>{% endif %}
+    </div>
+  </div>
+
   <div class="card full cc-section" id="accounts"><div class="ttl">🔐 Comptes / accès</div>
     {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} · {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">Réinitialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">Réactiver</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
   </div>
@@ -597,6 +638,77 @@ body{padding:8px 8px 72px!important}
   <div class="card full cc-section" id="notifications"><div class="ttl">Notifications élèves <button class="btn secondary" style="float:right;padding:7px 10px" onclick="markRead()">Tout marquer lu</button></div>{% if notifications %}{% for n in notifications %}<div class="row {{ 'read' if n.read else 'unread' }}" id="admin-notif-{{ n.id }}"><div style="cursor:pointer" onclick="window.location='{{ n.target_url or '#notifications' }}'"><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div></div><div>{{ n.kind }}</div><div class="muted">{{ n.date }}</div><div>{{ 'lu' if n.read else 'nouveau' }} <button class="btn danger tiny" onclick="deleteAdminNotification('{{ n.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucune notification.</div>{% endif %}</div>
   <div class="card full cc-section" id="codes-generated"><div class="ttl">Codes générés</div>{% if codes %}{% for c in codes[:18] %}<div class="code-row"><div class="code">{{ c.code }}</div><div class="code-owner"><b>{{ c.student_name or c.request_name or 'Profil à créer' }}</b><small>{% if c.used_by_name %}utilisé par {{ c.used_by_name }}{% elif c.request_name %}demande : {{ c.request_name }}{% else %}{{ c.email_hint or c.request_email or 'email non précisé' }}{% endif %}</small></div><div>{{ c.access_label or ('Inscription offerte' if c.free_access else 'Inscription Ghost - 5 000 FCFA') }}</div><div class="muted">{{ c.created_at }}</div><div><span class="pill">{{ 'utilisé' if c.used else 'disponible' }}</span> <button class="btn danger tiny" onclick="deleteRegistration(null,'{{ c.id }}')">Supprimer</button></div></div>{% endfor %}{% else %}<div class="muted">Aucun code.</div>{% endif %}</div>
 </section>
+<script src="/static/chess.min.js"></script>
+<script src="/static/puzzle-board.js"></script>
+<script>
+let pzBoard = null, pzPreviewMoves = [], pzPreviewStep = 0, pzPreviewFen = '';
+function ensurePzBoard(){
+  if(pzBoard) return pzBoard;
+  const el = document.getElementById('pz-preview-board');
+  if(!el) return null;
+  pzBoard = createPuzzleBoard(el, { fen: 'start', interactive: false });
+  return pzBoard;
+}
+function previewPuzzle(){
+  const fen = document.getElementById('pz-fen').value.trim();
+  const movesRaw = document.getElementById('pz-moves').value.trim();
+  const msg = document.getElementById('pz-msg');
+  const status = document.getElementById('pz-preview-status');
+  if(!fen){ msg.textContent = 'Colle une position FEN.'; return; }
+  const chess = new Chess();
+  if(!chess.load(fen)){ msg.textContent = 'FEN invalide.'; return; }
+  const sanMoves = movesRaw.split(/\s+/).filter(Boolean);
+  const played = [];
+  for(const san of sanMoves){
+    const mv = chess.move(san, {sloppy:true});
+    if(!mv){ msg.textContent = `Coup invalide dans la solution : "${san}" (après ${played.map(m=>m.san).join(' ')||'le début'}). Corrige-le.`; return; }
+    played.push(mv);
+  }
+  msg.textContent = `OK — ${played.length} coup(s) valide(s), le puzzle se termine sur : ${played.length?played[played.length-1].san:'—'}.`;
+  pzPreviewMoves = played;
+  pzPreviewFen = fen;
+  pzPreviewStep = 0;
+  const board = ensurePzBoard();
+  if(board){ board.setFen(fen); status.textContent = `Position de départ · ${played.length} coup(s) à rejouer`; }
+}
+function puzzlePreviewStep(dir){
+  if(!pzPreviewMoves.length) return;
+  const board = ensurePzBoard();
+  if(!board) return;
+  pzPreviewStep = Math.max(0, Math.min(pzPreviewMoves.length, pzPreviewStep + dir));
+  const chess = new Chess();
+  chess.load(pzPreviewFen);
+  for(let i=0;i<pzPreviewStep;i++) chess.move(pzPreviewMoves[i].san, {sloppy:true});
+  board.setFen(chess.fen());
+  const status = document.getElementById('pz-preview-status');
+  status.textContent = pzPreviewStep === 0
+    ? `Position de départ · ${pzPreviewMoves.length} coup(s) à rejouer`
+    : `Après ${pzPreviewStep}/${pzPreviewMoves.length} : ${pzPreviewMoves[pzPreviewStep-1].san}`;
+}
+async function savePuzzle(){
+  const msg = document.getElementById('pz-msg');
+  if(!pzPreviewMoves.length || document.getElementById('pz-fen').value.trim() !== pzPreviewFen){
+    previewPuzzle();
+    if(!pzPreviewMoves.length){ return; }
+  }
+  const body = {
+    title: document.getElementById('pz-title').value.trim(),
+    theme: document.getElementById('pz-theme').value,
+    difficulty: document.getElementById('pz-difficulty').value,
+    fen: pzPreviewFen,
+    moves: pzPreviewMoves.map(m => m.san),
+  };
+  msg.textContent = 'Enregistrement…';
+  const d = await postJSON('/api/admin/puzzle/create', body);
+  if(d.ok){ location.hash = '#puzzles'; location.reload(); }
+  else msg.textContent = d.error || 'Erreur.';
+}
+async function deletePuzzle(puzzle_id){
+  if(!confirm('Supprimer ce puzzle ?')) return;
+  const d = await postJSON('/api/admin/puzzle/delete', {puzzle_id});
+  if(d.ok) location.reload(); else alert(d.error || 'Erreur.');
+}
+</script>
 <script>
 const $ = (id)=>document.getElementById(id);
 const ADMIN_STUDENTS = {{ students|map(attribute='name')|list|tojson }};

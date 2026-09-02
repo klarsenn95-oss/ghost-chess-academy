@@ -186,6 +186,36 @@ DEVOIR_STATUS = ["📋 À faire","🔄 En cours","📤 Rendu","🧑‍🏫 À co
 COMPORTEMENT  = ["😊 Motivé","😐 Régulier","😴 Passif","🔥 Très investi","😤 Têtu","🤔 Curieux"]
 WORK_THEMES   = ["Tactique","Finales","Ouvertures","Milieu de jeu","Calcul","Stratégie",
                  "Endgame technique","Attaque du roi","Structure de pions","Timing"]
+
+# ─── Puzzles (entraînement façon Lichess) ────────────────────────────────────
+PUZZLE_THEMES = [
+    "Fourchette", "Clouage", "Enfilade", "Attaque double", "Sacrifice",
+    "Mat en 1", "Mat en 2", "Mat en 3", "Découverte", "Déviation",
+    "Attraction", "Surcharge", "Élimination du défenseur", "Attaque du roi",
+    "Finale", "Calcul", "Défense",
+]
+PUZZLE_DIFFICULTIES = ["Facile", "Intermédiaire", "Avancé"]
+PUZZLE_XP_BY_DIFFICULTY = {"Facile": 10, "Intermédiaire": 20, "Avancé": 35}
+
+def puzzle_xp_for(difficulty):
+    return PUZZLE_XP_BY_DIFFICULTY.get(difficulty, 15)
+
+def public_puzzle_payload(p, solved_ids=None):
+    """Puzzle sans la solution, pour la liste/le picker."""
+    solved_ids = solved_ids or set()
+    return {
+        "id": p.get("id"), "title": p.get("title") or "", "theme": p.get("theme"),
+        "difficulty": p.get("difficulty"), "xp": puzzle_xp_for(p.get("difficulty")),
+        "solved": p.get("id") in solved_ids,
+    }
+
+def puzzle_with_solution(p):
+    """Puzzle complet (FEN + solution), envoyé seulement quand l'élève démarre ce puzzle précis."""
+    return {
+        "id": p.get("id"), "title": p.get("title") or "", "theme": p.get("theme"),
+        "difficulty": p.get("difficulty"), "xp": puzzle_xp_for(p.get("difficulty")),
+        "fen": p.get("fen"), "moves": p.get("moves") or [],
+    }
 BLIND_TACTICS = [
     {
         "id": "blind-001",
@@ -2348,6 +2378,8 @@ def public_student_payload(student):
         "delta": delta,
         "devoirs": student.get("devoirs", [])[-20:],
         "work_plan": student.get("work_plan", {}),
+        "puzzle_xp": int(student.get("puzzle_xp", 0)),
+        "puzzle_solved_count": len(student.get("puzzle_solved_ids", [])),
         "recurring_errors": student.get("recurring_errors", []),
         "workplans": student.get("workplans", [])[-5:],
         "agenda": student.get("agenda", [])[-8:],
@@ -3601,6 +3633,8 @@ def client_portal():
         blind_tactics=[],
         blind_summary={},
         theme=plan_theme(selected_plan.get("key")),
+        puzzle_themes=PUZZLE_THEMES,
+        puzzle_difficulties=PUZZLE_DIFFICULTIES,
     )
 
 @app.route("/favicon.ico")
@@ -3667,6 +3701,9 @@ def admin_clients():
         messages=data.get("student_messages", [])[:30],
         profile_updates=recent_profile_updates(data),
         visit_stats=data.get("visit_stats", {}),
+        puzzles=data.get("puzzles", [])[:100],
+        puzzle_themes=PUZZLE_THEMES,
+        puzzle_difficulties=PUZZLE_DIFFICULTIES,
     )
 
 @app.route("/api/client/registration/request", methods=["POST"])
@@ -5177,6 +5214,104 @@ def api_admin_exercise_delete():
         student["client_feedback"] = kept_feedbacks
     save_data(data)
     return jsonify({"ok": True, "devoirs_removed": devoirs_removed, "feedback_removed": feedback_removed})
+
+# ─── Puzzles (entraînement façon Lichess) ────────────────────────────────────
+
+@app.route("/api/admin/puzzle/create", methods=["POST"])
+def api_admin_puzzle_create():
+    body = request.get_json(force=True, silent=True) or {}
+    title = (body.get("title") or "").strip()[:90]
+    theme = (body.get("theme") or "").strip()
+    difficulty = (body.get("difficulty") or "").strip()
+    fen = (body.get("fen") or "").strip()
+    moves = [m.strip() for m in (body.get("moves") or []) if m and m.strip()]
+    if theme not in PUZZLE_THEMES:
+        return jsonify({"ok": False, "error": "Thème invalide."}), 400
+    if difficulty not in PUZZLE_DIFFICULTIES:
+        return jsonify({"ok": False, "error": "Difficulté invalide."}), 400
+    if not fen:
+        return jsonify({"ok": False, "error": "FEN de départ requise."}), 400
+    if len(moves) < 1:
+        return jsonify({"ok": False, "error": "Ajoute au moins un coup solution."}), 400
+    data = load_data()
+    puzzle = {
+        "id": str(uuid.uuid4()), "title": title, "theme": theme, "difficulty": difficulty,
+        "fen": fen, "moves": moves, "created_at": now_fr(),
+    }
+    data.setdefault("puzzles", []).insert(0, puzzle)
+    save_data(data)
+    return jsonify({"ok": True, "puzzle": puzzle})
+
+@app.route("/api/admin/puzzle/delete", methods=["POST"])
+def api_admin_puzzle_delete():
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = body.get("puzzle_id")
+    data = load_data()
+    before = len(data.get("puzzles", []))
+    data["puzzles"] = [p for p in data.get("puzzles", []) if p.get("id") != puzzle_id]
+    if len(data["puzzles"]) == before:
+        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+    save_data(data)
+    return jsonify({"ok": True})
+
+@app.route("/api/client/puzzle/list")
+def api_client_puzzle_list():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    idx = user.get("student_index")
+    student = data["students"][idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else {}
+    solved_ids = set(student.get("puzzle_solved_ids", []))
+    theme = request.args.get("theme") or None
+    difficulty = request.args.get("difficulty") or None
+    puzzles = data.get("puzzles", [])
+    if theme:
+        puzzles = [p for p in puzzles if p.get("theme") == theme]
+    if difficulty:
+        puzzles = [p for p in puzzles if p.get("difficulty") == difficulty]
+    theme_counts = {}
+    for p in data.get("puzzles", []):
+        theme_counts[p.get("theme")] = theme_counts.get(p.get("theme"), 0) + 1
+    return jsonify({
+        "ok": True,
+        "puzzles": [public_puzzle_payload(p, solved_ids) for p in puzzles],
+        "theme_counts": theme_counts,
+        "xp": student.get("puzzle_xp", 0),
+    })
+
+@app.route("/api/client/puzzle/start", methods=["POST"])
+def api_client_puzzle_start():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = body.get("puzzle_id")
+    puzzle = next((p for p in data.get("puzzles", []) if p.get("id") == puzzle_id), None)
+    if not puzzle:
+        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+    return jsonify({"ok": True, "puzzle": puzzle_with_solution(puzzle)})
+
+@app.route("/api/client/puzzle/solve", methods=["POST"])
+def api_client_puzzle_solve():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = body.get("puzzle_id")
+    success = bool(body.get("success"))
+    idx = user.get("student_index")
+    if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Profil introuvable."}), 404
+    puzzle = next((p for p in data.get("puzzles", []) if p.get("id") == puzzle_id), None)
+    if not puzzle:
+        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+    student = data["students"][idx]
+    solved_ids = student.setdefault("puzzle_solved_ids", [])
+    xp_gained = 0
+    already_solved = puzzle_id in solved_ids
+    if success and not already_solved:
+        xp_gained = puzzle_xp_for(puzzle.get("difficulty"))
+        student["puzzle_xp"] = int(student.get("puzzle_xp", 0)) + xp_gained
+        solved_ids.append(puzzle_id)
+    save_data(data)
+    return jsonify({"ok": True, "xp_gained": xp_gained, "total_xp": student.get("puzzle_xp", 0), "already_solved": already_solved})
 
 @app.route("/api/admin/backup/export")
 def api_admin_backup_export():
