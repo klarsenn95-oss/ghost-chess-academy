@@ -277,11 +277,23 @@ def coach_puzzle_overview(user_id: str) -> dict:
     }
 
 
+VALID_RESULT_TYPES = {"solved", "solved_after_mistake", "failed", "gave_up"}
+
+
 def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str, xp_by_difficulty,
-                    duration_seconds: Optional[int] = None) -> dict:
+                    duration_seconds: Optional[int] = None, result_type: Optional[str] = None) -> dict:
     """Records an attempt. XP is only ever granted once per (user, puzzle) —
     enforced both here and by a unique partial index in Postgres as a
-    second line of defense against a race between two simultaneous requests."""
+    second line of defense against a race between two simultaneous requests.
+
+    result_type distinguishes outcomes 'success' alone can't: a wrong move
+    the student is still working through ('failed'), giving up and
+    revealing the solution ('gave_up'), a clean first-try solve ('solved'),
+    or solving after an earlier mistake in the same attempt
+    ('solved_after_mistake') — used for the puzzle identity card, not for
+    XP or streak logic (those still key off `success`)."""
+    if result_type not in VALID_RESULT_TYPES:
+        result_type = None
     client = get_supabase_client()
     already_rewarded = bool(
         client.table(TABLE_ATTEMPTS).select("id")
@@ -295,6 +307,8 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
         row = {"user_id": user_id, "puzzle_id": puzzle_id, "success": success, "xp_awarded": xp_gained}
         if duration_seconds:
             row["duration_seconds"] = int(duration_seconds)
+        if result_type:
+            row["result_type"] = result_type
         client.table(TABLE_ATTEMPTS).insert(row).execute()
     except Exception:
         # Le partial unique index a bloqué une double récompense (course entre
@@ -306,6 +320,81 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
         "xp_gained": xp_gained, "total_xp": stats["xp"], "already_solved": already_rewarded,
         "solved_count": stats["solved_count"], "streak": stats["streak"],
     }
+
+
+def get_puzzle_public(puzzle_id: str) -> Optional[dict]:
+    """Puzzle metadata for the identity card — theme/difficulty/rating,
+    never the solution. Used to describe a puzzle in a coach<->student
+    conversation without leaking the answer into the thread."""
+    client = get_supabase_client()
+    rows = client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating").eq("id", puzzle_id).limit(1).execute().data
+    if not rows:
+        return None
+    row = rows[0]
+    themes = row.get("themes") or []
+    return {
+        "id": row["id"], "title": row.get("title") or "",
+        "theme": themes[0] if themes else "", "themes": themes,
+        "difficulty": row.get("difficulty"), "rating": row.get("rating"),
+    }
+
+
+RESULT_LABELS = {
+    "solved": "✅ Réussi",
+    "solved_after_mistake": "✅ Réussi (après une erreur)",
+    "failed": "❌ Échec",
+    "gave_up": "🏳️ Abandon",
+}
+
+
+def attempt_summary_for_puzzle(user_id: str, puzzle_id: str) -> Optional[dict]:
+    """Most recent attempt on one specific puzzle — the "Résultat" block
+    shown above a puzzle-linked conversation, so the coach doesn't have to
+    guess how it actually went from a bare 'discussion...' text entry."""
+    client = get_supabase_client()
+    rows = (client.table(TABLE_ATTEMPTS).select("success,duration_seconds,result_type,created_at")
+            .eq("user_id", user_id).eq("puzzle_id", puzzle_id)
+            .order("created_at", desc=True).limit(1).execute().data)
+    if not rows:
+        return None
+    a = rows[0]
+    rtype = a.get("result_type") or ("solved" if a.get("success") else "failed")
+    return {
+        "success": a.get("success"), "duration_seconds": a.get("duration_seconds"),
+        "result_type": rtype, "result_label": RESULT_LABELS.get(rtype, rtype),
+        "created_at": a.get("created_at"),
+    }
+
+
+def recent_attempts(user_id: str, limit: int = 15) -> list[dict]:
+    """Recent puzzle activity enriched with puzzle identity, for the
+    coach's 'Puzzles récents' feed — cards, not raw attempt rows."""
+    client = get_supabase_client()
+    rows = (client.table(TABLE_ATTEMPTS).select("puzzle_id,success,xp_awarded,duration_seconds,result_type,created_at")
+            .eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute().data or [])
+    if not rows:
+        return []
+    puzzle_ids = list({r["puzzle_id"] for r in rows})
+    puzzles = {}
+    for i in range(0, len(puzzle_ids), 200):
+        chunk = puzzle_ids[i:i + 200]
+        res = client.table(TABLE_PUZZLES).select("id,themes,difficulty,rating").in_("id", chunk).execute()
+        for row in res.data or []:
+            puzzles[row["id"]] = row
+    out = []
+    for r in rows:
+        p = puzzles.get(r["puzzle_id"]) or {}
+        rtype = r.get("result_type") or ("solved" if r.get("success") else "failed")
+        themes = p.get("themes") or []
+        out.append({
+            "puzzle_id": r["puzzle_id"], "theme": themes[0] if themes else "", "themes": themes,
+            "difficulty": p.get("difficulty"), "rating": p.get("rating"),
+            "success": r.get("success"), "xp_awarded": r.get("xp_awarded"),
+            "duration_seconds": r.get("duration_seconds"),
+            "result_type": rtype, "result_label": RESULT_LABELS.get(rtype, rtype),
+            "created_at": r.get("created_at"),
+        })
+    return out
 
 
 # ─── Programmes d'entraînement ────────────────────────────────────────────

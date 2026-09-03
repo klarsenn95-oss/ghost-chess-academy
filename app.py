@@ -2172,6 +2172,22 @@ def student_puzzle_overview(data, student_index):
     except Exception:
         return empty
 
+def enrich_puzzle_feedback(feedback_list, user_id):
+    """Attaches puzzle identity (theme/difficulty/rating) and the latest
+    result (réussi/échec/abandon + temps) to any client_feedback entry
+    linked to a puzzle, so the conversation shows what puzzle and what
+    happened instead of a bare text bubble."""
+    if not puzzle_service.backend_ready():
+        return
+    cache = {}
+    for f in feedback_list:
+        if f.get("linked_type") in ("puzzle", "puzzle_devoir") and f.get("linked_id"):
+            pid = f["linked_id"]
+            if pid not in cache:
+                cache[pid] = puzzle_service.get_puzzle_public(pid)
+            f["puzzle_meta"] = cache[pid]
+            f["puzzle_result"] = puzzle_service.attempt_summary_for_puzzle(user_id, pid)
+
 def add_student_feedback(data, student_index, title, text, kind="feedback", linked_type="manual", linked_id=None, image_url="", position_fen="", pgn="", tags=None, priority="normal", action_required=False, attachments=None):
     if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
         return None
@@ -2672,14 +2688,17 @@ def student_page(idx):
     s["_card_stats"] = ghost_card_stats(s)
     puzzle_overview = student_puzzle_overview(data, idx)
     active_program = None
+    recent_puzzle_attempts = []
     if puzzle_service.backend_ready():
+        user_for_puzzle = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
         active_program = puzzle_service.get_active_program(idx)
-        if active_program:
-            user_for_program = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
-            active_program["progress"] = (
-                puzzle_service.program_progress(active_program, user_for_program["id"])
-                if user_for_program else {"total_assigned": 0, "total_solved": 0, "percent": 0}
-            )
+        if active_program and user_for_puzzle:
+            active_program["progress"] = puzzle_service.program_progress(active_program, user_for_puzzle["id"])
+        elif active_program:
+            active_program["progress"] = {"total_assigned": 0, "total_solved": 0, "percent": 0}
+        if user_for_puzzle:
+            recent_puzzle_attempts = puzzle_service.recent_attempts(user_for_puzzle["id"], limit=10)
+            enrich_puzzle_feedback(s.get("client_feedback", []), user_for_puzzle["id"])
     if s.get("devoirs"):
         solved_ids = set(puzzle_overview.get("solved_ids") or [])
         s["devoirs"] = [
@@ -2737,7 +2756,8 @@ def student_page(idx):
         pairs=data.get("pairs",[]),
         students=enrich_students(data["students"]),
         puzzle_stats=puzzle_overview,
-        active_program=active_program)
+        active_program=active_program,
+        recent_puzzle_attempts=recent_puzzle_attempts)
 
 @app.route("/islands")
 def islands_page():
@@ -3672,6 +3692,7 @@ def client_portal():
         for d in student_payload.get("devoirs", []):
             if d.get("type") == "puzzle":
                 d["solved"] = d.get("puzzle_id") in solved_ids
+        enrich_puzzle_feedback(student_payload.get("client_feedback", []), user["id"])
     return render_template(
         "client_dashboard.html",
         user=user,
@@ -5553,11 +5574,12 @@ def api_client_puzzle_solve():
         duration_seconds = int(body.get("duration_seconds") or 0) or None
     except (TypeError, ValueError):
         duration_seconds = None
+    result_type = body.get("result_type") if body.get("result_type") in puzzle_service.VALID_RESULT_TYPES else None
     if puzzle_service.backend_ready():
         puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
         if not puzzle:
             return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
-        result = puzzle_service.record_attempt(user["id"], puzzle_id, success, puzzle.get("difficulty"), PUZZLE_XP_BY_DIFFICULTY, duration_seconds)
+        result = puzzle_service.record_attempt(user["id"], puzzle_id, success, puzzle.get("difficulty"), PUZZLE_XP_BY_DIFFICULTY, duration_seconds, result_type)
         return jsonify({"ok": True, **result})
     idx = user.get("student_index")
     if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):

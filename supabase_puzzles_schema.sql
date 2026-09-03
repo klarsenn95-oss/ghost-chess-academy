@@ -112,3 +112,8 @@ create index if not exists ghost_program_days_program_idx on public.ghost_progra
 
 alter table public.ghost_training_programs enable row level security;
 alter table public.ghost_program_days enable row level security;
+
+-- Distingue échec (mauvais coup, puzzle pas terminé) / abandon (solution
+-- révélée) / résolu du premier coup / résolu après une erreur — 'success'
+-- seul ne permet pas cette nuance pour l'affichage carte d'identification.
+alter table public.ghost_puzzle_attempts add column if not exists result_type text;

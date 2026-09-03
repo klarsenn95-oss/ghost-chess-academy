@@ -116,6 +116,10 @@
 .pg-chips{display:flex;flex-wrap:wrap;gap:6px}
 .pg-chip{font-size:12px;border:1px solid #ffffff1c;background:#ffffff08;border-radius:999px;padding:5px 11px;cursor:pointer}
 .pg-chip.done{border-color:#4ade8055;color:#4ade80;background:#4ade8012}
+.puzzle-id-card{background:#0b1025;border:1px solid #2a2a44;border-radius:14px;padding:10px 12px;margin:8px 0}
+.puzzle-id-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.puzzle-id-head .pill{background:#ffffff0e;border:1px solid #ffffff1c;border-radius:999px;padding:3px 10px;font-size:11px}
+.puzzle-id-result{font-size:13px;margin-bottom:6px}
 @keyframes ghHighlightFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px #fbbf24aa}}
 .highlight-flash{animation:ghHighlightFlash 1.8s ease}
 @media(max-width:760px){.pz-solver-grid{grid-template-columns:1fr}}
@@ -429,13 +433,21 @@
             {% if f.priority == 'urgent' %}<span class="badge danger">urgent</span>{% elif f.priority == 'high' %}<span class="badge warn">important</span>{% endif %}
             <span class="date">{{ f.date }}</span>
           </div>
+          {% if f.linked_type in ['puzzle', 'puzzle_devoir'] and f.linked_id %}
+          <div class="puzzle-id-card" data-puzzle-id="{{ f.linked_id }}">
+            <div class="puzzle-id-head">
+              {% if f.puzzle_meta %}<span class="pill">🧩 {{ f.puzzle_meta.theme }}{% if f.puzzle_meta.themes|length > 1 %} +{{ f.puzzle_meta.themes|length - 1 }}{% endif %}</span><span class="pill">{{ f.puzzle_meta.difficulty }}</span>{% if f.puzzle_meta.rating %}<span class="muted small">{{ f.puzzle_meta.rating }} elo</span>{% endif %}{% else %}<span class="muted small">Puzzle indisponible</span>{% endif %}
+            </div>
+            <div class="puzzle-id-result" data-puzzle-result>{% if f.puzzle_result %}<b>{{ f.puzzle_result.result_label }}</b>{% if f.puzzle_result.duration_seconds %} <span class="muted small"> · {{ f.puzzle_result.duration_seconds }}s</span>{% endif %}{% else %}<span class="muted small">Pas encore tenté</span>{% endif %}</div>
+            <button class="tool" onclick="openAssignedPuzzle('{{ f.linked_id }}')">🧩 Ouvrir le puzzle</button>
+          </div>
+          {% endif %}
           <div class="chat-msg-body">{{ f.text }}</div>
           {% if f.image_url and is_image_url(f.image_url) %}<img class="preview-img" src="{{ f.image_url }}" onerror="this.remove()">{% endif %}
           {% if f.attachments %}<div class="attach-list">{% for a in f.attachments %}<a class="attach" href="{{ a }}" target="_blank">📎 fichier {{ loop.index }}</a>{% endfor %}</div>{% endif %}
           {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div><div class="tools"><a class="tool" href="{{ lichess_analysis_url(f.position_fen) }}" target="_blank">♟ Ouvrir sur Lichess</a><button class="tool" onclick="copyText(`{{ f.position_fen|replace('`','') }}`)">Copier FEN</button></div>{% endif %}
           {% if f.pgn %}<div class="fen">{{ f.pgn }}</div><div class="tools"><a class="tool" href="{{ lichess_paste_url() }}" target="_blank">Importer PGN sur Lichess</a><button class="tool" onclick="copyText(`{{ f.pgn|replace('`','') }}`)">Copier PGN</button></div>{% endif %}
           {% if f.tags %}<div class="tags">{% for t in f.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>{% endif %}
-          {% if f.linked_type in ['puzzle', 'puzzle_devoir'] and f.linked_id %}<div class="tools"><button class="tool" onclick="openAssignedPuzzle('{{ f.linked_id }}')">🧩 Ouvrir le puzzle</button></div>{% endif %}
           {% if f.replies %}{% for r in f.replies %}<div class="bubble {{ 'student' if r.author=='student' else '' }}"><div class="date">{{ r.date }} · {{ 'Moi' if r.author=='student' else 'Coach' }}</div>{{ r.text }}</div>{% endfor %}{% endif %}
           <div class="reply-row"><textarea class="ta" id="reply-{{ f.id }}" placeholder="Répondre au coach…"></textarea><button class="btn secondary" onclick="replyFeedback('{{ f.id }}')">Répondre</button></div>
           <span class="msg" id="reply-msg-{{ f.id }}"></span>
@@ -769,6 +781,17 @@ function updateDevoirCardSolved(puzzleId){
   if(openBtn) openBtn.textContent = '🧩 Rejouer le puzzle';
 }
 
+const PZ_RESULT_LABELS = {
+  solved: '✅ Réussi', solved_after_mistake: '✅ Réussi (après une erreur)',
+  failed: '❌ Échec', gave_up: '🏳️ Abandon',
+};
+function updatePuzzleIdCards(puzzleId, resultType, durationSeconds){
+  document.querySelectorAll('.puzzle-id-card[data-puzzle-id="'+puzzleId+'"] [data-puzzle-result]').forEach(el=>{
+    const label = PZ_RESULT_LABELS[resultType] || resultType;
+    el.innerHTML = '<b>' + label + '</b>' + (durationSeconds ? ' <span class="muted small"> · ' + durationSeconds + 's</span>' : '');
+  });
+}
+
 function formatDuration(sec){
   const m = Math.floor(sec / 60), s = sec % 60;
   return m + ':' + String(s).padStart(2, '0');
@@ -879,7 +902,7 @@ function handlePuzzleMove(from, to, promotion){
       // on enregistre tout de suite une tentative ratée (sans attendre la
       // fin du puzzle) pour que le calcul de série côté serveur la voie.
       pzHadMistake = true;
-      postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success: false, mistake_only: true}).catch(()=>{});
+      postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success: false, result_type: 'failed'}).catch(()=>{});
     }
     return;
   }
@@ -904,7 +927,9 @@ async function finishPuzzle(success){
   document.getElementById('pz-giveup-btn').style.display = 'none';
   document.getElementById('pz-next-btn').style.display = '';
   const duration_seconds = pzStartTs ? Math.max(1, Math.round((Date.now() - pzStartTs) / 1000)) : null;
-  const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success, duration_seconds});
+  const result_type = success ? (pzHadMistake ? 'solved_after_mistake' : 'solved') : 'gave_up';
+  const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success, duration_seconds, result_type});
+  updatePuzzleIdCards(pzCurrentId, result_type, duration_seconds);
   const status = document.getElementById('pz-solver-status');
   if(success){
     const streakBit = d.ok && d.streak > 1 ? ` · 🔥 série de ${d.streak}` : '';

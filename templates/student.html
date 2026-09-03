@@ -586,6 +586,18 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <div><div class="exchange-title">{{ f.title }}</div><div class="exchange-meta">{{ f.date }} - {{ f.kind }}</div></div>
         {% if f.action_required %}<span class="exchange-pill">action</span>{% endif %}
       </div>
+      {% if f.linked_type in ['puzzle', 'puzzle_devoir'] and f.linked_id %}
+      <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+          {% if f.puzzle_meta %}
+          <span class="pill">🧩 {{ f.puzzle_meta.theme }}{% if f.puzzle_meta.themes|length > 1 %} +{{ f.puzzle_meta.themes|length - 1 }}{% endif %}</span>
+          <span class="pill">{{ f.puzzle_meta.difficulty }}</span>
+          {% if f.puzzle_meta.rating %}<span class="muted small">{{ f.puzzle_meta.rating }} elo</span>{% endif %}
+          {% else %}<span class="muted small">Puzzle indisponible</span>{% endif %}
+        </div>
+        {% if f.puzzle_result %}<div style="font-size:13px"><b>{{ f.puzzle_result.result_label }}</b>{% if f.puzzle_result.duration_seconds %}<span class="muted small"> · {{ f.puzzle_result.duration_seconds }}s</span>{% endif %}</div>{% else %}<div class="muted small">Pas encore tenté</div>{% endif %}
+      </div>
+      {% endif %}
       {% if f.text %}<div class="exchange-text">{{ f.text }}</div>{% endif %}
       {% if f.position_fen %}<div class="fen">{{ f.position_fen }}</div>{% endif %}
       {% if f.pgn %}<div class="fen">{{ f.pgn[:800] }}{% if f.pgn|length > 800 %}...{% endif %}</div>{% endif %}
@@ -1151,6 +1163,25 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div style="color:#333;text-align:center;padding:20px">Aucun puzzle tenté pour le moment.</div>
     {% endif %}
   </div>
+  {% if recent_puzzle_attempts %}
+  <div class="s-section">
+    <div class="s-section-title">Puzzles récents</div>
+    {% for a in recent_puzzle_attempts %}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:10px 12px;margin-bottom:6px">
+      <div>
+        <span class="pill">🧩 {{ a.theme }}{% if a.themes|length > 1 %} +{{ a.themes|length - 1 }}{% endif %}</span>
+        <span class="pill">{{ a.difficulty }}</span>
+        {% if a.rating %}<span class="muted small">{{ a.rating }} elo</span>{% endif %}
+      </div>
+      <div style="text-align:right;font-size:12px">
+        <b>{{ a.result_label }}</b>
+        {% if a.duration_seconds %}<span class="muted small"> · {{ a.duration_seconds }}s</span>{% endif %}
+        {% if a.xp_awarded %}<span class="muted small"> · +{{ a.xp_awarded }} XP</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
 
 </main>
