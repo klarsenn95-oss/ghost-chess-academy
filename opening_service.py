@@ -202,6 +202,23 @@ def assign_family(student_index: int, family: str, side: str) -> dict:
     return (res.data or [payload])[0]
 
 
+def student_start_family(student_index: int, family: str) -> dict:
+    """Self-initiated start of a family from Découvrir. Unlike assign_family
+    (coach action, always resets to variant 0), this resumes the existing
+    repertoire entry untouched if the Ghost already started this family
+    before — so revisiting Découvrir never wipes progress — and only
+    creates a fresh entry the first time. Either way the family now shows
+    up in 'Mon répertoire' with real progress, per the coach's request that
+    self-started openings shouldn't just vanish into a free-play mode."""
+    client = get_supabase_client()
+    existing = (client.table(TABLE_REPERTOIRE).select("*")
+                .eq("student_index", student_index).eq("family", family)
+                .limit(1).execute().data)
+    if existing:
+        return existing[0]
+    return assign_family(student_index, family, "white")
+
+
 def complete_line(entry_id: str, had_mistake: bool) -> dict:
     """Called once a Ghost finishes a full run of the current variant in
     evaluation mode. 3 clean (mistake-free) runs in a row unlock the next

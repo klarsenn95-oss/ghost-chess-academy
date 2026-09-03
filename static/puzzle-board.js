@@ -170,6 +170,12 @@
         chess.load(fen && fen !== 'start' ? fen : DEFAULT_FEN);
         if (moveJustPlayed) lastMove = moveJustPlayed;
         clearSelection();
+        // A guide/hint arrow is only ever meant to point at the move to play
+        // from the position it was drawn on — once the position changes the
+        // old arrow is stale and must not survive into the next position
+        // (this is what left a hint arrow stuck on screen across variants).
+        const svg = container.querySelector('.gpb-arrows');
+        if (svg) svg.innerHTML = '';
         render();
       },
       setPosition(fenOrChess) {

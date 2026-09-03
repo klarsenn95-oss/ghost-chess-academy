@@ -1251,6 +1251,8 @@ let opCoursePos = 0;
 let opCleanStreak = 0;
 let opNextLineCache = null; // {id, name, eco, line} préchargé pendant que le Ghost joue
 let opVariantDemoShown = false; // remis à false à chaque nouvelle variante
+let opInDemo = false; // phase d'apprentissage en cours (coups du Ghost guidés par une flèche, jouables à la main)
+let opDemoTimer = null;
 
 function startOpeningSession(entryId){
   const entry = opRepertoireCache.find(e => e.id === entryId);
@@ -1268,17 +1270,19 @@ async function startDiscoverSession(family){
   document.getElementById('op-solver').style.display = 'block';
   document.getElementById('op-solver-title').textContent = 'Chargement…';
   document.getElementById('op-solver-status').textContent = '';
-  const r = await fetch('/api/client/openings/family_course/' + encodeURIComponent(family));
-  const d = await r.json();
+  // Se lancer soi-même depuis Découvrir crée (ou retrouve) une vraie entrée
+  // de répertoire suivie côté serveur — l'ouverture ne reste plus un essai
+  // libre sans trace, elle apparaît dans "Mon répertoire" avec sa progression.
+  const d = await postJSON('/api/client/openings/start', {family});
   if(!d.ok){ document.getElementById('op-solver-status').textContent = d.error || 'Erreur.'; return; }
-  opCurrentEntryId = null; // mode libre : pas de suivi persistant
-  opCourse = d.course;
-  opCoursePos = 0;
-  opCleanStreak = 0;
-  opSide = 'white';
-  const node = await (await fetch('/api/client/openings/node/' + opCourse[0].id)).json();
-  if(!node.ok) return;
-  openVariantSession(node.node.name || family, node.node.line);
+  const entry = d.entry;
+  opCurrentEntryId = entry.id;
+  opCourse = entry.course || [];
+  opCoursePos = entry.course_position || 0;
+  opCleanStreak = entry.clean_streak || 0;
+  opSide = entry.side || 'white';
+  const lastNode = (entry.line && entry.line.length) ? entry.line[entry.line.length - 1] : {};
+  openVariantSession(lastNode.name || family, entry.line || []);
 }
 
 function openVariantSession(title, line){
@@ -1296,6 +1300,8 @@ function openVariantSession(title, line){
 }
 
 function beginVariantAttempt(){
+  clearDemoTimer();
+  opInDemo = false;
   opStepIdx = 0;
   opHadMistake = false;
   opGame = new Chess();
@@ -1311,25 +1317,57 @@ function beginVariantAttempt(){
   }
 }
 
-// Phase d'apprentissage automatique : rejoue toute la ligne (les deux
-// camps) une fois, sans que le Ghost n'ait rien à cliquer — puis bascule
-// directement en évaluation, dans le même écran.
+function clearDemoTimer(){
+  if(opDemoTimer){ clearTimeout(opDemoTimer); opDemoTimer = null; }
+}
+
+// Dessine la flèche-guide du coup à jouer sur la position actuelle, sans
+// toucher à la vraie partie (chess.js scratch clone).
+function showGuideArrow(step){
+  const probe = new Chess(opGame.fen());
+  const mv = probe.move(step.move_san, {sloppy: true});
+  if(mv) opBoard.showArrow(mv.from, mv.to);
+}
+
+// Phase d'apprentissage : rejoue toute la ligne une fois. Les coups de
+// l'adversaire s'enchaînent tout seuls (le Ghost n'a rien à y faire). Sur
+// CHAQUE coup du Ghost, une flèche indique le coup du répertoire et le
+// plateau reste interactif — il peut le jouer lui-même, ou laisser le coup
+// se jouer automatiquement après un court délai s'il ne fait rien. Puis ça
+// bascule directement en évaluation (sans flèche), dans le même écran.
 function runVariantDemo(){
-  opBoard.setInteractive(false);
-  document.getElementById('op-instruction').textContent = '📖 Regarde la ligne — elle se rejoue toute seule…';
-  let i = 0;
-  function step(){
-    if(i + 1 >= opLine.length){
-      opVariantDemoShown = true;
-      setTimeout(beginVariantAttempt, 500);
-      return;
-    }
-    const mv = opGame.move(opLine[i + 1].move_san, {sloppy: true});
-    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(opLine[i + 1].move_san); }
-    i++;
-    setTimeout(step, 550);
+  opInDemo = true;
+  document.getElementById('op-instruction').textContent = '📖 Phase d\'apprentissage — suis la flèche, ou joue le coup toi-même.';
+  advanceDemoStep();
+}
+
+function advanceDemoStep(){
+  if(opStepIdx + 1 >= opLine.length){
+    opInDemo = false;
+    opBoard.setInteractive(true);
+    opVariantDemoShown = true;
+    setTimeout(beginVariantAttempt, 500);
+    return;
   }
-  step();
+  const step = opLine[opStepIdx + 1];
+  if(!studentTurnAtStep(opStepIdx + 1)){
+    // Coup adverse : automatique, non cliquable — ce n'est pas au Ghost de le jouer.
+    opBoard.setInteractive(false);
+    const mv = opGame.move(step.move_san, {sloppy: true});
+    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); }
+    opStepIdx++;
+    opDemoTimer = setTimeout(advanceDemoStep, 550);
+    return;
+  }
+  opBoard.setInteractive(true);
+  showGuideArrow(step);
+  opDemoTimer = setTimeout(() => {
+    if(!opInDemo) return;
+    const real = opGame.move(step.move_san, {sloppy: true});
+    if(real){ opBoard.setFen(opGame.fen(), {from: real.from, to: real.to}); addOpMove(step.move_san); }
+    opStepIdx++;
+    advanceDemoStep();
+  }, 1400);
 }
 
 function updateOpStreakInstruction(){
@@ -1367,20 +1405,27 @@ function handleOpeningMove(from, to, promotion){
     opGame.undo();
     opBoard.setFen(opGame.fen());
     opBoard.flashSquare(to, 'bad');
+    if(opInDemo){
+      // Pendant l'apprentissage on ne compte pas d'erreur — juste le
+      // mauvais essai annulé, la flèche-guide reste affichée.
+      showGuideArrow(expected);
+      return;
+    }
     opHadMistake = true;
     document.getElementById('op-solver-status').textContent = "Ce n'est pas le coup attendu, réessaie.";
     document.getElementById('op-solver-status').className = 'pz-status bad';
     if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: false}).catch(()=>{});
     return;
   }
-  opBoard.setFen(opGame.fen(), {from, to});
+  clearDemoTimer();
+  opBoard.setFen(opGame.fen(), {from, to}); // efface aussi la flèche-guide, le coup est joué
   addOpMove(mv.san);
   document.getElementById('op-solver-status').textContent = '';
-  if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
+  if(!opInDemo && opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
   opStepIdx++;
   // Transition quasi instantanée : juste assez pour voir la réponse adverse,
   // pas un temps de chargement.
-  setTimeout(advanceOpeningAuto, 180);
+  setTimeout(opInDemo ? advanceDemoStep : advanceOpeningAuto, 180);
 }
 
 function finishOpeningLine(){
@@ -1467,6 +1512,8 @@ function opReveal(){
 }
 
 function exitOpeningSolver(){
+  clearDemoTimer();
+  opInDemo = false;
   document.getElementById('op-solver').style.display = 'none';
   document.getElementById('op-picker').style.display = '';
   if(opCurrentEntryId) loadOpeningRepertoire();

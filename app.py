@@ -5747,6 +5747,30 @@ def api_client_openings_family_course(family):
         return jsonify({"ok": False, "error": "Aucune variante trouvée pour cette famille."}), 404
     return jsonify({"ok": True, "family": family, "course": course})
 
+@app.route("/api/client/openings/start", methods=["POST"])
+def api_client_openings_start():
+    """Le Ghost lance une famille depuis Découvrir, de sa propre initiative.
+    Contrairement à l'attribution coach, ça n'écrase jamais une progression
+    existante — mais ça crée (ou retrouve) une vraie entrée de répertoire
+    suivie, pour que l'ouverture apparaisse dans 'Mon répertoire' avec son
+    pourcentage, au lieu de rester un essai libre sans trace."""
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    family = body.get("family")
+    if not family:
+        return jsonify({"ok": False, "error": "Famille manquante."}), 400
+    idx = user.get("student_index")
+    if not isinstance(idx, int):
+        return jsonify({"ok": False, "error": "Élève invalide."}), 400
+    try:
+        entry = opening_service.student_start_family(idx, family)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    return jsonify({"ok": True, "entry": entry})
+
 @app.route("/api/client/openings/node/<opening_id>")
 def api_client_openings_node(opening_id):
     if not opening_service.backend_ready():
