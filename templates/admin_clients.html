@@ -695,17 +695,12 @@ body{padding:8px 8px 72px!important}
 
   <div class="card full cc-section" id="openings">
     <div class="ttl">📚 Bibliothèque des ouvertures</div>
-    <div class="section-note" id="op-bank-note">Bibliothèque déjà prête — tu choisis une ouverture et l'attribues à un Ghost, rien à importer.</div>
-    <div class="pg-row">
-      <select class="fi" id="op-family-select" onchange="onFamilyChange()">
-        <option value="">Choisis une ouverture…</option>
-      </select>
-      <select class="fi" id="op-variation-select" onchange="onVariationChange()" disabled>
-        <option value="">— Variante —</option>
-      </select>
-    </div>
+    <div class="section-note" id="op-bank-note">Choisis une ouverture — le système construit tout seul le parcours de variantes et les enchaîne automatiquement. Rien à importer, rien à détailler.</div>
+    <select class="fi" id="op-family-select" onchange="onFamilyChange()">
+      <option value="">Choisis une ouverture…</option>
+    </select>
     <div class="muted small" style="margin-top:8px">Ou cherche directement :</div>
-    <input class="fi" id="op-search" placeholder="Najdorf, B90, Dragon…" oninput="searchOpenings()" style="margin-top:4px">
+    <input class="fi" id="op-search" placeholder="Sicilienne, London, B90…" oninput="searchOpenings()" style="margin-top:4px">
     <div class="puzzle-list" id="op-search-results" style="margin-top:8px"></div>
     <div id="op-detail" style="margin-top:16px"></div>
   </div>
@@ -939,54 +934,40 @@ async function searchOpenings(){
   const d = await r.json();
   if(!d.ok){ box.innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
   box.innerHTML = d.results.map(o =>
-    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningNode('${o.id}')"><span><b>${o.name}</b> <span class="muted">${o.eco||''}</span></span></div>`
+    `<div class="mini-item" style="cursor:pointer" onclick="selectOpeningFamily('${o.family.replace(/'/g,"\\'")}')"><span><b>${o.name}</b> <span class="muted">${o.eco||''}</span></span></div>`
   ).join('') || '<div class="muted">Aucun résultat.</div>';
 }
-async function onFamilyChange(){
+function selectOpeningFamily(family){
+  $('op-family-select').value = family;
+  onFamilyChange();
+}
+function onFamilyChange(){
   const family = $('op-family-select').value;
-  const varSel = $('op-variation-select');
-  if(!family){ varSel.innerHTML = '<option value="">— Variante —</option>'; varSel.disabled = true; return; }
-  const r = await fetch('/api/admin/openings/family/' + encodeURIComponent(family));
-  const d = await r.json();
-  if(!d.ok){ varSel.innerHTML = '<option value="">'+d.error+'</option>'; return; }
-  varSel.disabled = false;
-  varSel.innerHTML = '<option value="">— Variante —</option>' +
-    d.variations.map(v => `<option value="${v.id}">${(v.variation||v.name)}${v.subvariation ? ' — '+v.subvariation : ''}</option>`).join('');
-}
-function onVariationChange(){
-  const id = $('op-variation-select').value;
-  if(id) openOpeningNode(id);
-}
-async function openOpeningNode(id){
-  const r = await fetch('/api/admin/openings/node/' + id);
-  const d = await r.json();
-  if(!d.ok){ $('op-detail').innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
-  const n = d.node;
-  const lineText = n.line.filter(s=>s.move_san).map((s,i)=> (i%2===0?((i/2+1)+'.'):'') + s.move_san).join(' ');
+  if(!family){ $('op-detail').innerHTML = ''; return; }
   const studentOpts = ADMIN_STUDENTS.map((name,i)=>'<option value="'+i+'">'+(name||'?')+'</option>').join('');
   $('op-detail').innerHTML = `<div class="program-card">
-    <div class="ttl">${n.name || '(position sans nom)'} <span class="muted small">${n.eco||''}</span></div>
-    <div class="muted small" style="margin:6px 0 12px;font-family:var(--font-mono,monospace)">${lineText || 'Position de départ'}</div>
+    <div class="ttl">${family}</div>
+    <div class="muted small" style="margin:6px 0 12px">Le système sélectionne automatiquement les variantes principales de cette ouverture et les enchaîne : le Ghost débloque la suivante après 3 réussites propres d'affilée.</div>
     <div class="pg-row">
       <select class="fi" id="op-assign-student">${studentOpts}</select>
       <select class="fi" id="op-assign-side" style="max-width:160px">
         <option value="white">Avec les Blancs</option>
         <option value="black">Avec les Noirs</option>
       </select>
-      <button class="btn" type="button" onclick="assignOpening('${n.id}')">🎯 Attribuer à ce Ghost</button>
+      <button class="btn" type="button" onclick="assignOpening('${family.replace(/'/g,"\\'")}')">🎯 Attribuer à ce Ghost</button>
     </div>
     <span class="muted" id="op-assign-msg"></span>
   </div>`;
 }
-async function assignOpening(openingId){
+async function assignOpening(family){
   const msg = $('op-assign-msg');
   msg.textContent = 'Attribution…';
   const d = await postJSON('/api/admin/openings/assign', {
     student_index: $('op-assign-student').value,
-    opening_id: openingId,
+    family: family,
     side: $('op-assign-side').value,
   });
-  msg.textContent = d.ok ? '✅ Attribué — le Ghost est notifié.' : (d.error || 'Erreur');
+  msg.textContent = d.ok ? `✅ Attribué (${(d.entry.course||[]).length} variantes) — le Ghost est notifié.` : (d.error || 'Erreur');
 }
 if(document.getElementById('op-family-select')) loadOpeningFamilies();
 function mergeFileSelection(input){if(!input||!window.DataTransfer)return;const previous=input.__ghostSelectedFiles||[];const incoming=[...(input.files||[])];const byKey=new Map();[...previous,...incoming].forEach(f=>byKey.set([f.name,f.size,f.lastModified].join('|'),f));const dt=new DataTransfer();byKey.forEach(f=>dt.items.add(f));input.files=dt.files;input.__ghostSelectedFiles=[...dt.files];}

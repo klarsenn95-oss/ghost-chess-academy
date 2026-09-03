@@ -5670,19 +5670,18 @@ def api_admin_openings_assign():
         return jsonify({"ok": False, "error": "Élève invalide."}), 400
     if idx < 0 or idx >= len(data.get("students", [])):
         return jsonify({"ok": False, "error": "Élève introuvable."}), 404
-    opening_id = body.get("opening_id")
+    family = body.get("family")
     side = body.get("side") or "white"
-    if not opening_id:
-        return jsonify({"ok": False, "error": "Ouverture manquante."}), 400
+    if not family:
+        return jsonify({"ok": False, "error": "Famille manquante."}), 400
     try:
-        entry = opening_service.assign_repertoire(idx, opening_id, side)
+        entry = opening_service.assign_family(idx, family, side)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 404
-    node = opening_service.get_node_detail(opening_id)
     add_student_feedback(
         data, idx, "📚 Nouvelle ouverture",
-        f"{node.get('name') if node else 'Une ouverture'} a été ajoutée à ton répertoire — {len(entry.get('line') or [])} positions à apprendre.",
-        kind="opening", linked_type="opening", linked_id=opening_id,
+        f"{family} a été ajoutée à ton répertoire — {len(entry.get('course') or [])} variantes à apprendre, l'une après l'autre.",
+        kind="opening", linked_type="opening", linked_id=entry.get("opening_id"),
     )
     save_data(data)
     return jsonify({"ok": True, "entry": entry})
@@ -5707,14 +5706,13 @@ def api_admin_openings_repertoire():
     except (TypeError, ValueError):
         return jsonify({"ok": False, "error": "Élève invalide."}), 400
     data = load_data()
-    user = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
     entries = opening_service.list_repertoire(idx)
-    progress = opening_service.repertoire_progress(user["id"], entries) if user else {}
+    progress = opening_service.repertoire_progress(entries)
     for e in entries:
         node = e["line"][-1] if e.get("line") else {}
         e["opening_name"] = node.get("name")
         e["opening_eco"] = node.get("eco")
-        e["progress"] = progress.get(e["id"], {"total_positions": 0, "mastered_positions": 0, "percent": 0})
+        e["progress"] = progress.get(e["id"], {"total_variants": 0, "completed_variants": 0, "clean_streak": 0, "percent": 0})
     return jsonify({"ok": True, "entries": entries})
 
 
@@ -5754,13 +5752,40 @@ def api_client_openings_repertoire():
         return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
     idx = user.get("student_index")
     entries = opening_service.list_repertoire(idx) if isinstance(idx, int) else []
-    progress = opening_service.repertoire_progress(user["id"], entries)
+    progress = opening_service.repertoire_progress(entries)
     for e in entries:
         node = e["line"][-1] if e.get("line") else {}
         e["opening_name"] = node.get("name")
         e["opening_eco"] = node.get("eco")
-        e["progress"] = progress.get(e["id"], {"total_positions": 0, "mastered_positions": 0, "percent": 0})
+        e["progress"] = progress.get(e["id"], {"total_variants": 0, "completed_variants": 0, "clean_streak": 0, "percent": 0})
     return jsonify({"ok": True, "entries": entries})
+
+@app.route("/api/client/openings/complete_line", methods=["POST"])
+def api_client_openings_complete_line():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    entry_id = body.get("entry_id")
+    had_mistake = bool(body.get("had_mistake"))
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Entrée manquante."}), 400
+    try:
+        result = opening_service.complete_line(entry_id, had_mistake)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    if result["finished"]:
+        idx = user.get("student_index")
+        if isinstance(idx, int):
+            entry = result["entry"]
+            add_student_feedback(
+                data, idx, "🎉 Ouverture maîtrisée",
+                f"{entry.get('family')} terminée — toutes les variantes du parcours sont maîtrisées !",
+                kind="opening", linked_type="opening", linked_id=entry.get("opening_id"),
+            )
+            save_data(data)
+    return jsonify({"ok": True, **result})
 
 @app.route("/api/client/openings/attempt", methods=["POST"])
 def api_client_openings_attempt():

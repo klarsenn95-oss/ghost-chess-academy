@@ -140,6 +140,84 @@ def assign_repertoire(student_index: int, opening_id: str, side: str) -> dict:
     return (res.data or [payload])[0]
 
 
+MAX_COURSE_SIZE = 20
+
+
+def build_family_course(family: str) -> list[dict]:
+    """The curriculum for a whole family, capped and deduplicated by variation
+    name. A deep family like the Sicilian has 390+ named lines — nowhere near
+    learnable as one course — so this keeps only the shallowest (most
+    fundamental) named branches, one per distinct variation name, up to
+    MAX_COURSE_SIZE. This is a structural approximation (no popularity data
+    available yet): it favours breadth over judging which line matters most."""
+    client = get_supabase_client()
+    rows = (client.table(TABLE_OPENINGS)
+            .select("id,name,eco,variation,subvariation,ply")
+            .eq("family", family).not_.is_("name", "null")
+            .order("ply").limit(MAX_COURSE_SIZE * 15).execute().data or [])
+    seen = set()
+    course = []
+    for r in rows:
+        key = r.get("variation") or r["name"]
+        if key in seen:
+            continue
+        seen.add(key)
+        course.append({"id": r["id"], "name": r["name"], "eco": r.get("eco")})
+        if len(course) >= MAX_COURSE_SIZE:
+            break
+    return course
+
+
+def assign_family(student_index: int, family: str, side: str) -> dict:
+    course = build_family_course(family)
+    if not course:
+        raise ValueError("Aucune variante trouvée pour cette famille.")
+    line = _line_for_node(course[0]["id"])
+    client = get_supabase_client()
+    payload = {
+        "student_index": student_index, "family": family,
+        "opening_id": course[0]["id"],
+        "side": side if side in ("white", "black") else "white",
+        "line": line, "course": course, "course_position": 0, "clean_streak": 0,
+        "status": "active",
+    }
+    res = (client.table(TABLE_REPERTOIRE)
+           .upsert(payload, on_conflict="student_index,family").execute())
+    return (res.data or [payload])[0]
+
+
+def complete_line(entry_id: str, had_mistake: bool) -> dict:
+    """Called once a Ghost finishes a full run of the current variant in
+    evaluation mode. 3 clean (mistake-free) runs in a row unlock the next
+    variant in the family's course — a fresh line always resets the streak."""
+    entry = get_repertoire_entry(entry_id)
+    if not entry:
+        raise ValueError("Entrée introuvable.")
+    client = get_supabase_client()
+    streak = 0 if had_mistake else (entry.get("clean_streak") or 0) + 1
+    course = entry.get("course") or []
+    pos = entry.get("course_position") or 0
+    advanced = False
+    finished = False
+    payload = {"clean_streak": streak}
+    if streak >= 3:
+        if pos + 1 < len(course):
+            pos += 1
+            streak = 0
+            advanced = True
+            next_node = course[pos]
+            payload = {
+                "clean_streak": streak, "course_position": pos,
+                "opening_id": next_node["id"], "line": _line_for_node(next_node["id"]),
+            }
+        else:
+            finished = True
+            payload = {"clean_streak": streak, "status": "completed"}
+    res = client.table(TABLE_REPERTOIRE).update(payload).eq("id", entry_id).execute()
+    updated = (res.data or [{**entry, **payload}])[0]
+    return {"entry": updated, "advanced": advanced, "finished": finished}
+
+
 def remove_repertoire(entry_id: str) -> bool:
     client = get_supabase_client()
     client.table(TABLE_REPERTOIRE).delete().eq("id", entry_id).execute()
@@ -184,34 +262,20 @@ def record_progress(user_id: str, opening_id: str, correct: bool) -> dict:
     return (res.data or [payload])[0]
 
 
-def repertoire_progress(user_id: str, repertoire_entries: list[dict]) -> dict[str, dict]:
-    """For each repertoire entry, mastery over the positions in its line —
-    the numbers shown in section 17/18 (progression %, positions maîtrisées)."""
-    all_opening_ids: set = set()
-    for entry in repertoire_entries:
-        for step in entry.get("line") or []:
-            all_opening_ids.add(step["id"])
-    if not all_opening_ids:
-        return {}
-    client = get_supabase_client()
-    ids = list(all_opening_ids)
-    progress_by_id: dict[str, dict] = {}
-    for i in range(0, len(ids), 200):
-        chunk = ids[i:i + 200]
-        rows = (client.table(TABLE_PROGRESS).select("opening_id,correct_count,wrong_count")
-                .eq("user_id", user_id).in_("opening_id", chunk).execute().data or [])
-        for r in rows:
-            progress_by_id[r["opening_id"]] = r
-
+def repertoire_progress(repertoire_entries: list[dict]) -> dict[str, dict]:
+    """For each repertoire entry, how far through its family course the
+    Ghost has progressed — variant N/total, plus the current mastery streak
+    (X/3 clean runs) towards unlocking the next one."""
     out: dict[str, dict] = {}
     for entry in repertoire_entries:
-        line = entry.get("line") or []
-        total = len(line)
-        mastered = 0
-        for step in line:
-            p = progress_by_id.get(step["id"])
-            if p and p.get("correct_count", 0) >= 2 and p.get("correct_count", 0) > p.get("wrong_count", 0):
-                mastered += 1
-        percent = round(100 * mastered / total) if total else 0
-        out[entry["id"]] = {"total_positions": total, "mastered_positions": mastered, "percent": percent}
+        course = entry.get("course") or []
+        total = len(course)
+        pos = entry.get("course_position") or 0
+        completed = pos + (1 if entry.get("status") == "completed" else 0)
+        completed = min(completed, total)
+        out[entry["id"]] = {
+            "total_variants": total, "completed_variants": completed,
+            "current_variant_index": pos, "clean_streak": entry.get("clean_streak") or 0,
+            "percent": round(100 * completed / total) if total else 0,
+        }
     return out

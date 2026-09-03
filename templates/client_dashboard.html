@@ -172,14 +172,8 @@
     <div class="syncbox"><button class="btn secondary" onclick="syncElo()">🔄 Actualiser mon ELO</button> <button class="btn secondary" onclick="showTab('profile', document.querySelector(`[onclick*=\'profile\']`))">👤 Modifier mon profil</button><span class="msg" id="elo-msg"></span></div>
     {% endif %}
     {% if selected_plan.key == 'no_plan' %}
-    <div class="progress-wrap pending-note">
-      <div class="progress-top"><span>🎯 Socle Ghost actif</span><span>{{ included_usage.period }}</span></div>
-      <div class="muted small">Ton inscription inclut l'accès complet, {{ registration_monthly_games }} parties/mois et {{ registration_monthly_coaching }}. Tu n'as simplement aucune option individuelle active.</div>
-      <div class="included-grid">
-        <div class="included-card"><b>Parties analysées</b><div class="bar"><span style="width:{{ included_usage.games_percent }}%"></span></div><div class="muted small">{{ included_usage.games_used }}/{{ included_usage.games_total }} utilisées · {{ included_usage.games_remaining }} restante(s)</div></div>
-        <div class="included-card"><b>Temps standard coach</b><div class="bar"><span style="width:{{ included_usage.coaching_percent }}%"></span></div><div class="muted small">{{ included_usage.coaching_used_label }}/{{ included_usage.coaching_hours_label }} utilisés · {{ included_usage.coaching_remaining_label }} restant(s)</div></div>
-      </div>
-      <a class="btn secondary renew-link" href="#offer" onclick="showTab('offer')">Voir ce qui est inclus</a>
+    <div class="progress-wrap pending-note" style="padding:10px 14px">
+      <div class="progress-top"><span>🎯 Socle Ghost actif <span class="muted small">{{ included_usage.period }}</span></span><span class="muted small">{{ included_usage.games_remaining }} partie(s) · {{ included_usage.coaching_remaining_label }} restant — <a href="#offer" onclick="showTab('offer')">détails</a></span></div>
     </div>
     {% elif plan_state.status == 'completed' %}
     <div class="progress-wrap completed-note">
@@ -1180,13 +1174,17 @@ async function loadOpeningRepertoire(){
   if(!d.ok){ box.innerHTML = '<div class="empty">'+(d.error||'Bibliothèque non disponible.')+'</div>'; return; }
   opRepertoireCache = d.entries;
   if(!d.entries.length){ box.innerHTML = '<div class="empty">Ton coach ne t\'a pas encore attribué d\'ouverture. Regarde l\'onglet Découvrir en attendant.</div>'; return; }
-  box.innerHTML = d.entries.map(e => `
+  box.innerHTML = d.entries.map(e => {
+    const finished = e.status === 'completed';
+    const streakDots = finished ? '' : `<span class="muted small"> · 🔥 ${e.progress.clean_streak}/3 sans erreur</span>`;
+    return `
     <div class="item">
-      <b>${e.opening_name || '?'}</b> <span class="muted small">${e.opening_eco||''} · ${e.side==='white'?'Blancs':'Noirs'}</span>
+      <b>${e.family || '?'}</b> <span class="muted small">${e.side==='white'?'Blancs':'Noirs'}</span>
       <div class="bar" style="margin:8px 0"><span style="width:${e.progress.percent}%"></span></div>
-      <div class="muted small">${e.progress.mastered_positions}/${e.progress.total_positions} positions maîtrisées</div>
-      <button class="tool" style="margin-top:8px" onclick="startOpeningTraining('${e.id}')">🎯 S'entraîner</button>
-    </div>`).join('');
+      <div class="muted small">${finished ? '🎉 Parcours terminé' : `Variante ${e.progress.current_variant_index+1}/${e.progress.total_variants} : ${e.opening_name||'?'}`}${streakDots}</div>
+      ${finished ? '' : `<button class="tool" style="margin-top:8px" onclick="startOpeningLearn('${e.id}')">📖 Continuer</button>`}
+    </div>`;
+  }).join('');
 }
 
 let opFamiliesLoaded = false;
@@ -1263,11 +1261,51 @@ function setupOpeningTrainerUI(){
   document.getElementById('op-why').style.display = 'none';
 }
 
-function startOpeningTraining(entryId){
+let opCurrentEntryId = null;
+let opHadMistake = false;
+
+// ── Phase 1 : apprentissage assisté — on rejoue la ligne pas à pas (le
+// Ghost avance lui-même avec les boutons, chaque coup est montré par une
+// flèche), sans notation ni pression. Une fois arrivé au bout, un bouton
+// permet de passer à l'évaluation sur cette même ligne.
+function startOpeningLearn(entryId){
   const entry = opRepertoireCache.find(e => e.id === entryId);
   if(!entry) return;
-  opLine = entry.line; opSide = entry.side; opMode = 'training';
+  opCurrentEntryId = entryId;
+  opDiscoverLine = entry.line;
+  opDiscoverIdx = 0;
+  opMode = 'learn';
+  document.getElementById('op-picker').style.display = 'none';
+  document.getElementById('op-solver').style.display = 'block';
+  document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
+  document.getElementById('op-instruction').textContent = '📖 Apprentissage — avance avec les boutons pour voir la ligne, coup par coup.';
+  document.getElementById('op-hint-btn').style.display = 'none';
+  document.getElementById('op-reveal-btn').style.display = 'none';
+  document.getElementById('op-prev-btn').style.display = '';
+  document.getElementById('op-next-btn').style.display = '';
+  document.getElementById('op-variant-prev-btn').style.display = 'none';
+  document.getElementById('op-variant-next-btn').style.display = 'none';
+  document.getElementById('op-restart-btn').style.display = '';
+  document.getElementById('op-restart-btn').textContent = "🎯 Passer à l'évaluation";
+  document.getElementById('op-restart-btn').onclick = () => startOpeningEval(entryId);
+  const el = document.getElementById('op-solver-board');
+  if(opBoard) opBoard.destroy();
+  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: entry.side, interactive: false});
+  document.getElementById('op-move-list').innerHTML = '';
+  renderDiscoverStep();
+  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// ── Phase 2 : évaluation — le Ghost doit retrouver seul les coups de sa
+// couleur. 3 lignes propres (sans erreur) d'affilée débloquent la variante
+// suivante du parcours (géré côté serveur dans complete_line).
+function startOpeningEval(entryId){
+  const entry = opRepertoireCache.find(e => e.id === entryId);
+  if(!entry) return;
+  opCurrentEntryId = entryId;
+  opLine = entry.line; opSide = entry.side; opMode = 'eval';
   opStepIdx = 0;
+  opHadMistake = false;
   document.getElementById('op-picker').style.display = 'none';
   document.getElementById('op-solver').style.display = 'block';
   document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
@@ -1278,7 +1316,7 @@ function startOpeningTraining(entryId){
   opBoard = createPuzzleBoard(el, {fen: 'start', orientation: opSide, interactive: true, onAttemptMove: handleOpeningMove});
   document.getElementById('op-move-list').innerHTML = '';
   document.getElementById('op-solver-status').textContent = '';
-  document.getElementById('op-instruction').textContent = (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire.';
+  document.getElementById('op-instruction').textContent = (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire. 🔥 ' + (entry.progress?.clean_streak||0) + '/3 sans erreur.';
   advanceOpeningAuto();
   document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
@@ -1302,6 +1340,7 @@ function handleOpeningMove(from, to, promotion){
     opGame.undo();
     opBoard.setFen(opGame.fen());
     opBoard.flashSquare(to, 'bad');
+    opHadMistake = true;
     document.getElementById('op-solver-status').textContent = "Ce n'est pas le coup attendu, réessaie.";
     document.getElementById('op-solver-status').className = 'pz-status bad';
     postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: false}).catch(()=>{});
@@ -1315,11 +1354,22 @@ function handleOpeningMove(from, to, promotion){
   setTimeout(advanceOpeningAuto, 350);
 }
 
-function finishOpeningLine(){
-  document.getElementById('op-solver-status').textContent = '✅ Ligne terminée !';
-  document.getElementById('op-solver-status').className = 'pz-status good';
-  document.getElementById('op-restart-btn').style.display = '';
+async function finishOpeningLine(){
   if(opBoard) opBoard.setInteractive(false);
+  const d = await postJSON('/api/client/openings/complete_line', {entry_id: opCurrentEntryId, had_mistake: opHadMistake});
+  const status = document.getElementById('op-solver-status');
+  if(!d.ok){ status.textContent = '✅ Ligne terminée !'; status.className = 'pz-status good'; }
+  else if(d.finished){ status.textContent = '🎉 Parcours terminé — toutes les variantes sont maîtrisées !'; status.className = 'pz-status good'; }
+  else if(d.advanced){ status.textContent = '🎉 3 réussites d\'affilée — variante suivante débloquée !'; status.className = 'pz-status good'; }
+  else if(opHadMistake){ status.textContent = 'Ligne terminée, mais avec une erreur — série remise à 0. Réessaie !'; status.className = 'pz-status bad'; }
+  else { const s = d.entry?.clean_streak || 0; status.textContent = `✅ Réussi sans erreur ! 🔥 ${s}/3 — encore ${3-s} pour débloquer la suite.`; status.className = 'pz-status good'; }
+  if(d.ok && d.finished){
+    document.getElementById('op-restart-btn').style.display = 'none';
+  } else {
+    document.getElementById('op-restart-btn').style.display = '';
+    document.getElementById('op-restart-btn').textContent = d.ok && d.advanced ? "📖 Apprendre la variante suivante" : '↺ Rejouer';
+    document.getElementById('op-restart-btn').onclick = () => (d.ok && d.advanced ? startOpeningLearn(opCurrentEntryId) : startOpeningEval(opCurrentEntryId));
+  }
   loadOpeningRepertoire();
 }
 
