@@ -696,18 +696,17 @@ body{padding:8px 8px 72px!important}
   <div class="card full cc-section" id="openings">
     <div class="ttl">📚 Bibliothèque des ouvertures</div>
     <div class="section-note" id="op-bank-note">Bibliothèque déjà prête — tu choisis une ouverture et l'attribues à un Ghost, rien à importer.</div>
-    <input class="fi" id="op-search" placeholder="Rechercher : Najdorf, B90, Dragon…" oninput="searchOpenings()">
-    <div class="puzzle-list" id="op-search-results" style="margin-top:8px"></div>
-    <div class="pg-row" style="margin-top:16px;align-items:flex-start">
-      <div style="flex:1;min-width:220px">
-        <div class="pg-label">Familles</div>
-        <div class="puzzle-list" id="op-families" style="max-height:280px;overflow-y:auto"></div>
-      </div>
-      <div style="flex:1;min-width:220px">
-        <div class="pg-label">Variantes — <span id="op-family-title">choisis une famille</span></div>
-        <div class="puzzle-list" id="op-variations" style="max-height:280px;overflow-y:auto"></div>
-      </div>
+    <div class="pg-row">
+      <select class="fi" id="op-family-select" onchange="onFamilyChange()">
+        <option value="">Choisis une ouverture…</option>
+      </select>
+      <select class="fi" id="op-variation-select" onchange="onVariationChange()" disabled>
+        <option value="">— Variante —</option>
+      </select>
     </div>
+    <div class="muted small" style="margin-top:8px">Ou cherche directement :</div>
+    <input class="fi" id="op-search" placeholder="Najdorf, B90, Dragon…" oninput="searchOpenings()" style="margin-top:4px">
+    <div class="puzzle-list" id="op-search-results" style="margin-top:8px"></div>
     <div id="op-detail" style="margin-top:16px"></div>
   </div>
 
@@ -924,19 +923,13 @@ const ADMIN_STUDENTS = {{ students|map(attribute='name')|list|tojson }};
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
 
 // ── Ouvertures ────────────────────────────────────────────────────
-let opFamiliesCache = null;
 async function loadOpeningFamilies(){
-  if(opFamiliesCache){ renderOpeningFamilies(opFamiliesCache); return; }
   const r = await fetch('/api/admin/openings/families');
   const d = await r.json();
-  if(!d.ok){ $('op-families').innerHTML = '<div class="muted">'+(d.error||'Erreur')+'</div>'; return; }
-  opFamiliesCache = d.families;
-  renderOpeningFamilies(d.families);
-}
-function renderOpeningFamilies(families){
-  $('op-families').innerHTML = families.map(f =>
-    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningFamily('${f.family.replace(/'/g,"\\'")}')"><span><b>${f.family}</b> <span class="muted">${f.eco||''}</span></span><span class="pill">${f.count}</span></div>`
-  ).join('') || '<div class="muted">Aucune famille.</div>';
+  const sel = $('op-family-select');
+  if(!d.ok){ sel.innerHTML = '<option value="">'+(d.error||'Erreur')+'</option>'; return; }
+  sel.innerHTML = '<option value="">Choisis une ouverture…</option>' +
+    d.families.map(f => `<option value="${f.family.replace(/"/g,'&quot;')}">${f.family} (${f.count})</option>`).join('');
 }
 async function searchOpenings(){
   const q = $('op-search').value.trim();
@@ -949,14 +942,20 @@ async function searchOpenings(){
     `<div class="mini-item" style="cursor:pointer" onclick="openOpeningNode('${o.id}')"><span><b>${o.name}</b> <span class="muted">${o.eco||''}</span></span></div>`
   ).join('') || '<div class="muted">Aucun résultat.</div>';
 }
-async function openOpeningFamily(family){
-  $('op-family-title').textContent = family;
+async function onFamilyChange(){
+  const family = $('op-family-select').value;
+  const varSel = $('op-variation-select');
+  if(!family){ varSel.innerHTML = '<option value="">— Variante —</option>'; varSel.disabled = true; return; }
   const r = await fetch('/api/admin/openings/family/' + encodeURIComponent(family));
   const d = await r.json();
-  if(!d.ok){ $('op-variations').innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
-  $('op-variations').innerHTML = d.variations.map(v =>
-    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningNode('${v.id}')"><span>${v.variation||v.name}${v.subvariation ? ' — '+v.subvariation : ''}</span><span class="pill">${v.eco||''}</span></div>`
-  ).join('') || '<div class="muted">Aucune variante.</div>';
+  if(!d.ok){ varSel.innerHTML = '<option value="">'+d.error+'</option>'; return; }
+  varSel.disabled = false;
+  varSel.innerHTML = '<option value="">— Variante —</option>' +
+    d.variations.map(v => `<option value="${v.id}">${(v.variation||v.name)}${v.subvariation ? ' — '+v.subvariation : ''}</option>`).join('');
+}
+function onVariationChange(){
+  const id = $('op-variation-select').value;
+  if(id) openOpeningNode(id);
 }
 async function openOpeningNode(id){
   const r = await fetch('/api/admin/openings/node/' + id);
@@ -989,7 +988,7 @@ async function assignOpening(openingId){
   });
   msg.textContent = d.ok ? '✅ Attribué — le Ghost est notifié.' : (d.error || 'Erreur');
 }
-if(document.getElementById('op-families')) loadOpeningFamilies();
+if(document.getElementById('op-family-select')) loadOpeningFamilies();
 function mergeFileSelection(input){if(!input||!window.DataTransfer)return;const previous=input.__ghostSelectedFiles||[];const incoming=[...(input.files||[])];const byKey=new Map();[...previous,...incoming].forEach(f=>byKey.set([f.name,f.size,f.lastModified].join('|'),f));const dt=new DataTransfer();byKey.forEach(f=>dt.items.add(f));input.files=dt.files;input.__ghostSelectedFiles=[...dt.files];}
 function showFileCount(input,id){mergeFileSelection(input);const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Impossible d\u2019envoyer le fichier.');return(d.urls||[d.url]).filter(Boolean)}

@@ -419,26 +419,26 @@
       </div>
 
       <div id="op-discover-view" style="display:none">
-        <input class="fi" id="op-c-search" placeholder="Rechercher : Najdorf, B90, Dragon…" oninput="clientSearchOpenings()">
-        <div class="puzzle-list" id="op-c-search-results" style="margin-top:8px"></div>
-        <div class="pg-row" style="margin-top:14px;align-items:flex-start">
-          <div style="flex:1;min-width:200px">
-            <div class="pg-label">Familles</div>
-            <div class="puzzle-list" id="op-c-families" style="max-height:240px;overflow-y:auto"></div>
-          </div>
-          <div style="flex:1;min-width:200px">
-            <div class="pg-label">Variantes — <span id="op-c-family-title">choisis une famille</span></div>
-            <div class="puzzle-list" id="op-c-variations" style="max-height:240px;overflow-y:auto"></div>
-          </div>
+        <div class="pg-row">
+          <select class="fi" id="op-c-family-select" onchange="onClientFamilyChange()">
+            <option value="">Choisis une ouverture…</option>
+          </select>
+          <select class="fi" id="op-c-variation-select" onchange="onClientVariationChange()" disabled>
+            <option value="">— Variante —</option>
+          </select>
         </div>
-        <div id="op-c-detail" style="margin-top:14px"></div>
+        <div class="muted small" style="margin-top:8px">Ou cherche directement :</div>
+        <input class="fi" id="op-c-search" placeholder="Najdorf, B90, Dragon…" oninput="clientSearchOpenings()" style="margin-top:4px">
+        <div class="puzzle-list" id="op-c-search-results" style="margin-top:8px"></div>
       </div>
     </div>
 
     <div class="card full" id="op-solver" style="display:none">
       <div class="pz-solver-head">
         <button class="btn secondary tiny" type="button" onclick="exitOpeningSolver()">← Retour</button>
+        <button class="btn secondary tiny" type="button" onclick="opVariantStep(-1)" id="op-variant-prev-btn" style="display:none">◀ Variante précédente</button>
         <span class="pill" id="op-solver-title"></span>
+        <button class="btn secondary tiny" type="button" onclick="opVariantStep(1)" id="op-variant-next-btn" style="display:none">Variante suivante ▶</button>
         <span id="op-solver-status" class="pz-status"></span>
       </div>
       <div class="pz-solver-grid">
@@ -1190,16 +1190,17 @@ async function loadOpeningRepertoire(){
 }
 
 let opFamiliesLoaded = false;
-let opFamiliesCacheClient = null;
+let opVariantList = [];  // variations of the family currently selected — powers "parcours" prev/next
+let opVariantIdx = -1;
+
 async function loadClientOpeningFamilies(){
   opFamiliesLoaded = true;
   const r = await fetch('/api/client/openings/families');
   const d = await r.json();
-  if(!d.ok){ document.getElementById('op-c-families').innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
-  opFamiliesCacheClient = d.families;
-  document.getElementById('op-c-families').innerHTML = d.families.map(f =>
-    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="openClientOpeningFamily('${f.family.replace(/'/g,"\\'")}')"><b>${f.family}</b> <span class="muted small">${f.count} variante(s)</span></div>`
-  ).join('') || '<div class="empty">Aucune famille.</div>';
+  const sel = document.getElementById('op-c-family-select');
+  if(!d.ok){ sel.innerHTML = '<option value="">'+d.error+'</option>'; return; }
+  sel.innerHTML = '<option value="">Choisis une ouverture…</option>' +
+    d.families.map(f => `<option value="${f.family.replace(/"/g,'&quot;')}">${f.family} (${f.count})</option>`).join('');
 }
 async function clientSearchOpenings(){
   const q = document.getElementById('op-c-search').value.trim();
@@ -1212,14 +1213,28 @@ async function clientSearchOpenings(){
     `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startOpeningDiscover('${o.id}')"><b>${o.name}</b> <span class="muted small">${o.eco||''}</span></div>`
   ).join('') || '<div class="empty">Aucun résultat.</div>';
 }
-async function openClientOpeningFamily(family){
-  document.getElementById('op-c-family-title').textContent = family;
+async function onClientFamilyChange(){
+  const family = document.getElementById('op-c-family-select').value;
+  const varSel = document.getElementById('op-c-variation-select');
+  if(!family){ varSel.innerHTML = '<option value="">— Variante —</option>'; varSel.disabled = true; opVariantList = []; return; }
   const r = await fetch('/api/client/openings/family/' + encodeURIComponent(family));
   const d = await r.json();
-  if(!d.ok){ document.getElementById('op-c-variations').innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
-  document.getElementById('op-c-variations').innerHTML = d.variations.map(v =>
-    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startOpeningDiscover('${v.id}')">${v.variation||v.name}${v.subvariation ? ' — '+v.subvariation : ''} <span class="muted small">${v.eco||''}</span></div>`
-  ).join('') || '<div class="empty">Aucune variante.</div>';
+  if(!d.ok){ varSel.innerHTML = '<option value="">'+d.error+'</option>'; return; }
+  opVariantList = d.variations;
+  varSel.disabled = false;
+  varSel.innerHTML = '<option value="">— Variante —</option>' +
+    d.variations.map(v => `<option value="${v.id}">${(v.variation||v.name)}${v.subvariation ? ' — '+v.subvariation : ''}</option>`).join('');
+}
+function onClientVariationChange(){
+  const id = document.getElementById('op-c-variation-select').value;
+  if(!id) return;
+  opVariantIdx = opVariantList.findIndex(v => v.id === id);
+  startOpeningDiscover(id, true);
+}
+function opVariantStep(dir){
+  if(!opVariantList.length) return;
+  opVariantIdx = Math.max(0, Math.min(opVariantList.length - 1, opVariantIdx + dir));
+  startOpeningDiscover(opVariantList[opVariantIdx].id, true);
 }
 
 function studentTurnAtStep(i){
@@ -1240,6 +1255,8 @@ function setupOpeningTrainerUI(){
   document.getElementById('op-reveal-btn').style.display = '';
   document.getElementById('op-prev-btn').style.display = 'none';
   document.getElementById('op-next-btn').style.display = 'none';
+  document.getElementById('op-variant-prev-btn').style.display = 'none';
+  document.getElementById('op-variant-next-btn').style.display = 'none';
   document.getElementById('op-restart-btn').style.display = 'none';
   document.getElementById('op-restart-btn').onclick = opRestart;
   document.getElementById('op-restart-btn').textContent = '↺ Recommencer';
@@ -1263,6 +1280,7 @@ function startOpeningTraining(entryId){
   document.getElementById('op-solver-status').textContent = '';
   document.getElementById('op-instruction').textContent = (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire.';
   advanceOpeningAuto();
+  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function advanceOpeningAuto(){
@@ -1333,7 +1351,7 @@ function opReveal(){
   setTimeout(advanceOpeningAuto, 400);
 }
 
-async function startOpeningDiscover(nodeId){
+async function startOpeningDiscover(nodeId, fromVariantList){
   const r = await fetch('/api/client/openings/node/' + nodeId);
   const d = await r.json();
   if(!d.ok) return;
@@ -1343,7 +1361,7 @@ async function startOpeningDiscover(nodeId){
   document.getElementById('op-picker').style.display = 'none';
   document.getElementById('op-solver').style.display = 'block';
   document.getElementById('op-solver-title').textContent = d.node.name || 'Position';
-  document.getElementById('op-instruction').textContent = 'Mode découverte — avance coup par coup pour comprendre la ligne.';
+  document.getElementById('op-instruction').textContent = 'Mode découverte — avance avec les boutons, ou essaie tes propres coups sur l\'échiquier.';
   document.getElementById('op-hint-btn').style.display = 'none';
   document.getElementById('op-reveal-btn').style.display = 'none';
   document.getElementById('op-prev-btn').style.display = '';
@@ -1351,11 +1369,24 @@ async function startOpeningDiscover(nodeId){
   document.getElementById('op-restart-btn').style.display = '';
   document.getElementById('op-restart-btn').textContent = '↺ Depuis le début';
   document.getElementById('op-restart-btn').onclick = () => { opDiscoverIdx = 0; renderDiscoverStep(); };
+  document.getElementById('op-variant-prev-btn').style.display = fromVariantList ? '' : 'none';
+  document.getElementById('op-variant-next-btn').style.display = fromVariantList ? '' : 'none';
   const el = document.getElementById('op-solver-board');
   if(opBoard) opBoard.destroy();
-  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: 'white', interactive: false});
+  // Interactif : l'élève peut essayer ses propres coups librement pour explorer,
+  // sans notation ni contrainte — Précédent/Suivant remet toujours sur la ligne du livre.
+  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: 'white', interactive: true, onAttemptMove: handleDiscoverFreeMove});
   document.getElementById('op-move-list').innerHTML = '';
   renderDiscoverStep();
+  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function handleDiscoverFreeMove(from, to, promotion){
+  const step = opDiscoverLine[opDiscoverIdx];
+  const chess = new Chess(step.fen);
+  const mv = chess.move({from, to, promotion: promotion || 'q'});
+  if(!mv) return;
+  opBoard.setFen(chess.fen(), {from, to});
 }
 
 function renderDiscoverStep(){
