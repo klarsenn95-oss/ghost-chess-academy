@@ -132,6 +132,8 @@
 .chat-msg-topic{font-size:12px;color:#8a82a6}
 .chat-msg-head .date{margin:0 0 0 auto}
 .chat-msg-body{line-height:1.5}
+.exchange-focus-banner{display:none;align-items:center;justify-content:space-between;gap:8px;background:#0b1025;border:1px solid #2a2a44;border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.exchange-focus-banner .tool{margin:0}
 </style>
 </head>
 <body>
@@ -144,7 +146,7 @@
         {% if student and student.client_notifications %}
           <div class="notif-list" id="ghostNotifList">
           {% for n in student.client_notifications %}
-            <a class="notif-card" id="ghost-notif-{{ n.id }}" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}')">
+            <a class="notif-card" id="ghost-notif-{{ n.id }}" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}','{{ n.linked_id or '' }}')">
               <div class="kind">{{ n.kind }}</div><b>{{ n.title }}</b><div class="muted">{{ n.text }}</div><div class="date">{{ n.date }}</div>
             </a>
           {% endfor %}
@@ -224,7 +226,7 @@
       <div class="ttl">🎯 À faire{% if student.client_notifications|length > 3 %}<span class="muted small" style="font-weight:400;text-transform:none;letter-spacing:0"> — {{ student.client_notifications|length }} au total</span>{% endif %}</div>
       <div class="todo-list">
       {% for n in student.client_notifications[:3] %}
-        <a class="todo-item" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}')">
+        <a class="todo-item" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}','{{ n.linked_id or '' }}')">
           <b>{{ n.title }}</b>
           <span class="muted small">{{ n.text|truncate(90) }}</span>
           <span class="date">{{ n.date }}</span>
@@ -535,7 +537,7 @@ function selectTabGroup(group){
   document.querySelectorAll('.tab-group').forEach(b=>b.classList.toggle('active',b.dataset.group===group));
   document.querySelectorAll('.tabs .tab').forEach(b=>{ b.style.display = (b.dataset.group===group) ? '' : 'none'; });
 }
-function showTab(name,btn){let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil')}
+function showTab(name,btn){if(typeof exitExchangeFocus==='function')exitExchangeFocus();let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil')}
 document.querySelectorAll('.tab-group').forEach(btn=>{
   btn.addEventListener('click',()=>{
     selectTabGroup(btn.dataset.group);
@@ -607,7 +609,7 @@ async function requestCertificationRetake(gradeKey){const msg=prompt('Message op
 async function markFeedbackRead(){await fetch('/api/client/feedback/read',{method:'POST'});location.reload()}
 function toggleGhostNotifPanel(ev){ if(ev) ev.stopPropagation(); document.getElementById('ghostNotifPanel')?.classList.toggle('open'); }
 document.addEventListener('click',(ev)=>{ const p=document.getElementById('ghostNotifPanel'); if(!p) return; if(!ev.target.closest('.ghost-notif-wrap')) p.classList.remove('open'); });
-async function openGhostNotification(ev,id,tab){
+async function openGhostNotification(ev,id,tab,linkedId){
   if(ev) ev.preventDefault();
   await fetch('/api/client/notifications/read',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notification_id:id})});
   const card=document.getElementById('ghost-notif-'+id); if(card) card.remove();
@@ -615,6 +617,20 @@ async function openGhostNotification(ev,id,tab){
   const list=document.getElementById('ghostNotifList'); if(list && !list.querySelector('.notif-card')) list.innerHTML='<div class="empty">Aucune nouvelle notification.</div>';
   document.getElementById('ghostNotifPanel')?.classList.remove('open');
   showTab(tab||'divers');
+  // Sans cette étape, l'élève voit juste la notification disparaître : rien
+  // ne prouve visuellement qu'on a bien changé d'onglet, surtout si le
+  // panneau de notifs masquait le haut de page.
+  window.scrollTo({top:0, behavior:'instant'});
+  setTimeout(()=>{
+    if(tab==='feedback' && id){ enterExchangeFocus(id); return; }
+    let target=null;
+    if(tab==='homework' && linkedId) target=document.getElementById('devoir-puzzle-'+linkedId);
+    if(!target) target=document.getElementById('tab-'+tab);
+    if(!target) return;
+    target.scrollIntoView({behavior:'smooth', block:'start'});
+    target.classList.add('highlight-flash');
+    setTimeout(()=>target.classList.remove('highlight-flash'), 1800);
+  }, 80);
 }
 async function markGhostNotificationsRead(){await fetch('/api/client/notifications/read',{method:'POST'});const c=document.getElementById('ghostNotifCount');if(c)c.textContent='0';const list=document.getElementById('ghostNotifList');if(list)list.innerHTML='<div class="empty">Aucune nouvelle notification.</div>';}
 function escHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -631,7 +647,7 @@ function renderGhostNotifications(items){
     panel.appendChild(list);
   }
   if(!items.length){list.innerHTML='<div class="empty">Aucune nouvelle notification.</div>';return;}
-  list.innerHTML=items.map(n=>`<a class="notif-card" id="ghost-notif-${escHtml(n.id)}" href="#${escHtml(n.target_tab||'divers')}" onclick="openGhostNotification(event,'${escHtml(n.id)}','${escHtml(n.target_tab||'divers')}')"><div class="kind">${escHtml(n.kind)}</div><b>${escHtml(n.title)}</b><div class="muted">${escHtml(n.text)}</div><div class="date">${escHtml(n.date)}</div></a>`).join('');
+  list.innerHTML=items.map(n=>`<a class="notif-card" id="ghost-notif-${escHtml(n.id)}" href="#${escHtml(n.target_tab||'divers')}" onclick="openGhostNotification(event,'${escHtml(n.id)}','${escHtml(n.target_tab||'divers')}','${escHtml(n.linked_id||'')}')"><div class="kind">${escHtml(n.kind)}</div><b>${escHtml(n.title)}</b><div class="muted">${escHtml(n.text)}</div><div class="date">${escHtml(n.date)}</div></a>`).join('');
 }
 async function pollGhostNotifications(){
   try{
@@ -750,10 +766,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script src="/static/puzzle-board.js"></script>
 <script>
 // V41 — Puzzles façon Lichess : plateau interactif, coup à coup, par thème.
-let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '', pzStartTs = 0;
+let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '', pzStartTs = 0, pzMode = 'theme';
 let pzTimerInterval = null, pzHadMistake = false, pzReplayFen = '', pzPlayedMoves = [], pzReplayStep = 0;
 
 async function openAssignedPuzzle(puzzleId){
+  pzMode = 'assigned';
+  pzPool = [];
   showTab('puzzles');
   document.getElementById('pz-solver-theme').textContent = 'Envoyé par ton coach';
   document.getElementById('pz-picker').style.display = 'none';
@@ -763,13 +781,34 @@ async function openAssignedPuzzle(puzzleId){
 
 function openPuzzleDiscussion(feedbackId){
   showTab('feedback');
-  setTimeout(()=>{
-    const el = document.getElementById('feedback-'+feedbackId);
-    if(!el) return;
-    el.scrollIntoView({behavior:'smooth', block:'center'});
-    el.classList.add('highlight-flash');
-    setTimeout(()=>el.classList.remove('highlight-flash'), 1800);
-  }, 60);
+  setTimeout(()=>enterExchangeFocus(feedbackId), 60);
+}
+
+// Mode focus : au lieu de noyer l'élève dans tout l'historique des échanges,
+// on n'affiche que le fil concerné par ce puzzle + l'espace pour répondre.
+function enterExchangeFocus(feedbackId){
+  const thread = document.querySelector('.chat-thread');
+  const target = document.getElementById('feedback-'+feedbackId);
+  if(!thread || !target) return;
+  thread.querySelectorAll('.chat-msg').forEach(el=>{ el.style.display = (el.id === 'feedback-'+feedbackId) ? '' : 'none'; });
+  target.scrollIntoView({behavior:'smooth', block:'start'});
+  target.classList.add('highlight-flash');
+  setTimeout(()=>target.classList.remove('highlight-flash'), 1800);
+  let banner = document.getElementById('exchangeFocusBanner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'exchangeFocusBanner';
+    banner.className = 'exchange-focus-banner';
+    banner.innerHTML = '<span class="muted small">Échange sur ce puzzle</span><button class="tool" onclick="exitExchangeFocus()">← Voir tous les échanges</button>';
+    thread.parentNode.insertBefore(banner, thread);
+  }
+  banner.style.display = 'flex';
+}
+
+function exitExchangeFocus(){
+  document.querySelectorAll('.chat-thread .chat-msg').forEach(el=>{ el.style.display = ''; });
+  const banner = document.getElementById('exchangeFocusBanner');
+  if(banner) banner.style.display = 'none';
 }
 
 function updateDevoirCardSolved(puzzleId){
@@ -834,6 +873,7 @@ function updatePuzzleSummary(xp, solvedCount, streak){
 }
 
 async function startPuzzleTheme(theme){
+  pzMode = 'theme';
   pzCurrentTheme = theme;
   const url = theme ? ('/api/client/puzzle/list?theme=' + encodeURIComponent(theme)) : '/api/client/puzzle/list';
   const r = await fetch(url);
@@ -936,6 +976,8 @@ async function finishPuzzle(success){
     status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP${streakBit}` : `Puzzle résolu !${streakBit}`;
     status.className = 'pz-status good';
     updateDevoirCardSolved(pzCurrentId);
+    const todayItem = pgTodayPuzzles.find(p => p.id === pzCurrentId);
+    if(todayItem) todayItem.solved = true;
     loadTodayProgram();
   } else {
     status.textContent = 'Solution révélée.';
@@ -985,6 +1027,16 @@ function giveUpPuzzle(){
 }
 
 function nextPuzzle(){
+  if(pzMode === 'program'){
+    const next = pgTodayPuzzles.find(p => p.id !== pzCurrentId && !p.solved);
+    if(next){ openPuzzle(next.id); return; }
+    exitPuzzleSolver();
+    return;
+  }
+  if(pzMode === 'assigned'){
+    exitPuzzleSolver();
+    return;
+  }
   const unsolved = pzPool.filter(p => p.id !== pzCurrentId);
   if(!unsolved.length){ startPuzzleTheme(pzCurrentTheme); return; }
   const pick = unsolved[Math.floor(Math.random() * unsolved.length)];
@@ -993,6 +1045,7 @@ function nextPuzzle(){
 
 function exitPuzzleSolver(){
   stopPzTimer();
+  pzMode = 'theme';
   document.getElementById('pz-solver').style.display = 'none';
   document.getElementById('pz-picker').style.display = '';
   loadPuzzleThemeCounts();
@@ -1033,6 +1086,7 @@ async function loadTodayProgram(){
 function continueProgram(){
   const next = pgTodayPuzzles.find(p => !p.solved);
   if(!next){ return; }
+  pzMode = 'program';
   document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
   document.getElementById('pz-picker').style.display = 'none';
   document.getElementById('pz-solver').style.display = 'block';
@@ -1042,6 +1096,7 @@ function continueProgram(){
 function openProgramPuzzle(i){
   const p = pgTodayPuzzles[i];
   if(!p) return;
+  pzMode = 'program';
   document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
   document.getElementById('pz-picker').style.display = 'none';
   document.getElementById('pz-solver').style.display = 'block';

@@ -67,6 +67,9 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .exchange-files a:has(img){padding:0;border:0;background:transparent;border-radius:12px;overflow:hidden}
 .exchange-files img{display:block;max-width:220px;max-height:160px;object-fit:contain;border-radius:12px;border:1px solid #262640}
 .exchange-card{background:#060606;border:1px solid #1a1a1a;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+@keyframes ghHighlightFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px #fbbf24aa}}
+.highlight-flash{animation:ghHighlightFlash 1.8s ease}
+.exchange-focus-banner{display:none;align-items:center;justify-content:space-between;gap:8px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:8px 12px;margin-bottom:10px}
 .exchange-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px;}
 .exchange-title{font-size:13px;color:#eee;font-weight:700;}
 .exchange-meta{font-size:11px;color:#444;}
@@ -580,6 +583,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   </div>
   <div class="s-section">
     <div class="s-section-title">Echanges recents feedback</div>
+    <div class="exchange-focus-banner" id="exchangeFocusBanner"><span class="muted small">Échange sur ce puzzle</span><button class="btn btn-ghost btn-sm" onclick="exitExchangeFocus()">← Voir tous les échanges</button></div>
+    <div class="exchange-list" id="exchangeList">
     {% for f in s.get('client_feedback', []) %}
     <div class="exchange-card" id="feedback-{{ f.id }}">
       <div class="exchange-head">
@@ -596,6 +601,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
           {% else %}<span class="muted small">Puzzle indisponible</span>{% endif %}
         </div>
         {% if f.puzzle_result %}<div style="font-size:13px"><b>{{ f.puzzle_result.result_label }}</b>{% if f.puzzle_result.duration_seconds %}<span class="muted small"> · {{ f.puzzle_result.duration_seconds }}s</span>{% endif %}</div>{% else %}<div class="muted small">Pas encore tenté</div>{% endif %}
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="enterExchangeFocus('{{ f.id }}')">🎯 Se concentrer sur cet échange</button>
       </div>
       {% endif %}
       {% if f.text %}<div class="exchange-text">{{ f.text }}</div>{% endif %}
@@ -616,6 +622,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <span id="sf-reply-msg-{{ f.id }}" style="font-size:12px;color:#555"></span>
     </div>
     {% else %}<div style="color:#333;text-align:center;padding:20px">Aucun feedback envoye pour le moment.</div>{% endfor %}
+    </div>
   </div>
 </div>
 
@@ -1340,6 +1347,7 @@ function resetIsland() {
 function hasCad(c){return activeCadences.indexOf(c)>=0;}
 
 function showTab(tab,btn){
+  if(typeof exitExchangeFocus==='function') exitExchangeFocus();
   var tabs=document.querySelectorAll('.s-tab-content');
   for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('active');
   var btns=document.querySelectorAll('.s-tab');
@@ -1779,15 +1787,44 @@ if(rdi){var nd=new Date();rdi.value=nd.getFullYear()+'-'+(nd.getMonth()+1<10?'0'
 
 function openStudentHash(){
   var raw=(location.hash||'').replace('#','');
-  var map={homework:'devoirs',devoir:'devoirs',devoirs:'devoirs',feedback:'echanges',feedback_reply:'echanges',echanges:'echanges',message:'echanges',games:'parties',game:'parties',parties:'parties',appointment:'agenda',appointments:'agenda',payment:'finances',payments:'finances'};
+  var itemId='';
+  var sep=raw.indexOf(':');
+  if(sep>=0){ itemId=raw.slice(sep+1); raw=raw.slice(0,sep); }
+  var map={homework:'devoirs',devoir:'devoirs',devoirs:'devoirs',puzzle_devoir:'devoirs',feedback:'echanges',feedback_reply:'echanges',echanges:'echanges',message:'echanges',program:'puzzles',puzzles:'puzzles',games:'parties',game:'parties',parties:'parties',appointment:'agenda',appointments:'agenda',payment:'finances',payments:'finances'};
   var tab=map[raw]||raw;
   if(tab && document.getElementById('tab-'+tab)){
     showTab(tab);
-    setTimeout(function(){document.getElementById('tab-'+tab).scrollIntoView({behavior:'smooth',block:'start'});},80);
+    setTimeout(function(){
+      var target = itemId ? document.getElementById('feedback-'+itemId) : null;
+      if(tab==='echanges' && target){ enterExchangeFocus(itemId); return; }
+      (target||document.getElementById('tab-'+tab)).scrollIntoView({behavior:'smooth',block:'start'});
+      if(target){ target.classList.add('highlight-flash'); setTimeout(function(){target.classList.remove('highlight-flash');},1800); }
+    },80);
   }
 }
 window.addEventListener('hashchange',openStudentHash);
 openStudentHash();
+
+// Mode focus cote coach : au clic sur un echange precis (notif ou bouton),
+// on masque les autres cartes pour ne garder que le fil concerne + la reponse.
+function enterExchangeFocus(feedbackId){
+  var list=document.getElementById('exchangeList');
+  var target=document.getElementById('feedback-'+feedbackId);
+  if(!list||!target) return;
+  var cards=list.querySelectorAll('.exchange-card');
+  for(var i=0;i<cards.length;i++) cards[i].style.display=(cards[i].id==='feedback-'+feedbackId)?'':'none';
+  target.scrollIntoView({behavior:'smooth',block:'start'});
+  target.classList.add('highlight-flash');
+  setTimeout(function(){target.classList.remove('highlight-flash');},1800);
+  var banner=document.getElementById('exchangeFocusBanner');
+  if(banner) banner.style.display='flex';
+}
+function exitExchangeFocus(){
+  var list=document.getElementById('exchangeList');
+  if(list){ var cards=list.querySelectorAll('.exchange-card'); for(var i=0;i<cards.length;i++) cards[i].style.display=''; }
+  var banner=document.getElementById('exchangeFocusBanner');
+  if(banner) banner.style.display='none';
+}
 drawGhostRadar();
 
 // ── CERTIFICATIONS ─────────────────────────────────────────

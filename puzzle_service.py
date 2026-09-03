@@ -327,7 +327,12 @@ def get_puzzle_public(puzzle_id: str) -> Optional[dict]:
     never the solution. Used to describe a puzzle in a coach<->student
     conversation without leaking the answer into the thread."""
     client = get_supabase_client()
-    rows = client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating").eq("id", puzzle_id).limit(1).execute().data
+    try:
+        rows = client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating").eq("id", puzzle_id).limit(1).execute().data
+    except Exception:
+        # linked_id peut être invalide (ancienne donnée, id malformé) : un
+        # puzzle indisponible ne doit jamais faire planter toute la page.
+        return None
     if not rows:
         return None
     row = rows[0]
@@ -352,9 +357,12 @@ def attempt_summary_for_puzzle(user_id: str, puzzle_id: str) -> Optional[dict]:
     shown above a puzzle-linked conversation, so the coach doesn't have to
     guess how it actually went from a bare 'discussion...' text entry."""
     client = get_supabase_client()
-    rows = (client.table(TABLE_ATTEMPTS).select("success,duration_seconds,result_type,created_at")
-            .eq("user_id", user_id).eq("puzzle_id", puzzle_id)
-            .order("created_at", desc=True).limit(1).execute().data)
+    try:
+        rows = (client.table(TABLE_ATTEMPTS).select("success,duration_seconds,result_type,created_at")
+                .eq("user_id", user_id).eq("puzzle_id", puzzle_id)
+                .order("created_at", desc=True).limit(1).execute().data)
+    except Exception:
+        return None
     if not rows:
         return None
     a = rows[0]

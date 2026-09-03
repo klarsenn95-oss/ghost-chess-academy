@@ -2247,12 +2247,16 @@ def get_current_user(data=None):
 def notification_target_url(kind="info", student_index=None, item_id=None):
     if isinstance(student_index, int):
         student_base = f"/student/{student_index}"
+        # item_id (quand disponible) est ajouté après ":" dans le hash pour que
+        # le JS de la fiche coach puisse scroller/surligner l'entrée exacte
+        # au lieu de juste ouvrir l'onglet et laisser le coach la rechercher.
+        suffix = f":{item_id}" if item_id else ""
         if kind in ("game", "analysis"):
-            return student_base + "#parties"
+            return student_base + "#parties" + suffix
         if kind == "appointment":
-            return student_base + "#agenda"
+            return student_base + "#agenda" + suffix
         if kind == "homework":
-            return student_base + "#devoirs"
+            return student_base + "#devoirs" + suffix
         if kind == "payment":
             return student_base + "#finances"
         if kind == "tournament":
@@ -2260,7 +2264,7 @@ def notification_target_url(kind="info", student_index=None, item_id=None):
         if kind == "rank":
             return student_base + "#grade"
         if kind in ("feedback", "feedback_reply", "message", "note", "elo", "account", "info"):
-            return student_base + "#echanges"
+            return student_base + "#echanges" + suffix
     base = "/admin/clients"
     if kind == "game": return base + "#games"
     if kind == "appointment": return base + "#appointments"
@@ -2373,6 +2377,8 @@ def public_student_payload(student):
                 "text": f.get("text") or "",
                 "date": f.get("date") or "",
                 "kind": k,
+                "linked_type": f.get("linked_type"),
+                "linked_id": f.get("linked_id"),
                 "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("puzzles" if f.get("linked_type") == "program" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers"))))),
             })
     return {
@@ -4891,7 +4897,7 @@ def api_client_feedback_reply():
         return jsonify({"ok": False, "error": "Feedback introuvable."}), 404
     reply = {"id": str(uuid.uuid4()), "date": now_fr(), "author": "student", "text": text, "read_by_coach": False}
     fb.setdefault("replies", []).append(reply)
-    add_client_notification(data, "Réponse élève", f"{user.get('name')} a répondu au feedback : {fb.get('title','')}", "feedback_reply", user.get("id"), idx)
+    add_client_notification(data, "Réponse élève", f"{user.get('name')} a répondu au feedback : {fb.get('title','')}", "feedback_reply", user.get("id"), idx, item_id=fb.get("id"))
     save_data(data)
     return jsonify({"ok": True, "reply": reply})
 

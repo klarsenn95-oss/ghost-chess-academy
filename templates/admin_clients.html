@@ -329,6 +329,9 @@ body{padding:8px 8px 72px!important}
 .program-card .ttl{margin-bottom:6px}
 .program-card .pg-bar{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin:8px 0}
 .program-card .pg-bar>span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);border-radius:999px}
+.program-history{margin-top:6px}
+.program-history summary{cursor:pointer;padding:6px 0}
+.program-history-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px;border-top:1px solid #ffffff0e}
 @media(max-width:760px){.puzzle-editor-grid{grid-template-columns:1fr}.puzzle-browse-filters{grid-template-columns:1fr}}
 </style>
 </head>
@@ -845,6 +848,24 @@ async function createProgram(){
   loadPrograms();
 }
 
+function renderProgramCard(p){
+  const days = p.frequency_days.length === 7 ? 'tous les jours' : p.frequency_days.map(i=>PG_WEEKDAYS[i]).join(', ');
+  const statusLabel = {active:'🟢 Actif', paused:'⏸ En pause', stopped:'⏹ Arrêté'}[p.status] || p.status;
+  const pct = p.progress.percent || 0;
+  return `<div class="program-card">
+    <div class="ttl">${p.name} — ${statusLabel}</div>
+    <div class="muted small">${p.themes.join(', ')} · ${p.difficulties.join(', ')} · ${p.puzzles_per_day}/jour · ${days}${p.duration_days ? ' · ' + p.duration_days + ' jours' : ''}${p.objective_rate ? ' · objectif ' + p.objective_rate + '%' : ''}</div>
+    <div class="pg-bar"><span style="width:${pct}%"></span></div>
+    <div class="muted small">${p.progress.total_solved}/${p.progress.total_assigned} puzzle(s) résolus depuis le début du programme</div>
+    <div class="actions" style="margin-top:8px">
+      ${p.status === 'active' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','paused')">⏸ Mettre en pause</button>` : ''}
+      ${p.status === 'paused' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','active')">▶ Reprendre</button>` : ''}
+      ${p.status !== 'stopped' ? `<button class="btn danger tiny" onclick="setProgramStatus('${p.id}','stopped')">⏹ Arrêter</button>` : ''}
+      <button class="btn danger tiny" onclick="deleteProgram('${p.id}')">🗑 Supprimer</button>
+    </div>
+  </div>`;
+}
+
 async function loadPrograms(){
   const idx = document.getElementById('pg-student').value;
   const el = document.getElementById('pg-current');
@@ -852,23 +873,18 @@ async function loadPrograms(){
   const r = await fetch('/api/admin/program/list?student_index=' + idx);
   const d = await r.json();
   if(!d.ok || !d.programs.length){ el.innerHTML = '<div class="muted">Aucun programme pour cet élève.</div>'; return; }
-  el.innerHTML = d.programs.map(p => {
-    const days = p.frequency_days.length === 7 ? 'tous les jours' : p.frequency_days.map(i=>PG_WEEKDAYS[i]).join(', ');
-    const statusLabel = {active:'🟢 Actif', paused:'⏸ En pause', stopped:'⏹ Arrêté'}[p.status] || p.status;
-    const pct = p.progress.percent || 0;
-    return `<div class="program-card">
-      <div class="ttl">${p.name} — ${statusLabel}</div>
-      <div class="muted small">${p.themes.join(', ')} · ${p.difficulties.join(', ')} · ${p.puzzles_per_day}/jour · ${days}${p.duration_days ? ' · ' + p.duration_days + ' jours' : ''}${p.objective_rate ? ' · objectif ' + p.objective_rate + '%' : ''}</div>
-      <div class="pg-bar"><span style="width:${pct}%"></span></div>
-      <div class="muted small">${p.progress.total_solved}/${p.progress.total_assigned} puzzle(s) résolus depuis le début du programme</div>
-      <div class="actions" style="margin-top:8px">
-        ${p.status === 'active' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','paused')">⏸ Mettre en pause</button>` : ''}
-        ${p.status === 'paused' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','active')">▶ Reprendre</button>` : ''}
-        ${p.status !== 'stopped' ? `<button class="btn danger tiny" onclick="setProgramStatus('${p.id}','stopped')">⏹ Arrêter</button>` : ''}
-        <button class="btn danger tiny" onclick="deleteProgram('${p.id}')">🗑 Supprimer</button>
-      </div>
-    </div>`;
-  }).join('');
+  // Un seul programme actif/en pause à la fois : on le met en avant et on
+  // range les anciens (arrêtés) dans un historique replié, pour ne pas
+  // empiler des cartes qui répètent les mêmes thèmes/difficultés.
+  const current = d.programs.filter(p => p.status !== 'stopped');
+  const history = d.programs.filter(p => p.status === 'stopped');
+  let html = current.length ? current.map(renderProgramCard).join('') : '<div class="muted">Aucun programme actif pour cet élève.</div>';
+  if(history.length){
+    html += `<details class="program-history"><summary class="muted small">Historique (${history.length} programme${history.length > 1 ? 's' : ''} arrêté${history.length > 1 ? 's' : ''})</summary>` +
+      history.map(p => `<div class="program-history-row"><span>${p.name}</span><span class="muted small">${p.themes.join(', ')} · ${p.difficulties.join(', ')}</span><button class="btn danger tiny" onclick="deleteProgram('${p.id}')">🗑</button></div>`).join('') +
+      '</details>';
+  }
+  el.innerHTML = html;
 }
 
 async function setProgramStatus(program_id, status){
