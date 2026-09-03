@@ -113,6 +113,9 @@
 .pz-solver-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 .pz-replay{margin-top:16px;padding-top:14px;border-top:1px solid #ffffff0e}
 #pz-timer{color:#c4b5fd}
+.pg-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pg-chip{font-size:12px;border:1px solid #ffffff1c;background:#ffffff08;border-radius:999px;padding:5px 11px;cursor:pointer}
+.pg-chip.done{border-color:#4ade8055;color:#4ade80;background:#4ade8012}
 @keyframes ghHighlightFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px #fbbf24aa}}
 .highlight-flash{animation:ghHighlightFlash 1.8s ease}
 @media(max-width:760px){.pz-solver-grid{grid-template-columns:1fr}}
@@ -351,6 +354,10 @@
   <section id="tab-squad" class="panel"><div class="card full"><div class="ttl">🛡️ Ma Squad</div>{% if client_squad.name %}<h2>{{ client_squad.name }}</h2><div class="muted" style="margin-bottom:14px">Ton équipe d'entraînement et de compétition.</div><div class="squad-grid">{% for m in client_squad.members %}<div class="squad-member {{ 'me' if m.is_me else '' }}"><img class="member-avatar" src="{{ m.avatar or '/static/favicon.png' }}"><div><b>{{ m.name }}{{ ' · Moi' if m.is_me else '' }}</b><div class="muted small">{{ m.rank or 'Ghost' }} · {{ m.avg_elo or '—' }} ELO</div></div></div>{% endfor %}</div>{% else %}<div class="empty">Tu n'es pas encore affecté à une Squad. Le coach pourra bientôt te placer dans ton équipe.</div>{% endif %}</div></section>
 
   <section id="tab-puzzles" class="panel">
+    <div class="card full" id="pg-today-card" style="display:none">
+      <div class="ttl" id="pg-today-title">🎯 Programme du jour</div>
+      <div id="pg-today-body"></div>
+    </div>
     <div class="card full" id="pz-picker">
       <div class="ttl">🧩 Puzzles <span id="pz-xp-summary" class="muted small">— {{ student.puzzle_xp if student else 0 }} XP · {{ student.puzzle_solved_count if student else 0 }} résolu(s)</span></div>
       <div class="pz-theme-grid" id="pz-theme-grid">
@@ -904,6 +911,7 @@ async function finishPuzzle(success){
     status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP${streakBit}` : `Puzzle résolu !${streakBit}`;
     status.className = 'pz-status good';
     updateDevoirCardSolved(pzCurrentId);
+    loadTodayProgram();
   } else {
     status.textContent = 'Solution révélée.';
     status.className = 'pz-status bad';
@@ -965,7 +973,58 @@ function exitPuzzleSolver(){
   loadPuzzleThemeCounts();
 }
 
+let pgTodayPuzzles = [];
+async function loadTodayProgram(){
+  try{
+    const r = await fetch('/api/client/program/today');
+    const d = await r.json();
+    const card = document.getElementById('pg-today-card');
+    if(!d.ok || !d.program){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('pg-today-title').textContent = '🎯 ' + d.program.name;
+    const body = document.getElementById('pg-today-body');
+    if(d.program.is_rest_day){
+      body.innerHTML = '<div class="muted">Pas de puzzle programmé aujourd\'hui — jour de repos dans ton programme. 🌙</div>';
+      return;
+    }
+    pgTodayPuzzles = d.today.puzzles || [];
+    if(!pgTodayPuzzles.length){
+      body.innerHTML = '<div class="muted">Pas encore assez de puzzles disponibles pour ces thèmes aujourd\'hui.</div>';
+      return;
+    }
+    const done = d.today.solved_count || 0;
+    const total = pgTodayPuzzles.length;
+    const pct = total ? Math.round(100 * done / total) : 0;
+    const chips = pgTodayPuzzles.map((p,i) => `<span class="pg-chip ${p.solved ? 'done' : ''}" onclick="openProgramPuzzle(${i})">${p.solved ? '✅' : '⏳'} ${p.difficulty || ''}</span>`).join('');
+    body.innerHTML = `
+      <div class="muted small">${done}/${total} puzzle(s) aujourd'hui</div>
+      <div class="bar" style="margin:8px 0"><span style="width:${pct}%"></span></div>
+      <div class="pg-chips">${chips}</div>
+      <button class="btn" style="margin-top:12px" onclick="continueProgram()">${done >= total ? '🎉 Programme du jour terminé' : '▶ Continuer l\'entraînement'}</button>
+    `;
+  }catch(e){}
+}
+
+function continueProgram(){
+  const next = pgTodayPuzzles.find(p => !p.solved);
+  if(!next){ return; }
+  document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
+  document.getElementById('pz-picker').style.display = 'none';
+  document.getElementById('pz-solver').style.display = 'block';
+  openPuzzle(next.id);
+}
+
+function openProgramPuzzle(i){
+  const p = pgTodayPuzzles[i];
+  if(!p) return;
+  document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
+  document.getElementById('pz-picker').style.display = 'none';
+  document.getElementById('pz-solver').style.display = 'block';
+  openPuzzle(p.id);
+}
+
 document.addEventListener('DOMContentLoaded', loadPuzzleThemeCounts);
+document.addEventListener('DOMContentLoaded', loadTodayProgram);
 </script>
 </body>
 </html>

@@ -74,3 +74,41 @@ alter table public.ghost_puzzle_attempts enable row level security;
 alter table public.ghost_puzzle_assignments enable row level security;
 -- Le backend Flask utilise la SERVICE ROLE KEY côté serveur (bypass RLS).
 -- Le navigateur ne touche jamais directement ces tables.
+
+-- Programmes d'entraînement : le coach choisit une fois thèmes/difficulté/
+-- rythme, l'appli tire les puzzles du jour automatiquement dans la banque
+-- existante (ghost_puzzles) au lieu d'obliger le coach à sélectionner
+-- chaque puzzle chaque jour. Un seul programme "active" par élève à la
+-- fois (appliqué côté application, pas ici).
+create table if not exists public.ghost_training_programs (
+  id uuid primary key default gen_random_uuid(),
+  student_index integer not null,
+  name text not null,
+  themes text[] not null default '{}',
+  difficulties text[] not null default '{}',
+  puzzles_per_day integer not null default 5,
+  -- jours actifs, 0=lundi .. 6=dimanche (Python date.weekday()) ; {0,1,2,3,4,5,6} = tous les jours
+  frequency_days integer[] not null default '{0,1,2,3,4,5,6}',
+  duration_days integer,
+  objective_rate integer,
+  status text not null default 'active',
+  start_date date not null default current_date,
+  created_at timestamptz not null default now()
+);
+create index if not exists ghost_training_programs_student_idx on public.ghost_training_programs (student_index);
+
+-- Le tirage du jour est généré une fois puis persisté ici, pour que
+-- recharger la page (ou le coach qui consulte la progression) voie le même
+-- ensemble plutôt qu'un nouveau tirage aléatoire à chaque appel.
+create table if not exists public.ghost_program_days (
+  id uuid primary key default gen_random_uuid(),
+  program_id uuid not null references public.ghost_training_programs(id) on delete cascade,
+  day date not null,
+  puzzle_ids jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (program_id, day)
+);
+create index if not exists ghost_program_days_program_idx on public.ghost_program_days (program_id, day);
+
+alter table public.ghost_training_programs enable row level security;
+alter table public.ghost_program_days enable row level security;

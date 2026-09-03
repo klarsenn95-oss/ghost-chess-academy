@@ -11,7 +11,9 @@ storage (data["puzzles"]) for local dev without Supabase.
 """
 from __future__ import annotations
 
+import random
 from collections import defaultdict
+from datetime import date
 from typing import Any, Optional
 
 from supabase_backend import supabase_configured, get_supabase_client
@@ -19,6 +21,8 @@ from supabase_backend import supabase_configured, get_supabase_client
 TABLE_PUZZLES = "ghost_puzzles"
 TABLE_ATTEMPTS = "ghost_puzzle_attempts"
 TABLE_ASSIGNMENTS = "ghost_puzzle_assignments"
+TABLE_PROGRAMS = "ghost_training_programs"
+TABLE_PROGRAM_DAYS = "ghost_program_days"
 
 _THEME_COUNTS_CACHE: dict = {}
 _THEME_COUNTS_CACHE_AT = 0.0
@@ -302,3 +306,167 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
         "xp_gained": xp_gained, "total_xp": stats["xp"], "already_solved": already_rewarded,
         "solved_count": stats["solved_count"], "streak": stats["streak"],
     }
+
+
+# ─── Programmes d'entraînement ────────────────────────────────────────────
+# Le coach choisit une fois des thèmes/difficulté/rythme ; l'appli tire les
+# puzzles du jour automatiquement dans la banque existante (pas de sélection
+# manuelle quotidienne). Un seul programme "active" par élève à la fois —
+# en créer un nouveau arrête silencieusement le précédent.
+
+def _pg_array_literal(values: list[str]) -> str:
+    escaped = [str(v).replace('"', '\\"') for v in values]
+    return "{" + ",".join(f'"{v}"' for v in escaped) + "}"
+
+
+def create_program(student_index: int, name: str, themes: list[str], difficulties: list[str],
+                    puzzles_per_day: int, frequency_days: list[int],
+                    duration_days: Optional[int] = None, objective_rate: Optional[int] = None) -> dict:
+    client = get_supabase_client()
+    client.table(TABLE_PROGRAMS).update({"status": "stopped"}).eq("student_index", student_index).eq("status", "active").execute()
+    payload = {
+        "student_index": student_index, "name": name, "themes": themes, "difficulties": difficulties,
+        "puzzles_per_day": puzzles_per_day, "frequency_days": frequency_days,
+        "duration_days": duration_days, "objective_rate": objective_rate, "status": "active",
+    }
+    res = client.table(TABLE_PROGRAMS).insert(payload).execute()
+    return (res.data or [{}])[0]
+
+
+def get_active_program(student_index: int) -> Optional[dict]:
+    client = get_supabase_client()
+    rows = (client.table(TABLE_PROGRAMS).select("*")
+            .eq("student_index", student_index).eq("status", "active")
+            .order("created_at", desc=True).limit(1).execute().data)
+    return rows[0] if rows else None
+
+
+def get_program(program_id: str) -> Optional[dict]:
+    client = get_supabase_client()
+    rows = client.table(TABLE_PROGRAMS).select("*").eq("id", program_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def list_programs(student_index: int) -> list[dict]:
+    client = get_supabase_client()
+    res = (client.table(TABLE_PROGRAMS).select("*")
+           .eq("student_index", student_index).order("created_at", desc=True).execute())
+    return res.data or []
+
+
+def set_program_status(program_id: str, status: str) -> bool:
+    client = get_supabase_client()
+    client.table(TABLE_PROGRAMS).update({"status": status}).eq("id", program_id).execute()
+    return True
+
+
+def delete_program(program_id: str) -> bool:
+    client = get_supabase_client()
+    client.table(TABLE_PROGRAMS).delete().eq("id", program_id).execute()
+    return True
+
+
+def is_program_day(program: dict, today: Optional[date] = None) -> bool:
+    d = today or date.today()
+    if isinstance(d, str):
+        d = date.fromisoformat(d)
+    return d.weekday() in (program.get("frequency_days") or [])
+
+
+def is_program_expired(program: dict, today: Optional[date] = None) -> bool:
+    duration = program.get("duration_days")
+    if not duration:
+        return False
+    start_raw = program.get("start_date")
+    if not start_raw:
+        return False
+    start = date.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
+    d = today or date.today()
+    if isinstance(d, str):
+        d = date.fromisoformat(d)
+    return (d - start).days >= duration
+
+
+def sample_puzzles(themes: list[str], difficulties: list[str], count: int,
+                    exclude_ids: Optional[set] = None) -> list[dict]:
+    """Draws `count` puzzles from the bank matching any of `themes` and any
+    of `difficulties`. Random within the matching pool — good enough for a
+    coach-defined program; a future adaptive pass can bias this by the
+    student's weak themes without changing this function's contract."""
+    client = get_supabase_client()
+    q = client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating")
+    if themes:
+        q = q.filter("themes", "ov", _pg_array_literal(themes))
+    if difficulties:
+        q = q.in_("difficulty", difficulties)
+    pool_size = max(count * 15, 200)
+    rows = q.limit(pool_size).execute().data or []
+    exclude = exclude_ids or set()
+    candidates = [r for r in rows if r["id"] not in exclude]
+    if len(candidates) < count:
+        candidates = rows
+    random.shuffle(candidates)
+    return candidates[:count]
+
+
+def _program_used_puzzle_ids(program_id: str) -> set:
+    client = get_supabase_client()
+    res = client.table(TABLE_PROGRAM_DAYS).select("puzzle_ids").eq("program_id", program_id).execute()
+    used: set = set()
+    for row in res.data or []:
+        used.update(row.get("puzzle_ids") or [])
+    return used
+
+
+def get_today_set(program: dict, user_id: str, today: Optional[str] = None) -> dict:
+    """Today's puzzle set for an active program. Generated once and
+    persisted on first access so reloading the page (or the coach checking
+    progress) sees the same set for the day rather than a fresh random
+    draw every time."""
+    today = today or date.today().isoformat()
+    client = get_supabase_client()
+    existing = (client.table(TABLE_PROGRAM_DAYS).select("*")
+                .eq("program_id", program["id"]).eq("day", today).limit(1).execute().data)
+    if existing:
+        row = existing[0]
+    else:
+        used = _program_used_puzzle_ids(program["id"])
+        solved = _solved_puzzle_ids(user_id)
+        picked = sample_puzzles(program.get("themes") or [], program.get("difficulties") or [],
+                                 program.get("puzzles_per_day") or 5, exclude_ids=used | solved)
+        puzzle_ids = [p["id"] for p in picked]
+        res = client.table(TABLE_PROGRAM_DAYS).insert({
+            "program_id": program["id"], "day": today, "puzzle_ids": puzzle_ids,
+        }).execute()
+        row = (res.data or [{"puzzle_ids": puzzle_ids, "day": today}])[0]
+    puzzle_ids = row.get("puzzle_ids") or []
+    solved_ids = _solved_puzzle_ids(user_id)
+    puzzles = []
+    if puzzle_ids:
+        res2 = client.table(TABLE_PUZZLES).select("id,title,themes,difficulty,rating").in_("id", puzzle_ids).execute()
+        by_id = {p["id"]: p for p in (res2.data or [])}
+        for pid in puzzle_ids:
+            p = by_id.get(pid)
+            if not p:
+                continue
+            puzzles.append({
+                "id": p["id"], "title": p.get("title") or "", "themes": p.get("themes") or [],
+                "difficulty": p.get("difficulty"), "rating": p.get("rating"),
+                "solved": p["id"] in solved_ids,
+            })
+    return {"day": today, "puzzles": puzzles, "solved_count": sum(1 for p in puzzles if p["solved"])}
+
+
+def program_progress(program: dict, user_id: str) -> dict:
+    """Lifetime completion of a program: how many of the puzzles it has
+    ever assigned (across all days so far) the student has solved — what
+    the coach actually needs to judge whether the program is working."""
+    client = get_supabase_client()
+    res = client.table(TABLE_PROGRAM_DAYS).select("puzzle_ids").eq("program_id", program["id"]).execute()
+    all_ids: list[str] = []
+    for row in res.data or []:
+        all_ids.extend(row.get("puzzle_ids") or [])
+    solved = _solved_puzzle_ids(user_id)
+    total = len(all_ids)
+    done = sum(1 for pid in all_ids if pid in solved)
+    return {"total_assigned": total, "total_solved": done, "percent": round(100 * done / total) if total else 0}

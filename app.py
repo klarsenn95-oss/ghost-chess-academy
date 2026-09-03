@@ -2357,7 +2357,7 @@ def public_student_payload(student):
                 "text": f.get("text") or "",
                 "date": f.get("date") or "",
                 "kind": k,
-                "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers")))),
+                "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("puzzles" if f.get("linked_type") == "program" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers"))))),
             })
     return {
         "name": student.get("name", "Ghost"),
@@ -2671,6 +2671,15 @@ def student_page(idx):
     s = dict(data["students"][idx])
     s["_card_stats"] = ghost_card_stats(s)
     puzzle_overview = student_puzzle_overview(data, idx)
+    active_program = None
+    if puzzle_service.backend_ready():
+        active_program = puzzle_service.get_active_program(idx)
+        if active_program:
+            user_for_program = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
+            active_program["progress"] = (
+                puzzle_service.program_progress(active_program, user_for_program["id"])
+                if user_for_program else {"total_assigned": 0, "total_solved": 0, "percent": 0}
+            )
     if s.get("devoirs"):
         solved_ids = set(puzzle_overview.get("solved_ids") or [])
         s["devoirs"] = [
@@ -2727,7 +2736,8 @@ def student_page(idx):
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
         pairs=data.get("pairs",[]),
         students=enrich_students(data["students"]),
-        puzzle_stats=puzzle_overview)
+        puzzle_stats=puzzle_overview,
+        active_program=active_program)
 
 @app.route("/islands")
 def islands_page():
@@ -5369,6 +5379,119 @@ def api_admin_puzzle_assign():
     data["students"][idx].setdefault("devoirs", []).insert(0, devoir)
     save_data(data)
     return jsonify({"ok": True, "feedback": entry, "devoir": devoir})
+
+# ─── Programmes d'entraînement ────────────────────────────────────────────
+
+WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+
+@app.route("/api/admin/program/create", methods=["POST"])
+def api_admin_program_create():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+    name = (body.get("name") or "").strip()[:80] or "Programme d'entraînement"
+    themes = [t for t in (body.get("themes") or []) if t in PUZZLE_THEMES]
+    difficulties = [d for d in (body.get("difficulties") or []) if d in PUZZLE_DIFFICULTIES]
+    if not themes:
+        return jsonify({"ok": False, "error": "Choisis au moins un thème."}), 400
+    if not difficulties:
+        return jsonify({"ok": False, "error": "Choisis au moins une difficulté."}), 400
+    try:
+        puzzles_per_day = max(1, min(30, int(body.get("puzzles_per_day") or 5)))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Nombre de puzzles/jour invalide."}), 400
+    frequency_days = sorted({int(d) for d in (body.get("frequency_days") or []) if str(d).isdigit() and 0 <= int(d) <= 6})
+    if not frequency_days:
+        return jsonify({"ok": False, "error": "Choisis au moins un jour."}), 400
+    duration_days = body.get("duration_days")
+    try:
+        duration_days = int(duration_days) if duration_days not in (None, "", "0") else None
+    except (TypeError, ValueError):
+        duration_days = None
+    objective_rate = body.get("objective_rate")
+    try:
+        objective_rate = max(0, min(100, int(objective_rate))) if objective_rate not in (None, "") else None
+    except (TypeError, ValueError):
+        objective_rate = None
+    data = load_data()
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    program = puzzle_service.create_program(idx, name, themes, difficulties, puzzles_per_day,
+                                             frequency_days, duration_days, objective_rate)
+    days_label = "tous les jours" if len(frequency_days) == 7 else "les " + ", ".join(WEEKDAY_LABELS[d] for d in frequency_days)
+    title = f"🎯 Nouveau programme — {name}"
+    text = f"{puzzles_per_day} puzzle(s) {days_label}. Thèmes : {', '.join(themes)}."
+    add_student_feedback(data, idx, title, text, kind="homework", linked_type="program", linked_id=program.get("id"))
+    save_data(data)
+    return jsonify({"ok": True, "program": program})
+
+@app.route("/api/admin/program/list")
+def api_admin_program_list():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    try:
+        idx = int(request.args.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Élève invalide."}), 400
+    data = load_data()
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    user = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
+    programs = puzzle_service.list_programs(idx)
+    for p in programs:
+        p["progress"] = puzzle_service.program_progress(p, user["id"]) if user else {"total_assigned": 0, "total_solved": 0, "percent": 0}
+    return jsonify({"ok": True, "programs": programs})
+
+@app.route("/api/admin/program/status", methods=["POST"])
+def api_admin_program_status():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    program_id = body.get("program_id")
+    status = (body.get("status") or "").strip()
+    if status not in ("active", "paused", "stopped"):
+        return jsonify({"ok": False, "error": "Statut invalide."}), 400
+    puzzle_service.set_program_status(program_id, status)
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/program/delete", methods=["POST"])
+def api_admin_program_delete():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_service.delete_program(body.get("program_id"))
+    return jsonify({"ok": True})
+
+@app.route("/api/client/program/today")
+def api_client_program_today():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": True, "program": None})
+    idx = user.get("student_index")
+    if not isinstance(idx, int):
+        return jsonify({"ok": True, "program": None})
+    program = puzzle_service.get_active_program(idx)
+    if not program:
+        return jsonify({"ok": True, "program": None})
+    if puzzle_service.is_program_expired(program):
+        puzzle_service.set_program_status(program["id"], "stopped")
+        return jsonify({"ok": True, "program": None})
+    is_today = puzzle_service.is_program_day(program)
+    today_set = puzzle_service.get_today_set(program, user["id"]) if is_today else {"day": None, "puzzles": [], "solved_count": 0}
+    return jsonify({
+        "ok": True,
+        "program": {
+            "id": program["id"], "name": program["name"], "themes": program.get("themes") or [],
+            "difficulties": program.get("difficulties") or [], "puzzles_per_day": program.get("puzzles_per_day"),
+            "is_rest_day": not is_today,
+        },
+        "today": today_set,
+    })
 
 @app.route("/api/client/puzzle/list")
 def api_client_puzzle_list():

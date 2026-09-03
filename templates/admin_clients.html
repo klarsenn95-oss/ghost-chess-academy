@@ -318,6 +318,17 @@ body{padding:8px 8px 72px!important}
 .puzzle-list{margin-top:16px;border-top:1px solid #ffffff0e;padding-top:10px}
 .puzzle-browse-filters{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:8px;align-items:center}
 .puzzle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #ffffff0e}
+.program-form{display:flex;flex-direction:column;gap:10px}
+.pg-label{font-size:11px;color:#8a82a6;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-top:4px}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.pg-check{display:flex;align-items:center;gap:6px;font-size:12px;color:#ddd;border:1px solid #ffffff14;border-radius:10px;padding:6px 9px;cursor:pointer;background:#0d0d20}
+.pg-check input{margin:0}
+.pg-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pg-num{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#8a82a6}
+.program-card{background:#0d0d20;border:1px solid #ffffff14;border-radius:16px;padding:14px;margin-bottom:10px}
+.program-card .ttl{margin-bottom:6px}
+.program-card .pg-bar{height:8px;background:#151528;border-radius:999px;overflow:hidden;margin:8px 0}
+.program-card .pg-bar>span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#fbbf24);border-radius:999px}
 @media(max-width:760px){.puzzle-editor-grid{grid-template-columns:1fr}.puzzle-browse-filters{grid-template-columns:1fr}}
 </style>
 </head>
@@ -372,7 +383,8 @@ body{padding:8px 8px 72px!important}
     <a class="cc-menu-btn" data-section="client-options"><span class="icon">⚙️</span><span class="label">Options élèves</span></a>
     <a class="cc-menu-btn" data-section="tournaments"><span class="icon">🏆</span><span class="label">Tournois</span></a>
     <a class="cc-menu-btn" data-section="exercises"><span class="icon">🎯</span><span class="label">Exercices</span></a>
-    <a class="cc-menu-btn" data-section="puzzles"><span class="icon">🧩</span><span class="label">Puzzles</span></a>
+    <a class="cc-menu-btn" data-section="puzzles"><span class="icon">🎯</span><span class="label">Programmes</span></a>
+    <a class="cc-menu-btn" data-section="puzzles-bank"><span class="icon">🧩</span><span class="label">Banque de puzzles</span></a>
     <a class="cc-menu-btn" data-section="included-usage"><span class="icon">📊</span><span class="label">Socle inclus</span></a>
     <a class="cc-menu-btn" data-section="finance"><span class="icon">💰</span><span class="label">Finances</span></a>
     <a class="cc-menu-btn" data-section="accounts"><span class="icon">🔐</span><span class="label">Comptes</span></a>
@@ -599,6 +611,35 @@ body{padding:8px 8px 72px!important}
   </div>
 
   <div class="card full cc-section" id="puzzles">
+    <div class="ttl">🎯 Programme d'entraînement</div>
+    <div class="section-note">Choisis une fois les thèmes, la difficulté et le rythme — l'appli tire automatiquement les puzzles du jour dans la banque, sans que tu aies à en sélectionner un chaque jour.</div>
+    <div class="program-form">
+      <select class="fi" id="pg-student">{% for s in students %}<option value="{{ loop.index0 }}">{{ s.name or '?' }}</option>{% endfor %}</select>
+      <input class="fi" id="pg-name" placeholder="Nom du programme (ex : Calcul — niveau 1)">
+      <div class="pg-label">Thèmes</div>
+      <div class="pg-grid">{% for t in puzzle_themes %}<label class="pg-check"><input type="checkbox" value="{{ t }}" class="pg-theme-cb">{{ t }}</label>{% endfor %}</div>
+      <div class="pg-row">
+        <div>
+          <div class="pg-label">Difficulté</div>
+          {% for d in puzzle_difficulties %}<label class="pg-check"><input type="checkbox" value="{{ d }}" class="pg-diff-cb">{{ d }}</label>{% endfor %}
+        </div>
+        <div>
+          <div class="pg-label">Jours actifs</div>
+          {% for i, lbl in [(0,'Lun'),(1,'Mar'),(2,'Mer'),(3,'Jeu'),(4,'Ven'),(5,'Sam'),(6,'Dim')] %}<label class="pg-check"><input type="checkbox" value="{{ i }}" class="pg-day-cb" checked>{{ lbl }}</label>{% endfor %}
+        </div>
+      </div>
+      <div class="pg-row">
+        <label class="pg-num">Puzzles / jour<input class="fi" type="number" id="pg-count" value="5" min="1" max="30"></label>
+        <label class="pg-num">Durée en jours (vide = illimité)<input class="fi" type="number" id="pg-duration" min="1"></label>
+        <label class="pg-num">Objectif % (optionnel)<input class="fi" type="number" id="pg-objective" min="0" max="100"></label>
+      </div>
+      <button class="btn" type="button" onclick="createProgram()">🎯 Créer le programme</button>
+      <span class="muted" id="pg-msg"></span>
+    </div>
+    <div id="pg-current" style="margin-top:16px"></div>
+  </div>
+
+  <div class="card full cc-section" id="puzzles-bank">
     <div class="ttl">🧩 Puzzles</div>
     <div class="section-note">Parcours la banque de {{ '{:,}'.format(puzzle_bank_total).replace(',', ' ') if puzzle_bank_total else 'milliers de' }} puzzles et envoie-en un précis à un élève, avec un mot optionnel. L'élève reçoit une notification qui ouvre directement ce puzzle, et vous pouvez échanger dessus comme pour n'importe quel feedback.</div>
     <div class="puzzle-browse-filters">
@@ -778,6 +819,69 @@ async function sendPuzzleTo(puzzle_id, btn){
   if(!d.ok) btn.disabled = false;
 }
 if(document.getElementById('pzb-results')) browsePuzzles(1);
+
+const PG_WEEKDAYS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+async function createProgram(){
+  const msg = document.getElementById('pg-msg');
+  const themes = [...document.querySelectorAll('.pg-theme-cb:checked')].map(c=>c.value);
+  const difficulties = [...document.querySelectorAll('.pg-diff-cb:checked')].map(c=>c.value);
+  const frequency_days = [...document.querySelectorAll('.pg-day-cb:checked')].map(c=>parseInt(c.value,10));
+  if(!themes.length){ msg.textContent = 'Choisis au moins un thème.'; return; }
+  if(!difficulties.length){ msg.textContent = 'Choisis au moins une difficulté.'; return; }
+  if(!frequency_days.length){ msg.textContent = 'Choisis au moins un jour actif.'; return; }
+  msg.textContent = 'Création…';
+  const body = {
+    student_index: document.getElementById('pg-student').value,
+    name: document.getElementById('pg-name').value.trim(),
+    themes, difficulties, frequency_days,
+    puzzles_per_day: document.getElementById('pg-count').value,
+    duration_days: document.getElementById('pg-duration').value,
+    objective_rate: document.getElementById('pg-objective').value,
+  };
+  const d = await postJSON('/api/admin/program/create', body);
+  if(!d.ok){ msg.textContent = d.error || 'Erreur.'; return; }
+  msg.textContent = '✅ Programme créé — l\'élève est notifié.';
+  document.getElementById('pg-name').value = '';
+  loadPrograms();
+}
+
+async function loadPrograms(){
+  const idx = document.getElementById('pg-student').value;
+  const el = document.getElementById('pg-current');
+  el.innerHTML = '<div class="muted">Chargement…</div>';
+  const r = await fetch('/api/admin/program/list?student_index=' + idx);
+  const d = await r.json();
+  if(!d.ok || !d.programs.length){ el.innerHTML = '<div class="muted">Aucun programme pour cet élève.</div>'; return; }
+  el.innerHTML = d.programs.map(p => {
+    const days = p.frequency_days.length === 7 ? 'tous les jours' : p.frequency_days.map(i=>PG_WEEKDAYS[i]).join(', ');
+    const statusLabel = {active:'🟢 Actif', paused:'⏸ En pause', stopped:'⏹ Arrêté'}[p.status] || p.status;
+    const pct = p.progress.percent || 0;
+    return `<div class="program-card">
+      <div class="ttl">${p.name} — ${statusLabel}</div>
+      <div class="muted small">${p.themes.join(', ')} · ${p.difficulties.join(', ')} · ${p.puzzles_per_day}/jour · ${days}${p.duration_days ? ' · ' + p.duration_days + ' jours' : ''}${p.objective_rate ? ' · objectif ' + p.objective_rate + '%' : ''}</div>
+      <div class="pg-bar"><span style="width:${pct}%"></span></div>
+      <div class="muted small">${p.progress.total_solved}/${p.progress.total_assigned} puzzle(s) résolus depuis le début du programme</div>
+      <div class="actions" style="margin-top:8px">
+        ${p.status === 'active' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','paused')">⏸ Mettre en pause</button>` : ''}
+        ${p.status === 'paused' ? `<button class="btn secondary tiny" onclick="setProgramStatus('${p.id}','active')">▶ Reprendre</button>` : ''}
+        ${p.status !== 'stopped' ? `<button class="btn danger tiny" onclick="setProgramStatus('${p.id}','stopped')">⏹ Arrêter</button>` : ''}
+        <button class="btn danger tiny" onclick="deleteProgram('${p.id}')">🗑 Supprimer</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function setProgramStatus(program_id, status){
+  await postJSON('/api/admin/program/status', {program_id, status});
+  loadPrograms();
+}
+async function deleteProgram(program_id){
+  if(!confirm('Supprimer ce programme et son historique ?')) return;
+  await postJSON('/api/admin/program/delete', {program_id});
+  loadPrograms();
+}
+document.getElementById('pg-student')?.addEventListener('change', loadPrograms);
+if(document.getElementById('pg-current')) loadPrograms();
 </script>
 <script>
 const $ = (id)=>document.getElementById(id);

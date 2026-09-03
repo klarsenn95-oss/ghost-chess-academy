@@ -1098,6 +1098,20 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 
 <div id="tab-puzzles" class="s-tab-content">
   <div class="s-section">
+    <div class="s-section-title">🎯 Programme d'entraînement</div>
+    {% if active_program %}
+    <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>{{ active_program.name }}</b>
+        <span class="pill">{{ '🟢 Actif' if active_program.status == 'active' else ('⏸ En pause' if active_program.status == 'paused' else active_program.status) }}</span>
+      </div>
+      <div class="muted small" style="margin-top:4px">{{ active_program.themes|join(', ') }} · {{ active_program.difficulties|join(', ') }} · {{ active_program.puzzles_per_day }}/jour</div>
+      <div style="height:8px;background:#151528;border-radius:999px;overflow:hidden;margin:8px 0"><span style="display:block;height:100%;width:{{ active_program.progress.percent }}%;background:linear-gradient(90deg,#22c55e,#fbbf24)"></span></div>
+      <div class="muted small">{{ active_program.progress.total_solved }}/{{ active_program.progress.total_assigned }} puzzle(s) résolus depuis le début</div>
+    </div>
+    {% else %}
+    <div style="color:#333;padding:8px 0 14px">Aucun programme actif — crée-en un dans le menu Programmes du Centre de commandement.</div>
+    {% endif %}
     <div class="s-section-title">🧩 Puzzles</div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">
       <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
