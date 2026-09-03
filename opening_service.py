@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from postgrest.exceptions import APIError
+
 from supabase_backend import supabase_configured, get_supabase_client
 
 TABLE_OPENINGS = "ghost_openings"
@@ -141,9 +143,10 @@ def assign_repertoire(student_index: int, opening_id: str, side: str) -> dict:
 
 
 MAX_COURSE_SIZE = 20
-MIN_COURSE_PLY = 8  # au moins 4 coups complets — exclut les "variantes" de
-# 1-3 coups (souvent juste le nom de la position racine de la famille) que
-# le coach a signalées comme pas assez serieuses pour un vrai entrainement.
+MIN_COURSE_PLY = 14  # au moins 7 coups complets — le coach a comparé la
+# profondeur des chapitres à ChessReps et les a trouvés trop courts avec le
+# seuil précédent (8). La ladder de repli ci-dessous garantit quand même
+# un résultat pour les familles peu profondes plutôt que de renvoyer rien.
 
 
 def build_family_course(family: str) -> list[dict]:
@@ -177,7 +180,7 @@ def build_family_course(family: str) -> list[dict]:
                 break
         return course
 
-    for threshold in (MIN_COURSE_PLY, 6, 4, 0):
+    for threshold in (MIN_COURSE_PLY, 10, 8, 6, 4, 0):
         course = _curate(threshold)
         if course:
             return course
@@ -266,7 +269,13 @@ def list_repertoire(student_index: int) -> list[dict]:
 
 def get_repertoire_entry(entry_id: str) -> Optional[dict]:
     client = get_supabase_client()
-    rows = client.table(TABLE_REPERTOIRE).select("*").eq("id", entry_id).limit(1).execute().data
+    try:
+        rows = client.table(TABLE_REPERTOIRE).select("*").eq("id", entry_id).limit(1).execute().data
+    except APIError:
+        # entry_id malformé (pas un UUID) : Postgres refuse la requête plutôt
+        # que de renvoyer 0 ligne — un id invalide n'est pas différent d'un
+        # id introuvable pour l'appelant, donc on le traite pareil.
+        return None
     return rows[0] if rows else None
 
 
@@ -295,20 +304,30 @@ def record_progress(user_id: str, opening_id: str, correct: bool) -> dict:
     return (res.data or [payload])[0]
 
 
+CLEAN_STREAK_TARGET = 3  # doit rester en phase avec le seuil de complete_line()
+
+
 def repertoire_progress(repertoire_entries: list[dict]) -> dict[str, dict]:
     """For each repertoire entry, how far through its family course the
     Ghost has progressed — variant N/total, plus the current mastery streak
-    (X/3 clean runs) towards unlocking the next one."""
+    (X/3 clean runs) towards unlocking the next one. Le pourcentage compte
+    aussi la série en cours sur la variante active (pas seulement les
+    variantes déjà 100% terminées) : sinon la barre restait figée pendant
+    tout le travail sur une variante et ne bougeait qu'à chaque déblocage,
+    ce qui ne reflétait pas l'apprentissage réel de l'ouverture entière."""
     out: dict[str, dict] = {}
     for entry in repertoire_entries:
         course = entry.get("course") or []
         total = len(course)
         pos = entry.get("course_position") or 0
+        streak = entry.get("clean_streak") or 0
         completed = pos + (1 if entry.get("status") == "completed" else 0)
         completed = min(completed, total)
+        progress_units = pos + (1.0 if entry.get("status") == "completed" else min(streak, CLEAN_STREAK_TARGET) / CLEAN_STREAK_TARGET)
+        progress_units = min(progress_units, total)
         out[entry["id"]] = {
             "total_variants": total, "completed_variants": completed,
-            "current_variant_index": pos, "clean_streak": entry.get("clean_streak") or 0,
-            "percent": round(100 * completed / total) if total else 0,
+            "current_variant_index": pos, "clean_streak": streak,
+            "percent": round(100 * progress_units / total) if total else 0,
         }
     return out

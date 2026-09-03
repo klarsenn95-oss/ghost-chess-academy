@@ -5771,6 +5771,24 @@ def api_client_openings_start():
         return jsonify({"ok": False, "error": str(e)}), 404
     return jsonify({"ok": True, "entry": entry})
 
+@app.route("/api/client/openings/remove", methods=["POST"])
+def api_client_openings_remove():
+    """Le Ghost retire lui-même une ouverture de son répertoire — ce n'est
+    pas réservé au coach, la même liberté que pour l'ajouter (Découvrir)."""
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    entry_id = body.get("entry_id")
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Entrée manquante."}), 400
+    entry = opening_service.get_repertoire_entry(entry_id)
+    if not entry or entry.get("student_index") != user.get("student_index"):
+        return jsonify({"ok": False, "error": "Entrée introuvable."}), 404
+    opening_service.remove_repertoire(entry_id)
+    return jsonify({"ok": True})
+
 @app.route("/api/client/openings/node/<opening_id>")
 def api_client_openings_node(opening_id):
     if not opening_service.backend_ready():

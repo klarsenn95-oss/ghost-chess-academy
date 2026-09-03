@@ -89,10 +89,10 @@
 .tab-group.active{background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#0a0a16;border-color:transparent}
 @media(max-width:760px){.tab-groups{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}.tab-group{flex:0 0 auto;white-space:nowrap}}
 .todo-list{display:flex;flex-direction:column;gap:8px}
-.todo-item{display:block;border:1px solid #ffffff16;background:#09091a;border-radius:16px;padding:12px 14px;text-decoration:none;color:#fff}
+.todo-item{display:flex;align-items:baseline;gap:6px;border:1px solid #ffffff12;background:#09091a;border-radius:10px;padding:7px 12px;text-decoration:none;color:#fff;font-size:13px;overflow:hidden}
 .todo-item:hover{border-color:#fbbf2466}
-.todo-item b{display:block;margin-bottom:3px}
-.todo-item .date{display:block;margin-top:4px;font-size:11px;color:#6f6a8f}
+.todo-item b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todo-item .date{margin-left:auto;font-size:11px;color:#6f6a8f;white-space:nowrap}
 .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .theme-pill{display:inline-flex;align-items:center;border:1px solid #a78bfa55;background:#a78bfa15;color:#c4b5fd;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
 .theme-pill.warn{border-color:#f8717155;background:#f8717115;color:#fca5a5}
@@ -219,10 +219,9 @@
     <div class="card full home-todo">
       <div class="ttl">🎯 À faire{% if student.client_notifications|length > 3 %}<span class="muted small" style="font-weight:400;text-transform:none;letter-spacing:0"> — {{ student.client_notifications|length }} au total</span>{% endif %}</div>
       <div class="todo-list">
-      {% for n in student.client_notifications[:3] %}
+      {% for n in student.client_notifications[:2] %}
         <a class="todo-item" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}','{{ n.linked_id or '' }}')">
           <b>{{ n.title }}</b>
-          <span class="muted small">{{ n.text|truncate(90) }}</span>
           <span class="date">{{ n.date }}</span>
         </a>
       {% endfor %}
@@ -1164,7 +1163,7 @@ async function loadOpeningRepertoire(){
   const box = document.getElementById('op-repertoire-list');
   if(!d.ok){ box.innerHTML = '<div class="empty">'+(d.error||'Bibliothèque non disponible.')+'</div>'; return; }
   opRepertoireCache = d.entries;
-  if(!d.entries.length){ box.innerHTML = '<div class="empty">Ton coach ne t\'a pas encore attribué d\'ouverture. Regarde l\'onglet Découvrir en attendant.</div>'; return; }
+  if(!d.entries.length){ box.innerHTML = '<div class="empty">Aucune ouverture en cours. Lance-toi dans l\'onglet Découvrir.</div>'; return; }
   box.innerHTML = d.entries.map(e => {
     const finished = e.status === 'completed';
     const streakDots = finished ? '' : `<span class="muted small"> · 🔥 ${e.progress.clean_streak}/3 sans erreur</span>`;
@@ -1173,9 +1172,18 @@ async function loadOpeningRepertoire(){
       <b>${e.family || '?'}</b> <span class="muted small">${e.side==='white'?'Blancs':'Noirs'}</span>
       <div class="bar" style="margin:8px 0"><span style="width:${e.progress.percent}%"></span></div>
       <div class="muted small">${finished ? '🎉 Parcours terminé' : `Variante ${e.progress.current_variant_index+1}/${e.progress.total_variants} : ${e.opening_name||'?'}`}${streakDots}</div>
-      ${finished ? '' : `<button class="tool" style="margin-top:8px" onclick="startOpeningSession('${e.id}')">▶ Jouer</button>`}
+      <div style="margin-top:8px;display:flex;gap:8px">
+        ${finished ? '' : `<button class="tool" onclick="startOpeningSession('${e.id}')">▶ Jouer</button>`}
+        <button class="tool secondary" onclick="removeOpeningFromRepertoire('${e.id}','${(e.family||'').replace(/'/g,"\\'")}')">🗑 Retirer</button>
+      </div>
     </div>`;
   }).join('');
+}
+
+async function removeOpeningFromRepertoire(entryId, family){
+  if(!confirm(`Retirer "${family}" de ton répertoire ? Ta progression sur cette ouverture sera perdue.`)) return;
+  const d = await postJSON('/api/client/openings/remove', {entry_id: entryId});
+  if(d.ok) loadOpeningRepertoire();
 }
 
 let opFamiliesLoaded = false;
@@ -1286,6 +1294,11 @@ async function startDiscoverSession(family){
 }
 
 function openVariantSession(title, line){
+  // Centralisé ici (et non dans chaque appelant) : startOpeningSession
+  // (bouton "Jouer" du répertoire) oubliait ce basculement d'affichage —
+  // le clic ne faisait donc rien de visible, l'écran solveur restait caché.
+  document.getElementById('op-picker').style.display = 'none';
+  document.getElementById('op-solver').style.display = 'block';
   opLine = line;
   opMode = 'eval';
   opVariantDemoShown = false;
@@ -1356,7 +1369,7 @@ function advanceDemoStep(){
     const mv = opGame.move(step.move_san, {sloppy: true});
     if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); }
     opStepIdx++;
-    opDemoTimer = setTimeout(advanceDemoStep, 550);
+    opDemoTimer = setTimeout(advanceDemoStep, 380);
     return;
   }
   opBoard.setInteractive(true);
@@ -1367,7 +1380,7 @@ function advanceDemoStep(){
     if(real){ opBoard.setFen(opGame.fen(), {from: real.from, to: real.to}); addOpMove(step.move_san); }
     opStepIdx++;
     advanceDemoStep();
-  }, 1400);
+  }, 1000);
 }
 
 function updateOpStreakInstruction(){
