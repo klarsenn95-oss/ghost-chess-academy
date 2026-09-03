@@ -2672,6 +2672,23 @@ def index():
     pending_rappels = sum(s["_pending_rappels"] for s in students)
     ranks_pirates_data = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_PIRATES)]
     ranks_marine_data  = [{"idx":i,"threshold":r[0],"emoji":r[1],"title":r[2],"color":r[3]} for i,r in enumerate(RANKS_MARINE)]
+    # Séance / Certifications / Rapports vivaient sur des routes séparées
+    # (rechargement complet de l'iframe à chaque clic). Elles sont maintenant
+    # des onglets internes de index.html comme Ghosts/Sessions/Binômes — donc
+    # leur contexte est assemblé ici, une fois, avec le reste. Grand Line
+    # reste une page à part : c'est une carte plein écran (overflow:hidden,
+    # zoom/pan sur un monde 2000x1100px) incompatible avec le conteneur
+    # scrollable des autres onglets — l'y forcer gonflait l'iframe à ~1.9M px.
+    report_pdfs = []
+    if os.path.exists(REPORTS_FOLDER):
+        for f in sorted(os.listdir(REPORTS_FOLDER), reverse=True):
+            if f.endswith(".pdf"):
+                fpath = os.path.join(REPORTS_FOLDER, f)
+                report_pdfs.append({
+                    "filename": f,
+                    "size_kb":  round(os.path.getsize(fpath)/1024, 1),
+                    "date":     datetime.fromtimestamp(os.path.getmtime(fpath)).strftime("%d/%m/%Y %H:%M"),
+                })
     return render_template("index.html",
         embed=(request.args.get("embed") == "1"),
         students=students,sorted_students=sorted_students,alerts=alerts,
@@ -2684,7 +2701,10 @@ def index():
         dashboard_tournaments=enriched_tournaments(data, 3, upcoming_only=True),
         price_grid=data.get("price_grid",{}),
         price_plans=data.get("client_price_plans") or default_client_price_plans(),
-        visit_stats=data.get("visit_stats", {}))
+        visit_stats=data.get("visit_stats", {}),
+        exam_bank=data.get("certification_bank", data.get("exam_bank",{})),
+        certification_defs=certification_definitions(data),
+        pdfs=report_pdfs)
 
 @app.route("/student/<int:idx>")
 def student_page(idx):

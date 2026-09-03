@@ -34,11 +34,10 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <button class="nav-btn" onclick="showPage('stats',this)">📊 Stats groupe</button>
     <button class="nav-btn" onclick="showPage('ranks',this)">🏴‍☠️ Rangs & Hakis</button>
     <button class="nav-btn" onclick="showPage('hierarchy',this)">🛡️ Squads</button>
-    <a href="/session/live" target="_blank" class="nav-btn nav-live">⚡ Séance en cours</a>
+    <button class="nav-btn nav-live" onclick="showPage('seance',this)">⚡ Séance en cours</button>
     <a href="/islands" class="nav-btn" style="text-decoration:none">🗺️ Îles</a>
-    <a href="/reports"  class="nav-btn" style="text-decoration:none">📄 Rapports</a>
-    <a href="/workplan" class="nav-btn" style="text-decoration:none">📋 Plan de travail</a>
-    <a href="/certifications/bank" class="nav-btn" style="text-decoration:none">🎖️ Certifications</a>
+    <button class="nav-btn" onclick="showPage('reports',this)">📄 Rapports</button>
+    <button class="nav-btn" onclick="showPage('certifications',this)">🎖️ Certifications</button>
   </nav>
   <div class="sidebar-bottom">
     <div class="sidebar-count">{{ students|length }} ghost(s)</div>
@@ -625,6 +624,880 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <div id="marine-tree" class="hierarchy-tree"></div>
     <div id="marine-unassigned" style="margin-top:18px"></div>
   </div>
+</section>
+
+<section id="page-seance" class="page">
+<div class="live-wrap">
+  <div class="live-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Retour</a>
+    <span style="font-size:22px;font-weight:700;color:#fff">⚡ Séance en cours</span>
+    <span class="live-badge">LIVE</span>
+    <span id="session-date" style="font-size:12px;color:#444;margin-left:auto"></span>
+  </div>
+
+  <!-- Stats live -->
+  <div class="live-stats">
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-present">0</div>
+      <div class="live-stat-label">Présents</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-marines" style="color:#60a5fa">0</div>
+      <div class="live-stat-label">🎖️ Marines</div>
+    </div>
+    <div class="live-stat">
+      <div class="live-stat-val" id="stat-pirates" style="color:#f472b6">0</div>
+      <div class="live-stat-label">🏴‍☠️ Pirates</div>
+    </div>
+  </div>
+
+  <div class="timer-block">
+    <div class="timer-display" id="timer">00:00</div>
+    <div class="timer-controls">
+      <button class="btn btn-red" id="timer-btn" onclick="timerToggle()">▶ Démarrer</button>
+      <button class="btn btn-ghost" onclick="timerReset()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">📖 Thème de la séance</div>
+    <input type="text" class="input-field" id="session-theme" placeholder="Tactique, Finales, Ouvertures…" style="width:100%;margin-bottom:8px">
+    <div class="theme-quick">
+      {% for t in ['Tactique','Finales','Ouvertures','Milieu de jeu','Calcul','Stratégie','Attaque du roi','Structure de pions'] %}
+      <button class="tq-btn" onclick="document.getElementById('session-theme').value='{{ t }}'">{{ t }}</button>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px">
+      <textarea class="input-field" id="session-notes" rows="3" placeholder="Notes générales de la séance…" style="width:100%;resize:vertical"></textarea>
+    </div>
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">👥 Ghosts présents</div>
+    {% for s in students %}
+    {% set branch = s.get('branch', 'pirates') %}
+    {% set branch_color = '#60a5fa' if branch == 'marine' else '#f472b6' %}
+    {% set branch_label = '🎖️ Marine' if branch == 'marine' else '🏴‍☠️ Pirates' %}
+    <div>
+      <div class="student-check" id="check-{{ loop.index }}" onclick="togglePresent(this,'{{ s.name or '?' }}','{{ branch }}')">
+        <div class="check-box"><span class="check-mark">✓</span></div>
+        <div class="check-info">
+          <div class="check-name">
+            {{ s.name or '?' }}
+            {# Rang affiché inline — calculé côté serveur via tojson passé #}
+          </div>
+          <div class="check-meta">
+            <span class="check-branch" style="color:{{ branch_color }}">{{ branch_label }}</span>
+            {% if s.lichess %}<span style="color:#333">@ {{ s.lichess }}</span>{% endif %}
+            {% if s.elo_li_blitz or s.elo_cc_blitz %}
+              <span style="color:#555">⚡ {{ [s.elo_li_blitz, s.elo_cc_blitz]|select|first or '—' }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <textarea class="student-note" id="note-{{ s.name or '?' }}" placeholder="Note pour {{ s.name or '?' }} cette séance…" rows="2"></textarea>
+    </div>
+    {% else %}
+    <div style="color:#444;text-align:center;padding:20px">Aucun ghost enregistré.</div>
+    {% endfor %}
+  </div>
+
+  <div class="live-section">
+    <div class="live-section-title">🤝 Binômes de la séance</div>
+    <div id="pairs-session-wrap">
+      <div style="font-size:11px;color:#444;margin-bottom:10px">Les binômes s'activent automatiquement si les deux membres sont présents.</div>
+      <div id="pairs-live-list"></div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #111">
+      <div style="font-size:11px;color:#444;margin-bottom:6px">Créer un binôme spontané pour cette séance :</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <select id="spont-a" style="background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#aaa;font-size:12px;padding:5px 8px;font-family:inherit;flex:1">
+          <option value="">Ghost A…</option>
+        </select>
+        <span style="color:#444">🤝</span>
+        <select id="spont-b" style="background:#060606;border:1px solid #1e1e1e;border-radius:7px;color:#aaa;font-size:12px;padding:5px 8px;font-family:inherit;flex:1">
+          <option value="">Ghost B…</option>
+        </select>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="addSpontaneousPair()">➕</button>
+      </div>
+      <div id="spontaneous-pairs" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <button class="end-btn" onclick="endSession()" id="end-btn">🏁 Terminer et sauvegarder</button>
+</div>
+
+<script>
+const STUDENTS = {{ students|tojson }};
+let timerSec=0,timerRunning=false,timerInterval=null;
+let presentStudents=new Set();
+let presentBranches={marine:0,pirates:0};
+let spontaneousPairs=[];
+
+// Load saved pairs
+let SAVED_PAIRS=[];
+fetch('/api/pairs/get').then(r=>r.json()).then(d=>{
+  SAVED_PAIRS=d.pairs||[];
+  populateSpontSelects();
+  updatePairsDisplay();
+});
+
+function populateSpontSelects(){
+  ['spont-a','spont-b'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— Ghost —</option>';
+    STUDENTS.forEach(s=>{
+      const opt=document.createElement('option');
+      opt.value=s.name||'?';
+      opt.textContent=(s.name||'?');
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function updatePairsDisplay(){
+  const list=document.getElementById('pairs-live-list');
+  const activePairs=SAVED_PAIRS.filter(p=>presentStudents.has(p.a)&&presentStudents.has(p.b));
+  if(!activePairs.length&&!spontaneousPairs.length){
+    list.innerHTML='<div style="font-size:12px;color:#333;padding:6px 0">Aucun binôme actif pour les présents.</div>';
+    return;
+  }
+  let html='';
+  activePairs.forEach(p=>{
+    const icon=p.type==='mentor'?'🎓':p.type==='rival'?'⚔️':p.type==='project'?'📚':'🤝';
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #111">
+      <span style="font-size:14px;color:#4ade80;font-weight:600">${p.a}</span>
+      <span style="font-size:16px;color:#333">${icon}</span>
+      <span style="font-size:14px;color:#4ade80;font-weight:600">${p.b}</span>
+      ${p.note?`<span style="font-size:11px;color:#444;margin-left:4px">${p.note}</span>`:''}
+    </div>`;
+  });
+  list.innerHTML=html;
+}
+
+function addSpontaneousPair(){
+  const a=document.getElementById('spont-a').value;
+  const b=document.getElementById('spont-b').value;
+  if(!a||!b||a===b) return;
+  spontaneousPairs.push({a,b});
+  renderSpontaneousPairs();
+}
+
+function renderSpontaneousPairs(){
+  const wrap=document.getElementById('spontaneous-pairs');
+  wrap.innerHTML=spontaneousPairs.map((p,i)=>
+    `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;font-size:12px;color:#aaa">
+      <span>🤝 ${p.a} ↔ ${p.b}</span>
+      <button onclick="removeSpontPair(${i})" style="background:none;border:none;color:#555;cursor:pointer;font-size:11px">✕</button>
+    </div>`
+  ).join('');
+}
+
+function removeSpontPair(i){spontaneousPairs.splice(i,1);renderSpontaneousPairs();}
+
+document.getElementById('session-date').textContent=new Date().toLocaleDateString('fr',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function updateLiveStats(){
+  document.getElementById('stat-present').textContent=presentStudents.size;
+  document.getElementById('stat-marines').textContent=presentBranches.marine;
+  document.getElementById('stat-pirates').textContent=presentBranches.pirates;
+}
+
+function timerToggle(){
+  if(timerRunning){
+    clearInterval(timerInterval);timerRunning=false;
+    document.getElementById('timer-btn').textContent='▶ Reprendre';
+    document.getElementById('timer-btn').className='btn btn-ghost';
+  } else {
+    timerRunning=true;
+    document.getElementById('timer-btn').textContent='⏸ Pause';
+    document.getElementById('timer-btn').className='btn btn-red';
+    timerInterval=setInterval(()=>{
+      timerSec++;
+      const m=String(Math.floor(timerSec/60)).padStart(2,'0');
+      const s=String(timerSec%60).padStart(2,'0');
+      document.getElementById('timer').textContent=`${m}:${s}`;
+    },1000);
+  }
+}
+function timerReset(){
+  clearInterval(timerInterval);timerRunning=false;timerSec=0;
+  document.getElementById('timer').textContent='00:00';
+  document.getElementById('timer-btn').textContent='▶ Démarrer';
+  document.getElementById('timer-btn').className='btn btn-red';
+}
+
+function togglePresent(el,name,branch){
+  el.classList.toggle('checked');
+  const noteEl=el.nextElementSibling;
+  if(el.classList.contains('checked')){
+    presentStudents.add(name);
+    if(branch==='marine') presentBranches.marine++;
+    else presentBranches.pirates++;
+    if(noteEl) noteEl.style.display='block';
+  } else {
+    presentStudents.delete(name);
+    if(branch==='marine') presentBranches.marine=Math.max(0,presentBranches.marine-1);
+    else presentBranches.pirates=Math.max(0,presentBranches.pirates-1);
+    if(noteEl) noteEl.style.display='none';
+  }
+  updateLiveStats();
+  updatePairsDisplay();
+}
+
+async function endSession(){
+  const theme=document.getElementById('session-theme').value.trim();
+  const notes=document.getElementById('session-notes').value.trim();
+  const present=[...presentStudents];
+  const student_notes={};
+  STUDENTS.forEach(s=>{
+    const name=s.name||'?';
+    const el=document.getElementById('note-'+name);
+    if(el&&el.value.trim()) student_notes[name]=el.value.trim();
+  });
+  const btn=document.getElementById('end-btn');
+  btn.disabled=true; btn.textContent='⏳ Sauvegarde…';
+  const r=await fetch('/api/session/end',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({theme,notes,duration:Math.round(timerSec/60),present,student_notes})
+  });
+  const d=await r.json();
+  if(d.ok){btn.textContent='✅ Séance sauvegardée !';setTimeout(()=>window.location='/',1500);}
+  else{btn.disabled=false;btn.textContent='❌ Erreur, réessaie';}
+}
+</script>
+</section>
+
+<section id="page-certifications" class="page">
+<div class="bk-wrap">
+
+  <!-- Header -->
+  <div class="bk-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
+    <div class="bk-title">🗂️ Configuration des certifications</div>
+  </div>
+
+  <!-- Stats globales -->
+  <div class="bk-stats" id="global-stats">
+    <div class="bk-stat"><div class="bk-stat-val" id="stat-grades">0</div><div class="bk-stat-lbl">Certifications configurées</div></div>
+    <div class="bk-stat"><div class="bk-stat-val" id="stat-questions">0</div><div class="bk-stat-lbl">Questions au total</div></div>
+    <div class="bk-stat"><div class="bk-stat-val" id="stat-images">0</div><div class="bk-stat-lbl">Avec image</div></div>
+    <div class="bk-stat"><div class="bk-stat-val" id="stat-pts">0</div><div class="bk-stat-lbl">Points max par exam</div></div>
+  </div>
+
+  <!-- Sélecteur de certification -->
+  <div class="grade-tabs" id="grade-tabs">
+    <span style="font-size:12px;color:#444;align-self:center">Certification :</span>
+    <!-- Générés par JS -->
+  </div>
+
+  <!-- Éditeur -->
+  <div class="bk-panel">
+    <div class="bk-section-title" id="editor-title">— Sélectionne une certification —</div>
+
+    <div class="settings-grid" id="cert-settings" style="display:none">
+      <div>
+        <label style="display:block;font-size:11px;color:#777;margin-bottom:6px">Seuil de reussite (%)</label>
+        <input class="fi" id="pass-pct" type="number" min="0" max="100" step="1" oninput="markSettingsDirty()">
+        <div style="font-size:11px;color:#555;margin-top:7px">Le resultat est calcule automatiquement sur 100.</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;color:#777;margin-bottom:6px">Sections et points</label>
+        <div class="section-list" id="section-list"></div>
+        <button class="btn btn-ghost" type="button" onclick="addSection()" style="margin-top:8px;font-size:12px">+ Ajouter une section</button>
+      </div>
+    </div>
+
+    <!-- Liste des questions -->
+    <div class="q-list" id="q-list">
+      <div class="bk-empty" id="q-empty">Sélectionne une certification ci-dessus pour commencer.</div>
+    </div>
+
+    <!-- Formulaire d'ajout -->
+    <div class="add-form" id="add-form" style="display:none">
+      <div class="add-form-title">➕ Nouvelle question</div>
+
+      <textarea class="fta" id="new-q-text" rows="2" placeholder="Énoncé de la question…" style="margin-bottom:8px"></textarea>
+
+      <div class="form-row">
+        <select class="fi" id="new-q-type" onchange="onTypeChange()">
+          <option value="text">💬 Question orale</option>
+          <option value="image">🖼️ Avec image</option>
+          <option value="yesno">✅ Vrai / Faux</option>
+          <option value="fen">FEN échiquier</option>
+        </select>
+        <input class="fi" id="new-q-pts" type="number" value="1" min="0.5" step="0.5"
+          style="max-width:90px" placeholder="Pts">
+        <label style="font-size:11px;color:#555;align-self:center">pt(s)</label>
+      </div>
+
+      <!-- Zone image (conditionnelle) -->
+      <div id="image-zone" style="display:none">
+        <div class="img-upload-zone" id="upload-zone"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <input type="file" accept="image/*" id="img-file-input" onchange="onFileSelected(event)">
+          <div class="upload-label">
+            Glisse une image ici ou <span>clique pour parcourir</span>
+          </div>
+        </div>
+        <div id="img-uploading" class="img-uploading" style="display:none">⏳ Envoi en cours…</div>
+        <div class="img-preview-wrap" id="img-preview-wrap" style="display:none">
+          <img id="img-preview" src="">
+          <button class="img-remove" onclick="removeImage()">✕</button>
+        </div>
+        <input type="hidden" id="new-q-image" value="">
+      </div>
+
+      <textarea class="fta" id="new-q-answer" rows="1"
+        placeholder="Réponse modèle (visible après correction)…"
+        style="margin-top:8px;margin-bottom:10px"></textarea>
+
+      <div id="fen-zone" style="display:none;margin-bottom:10px">
+        <input class="fi" id="new-q-fen" placeholder="FEN échiquier" style="margin-bottom:8px">
+        <input class="fi" id="new-q-highlights" placeholder="Cases à surligner : e4,d5,f5">
+      </div>
+
+      <button class="btn btn-ghost" onclick="addQuestion()" style="font-size:13px">➕ Ajouter à la liste</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Barre de sauvegarde fixe -->
+<div class="save-bar" id="save-bar" style="display:none">
+  <div class="save-bar-grade">Certification active : <span id="save-grade-label">—</span></div>
+  <div style="font-size:11px;color:#555" id="save-count"></div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <button class="btn btn-ghost" onclick="reloadGrade()" style="font-size:12px">↺ Annuler</button>
+    <button class="btn btn-red" onclick="saveGrade()" id="save-btn" style="font-size:13px">💾 Sauvegarder</button>
+  </div>
+</div>
+
+<script>
+const CERTIFICATION_DEFS = {{ certification_defs|tojson }};
+var EXAM_BANK = {{ exam_bank|tojson }};
+
+var ALL_GRADES = CERTIFICATION_DEFS.map(function(c){
+  return {key:c.key, label:c.title, color:c.color, threshold:c.pass_pct};
+});
+
+var currentGradeKey = '';
+var certificationSections = [];
+var questions = []; // Questions en cours d'édition
+var dirty = false;
+var dragSrcIdx = null;
+
+// ── Init ──────────────────────────────────────────────────────────
+function init(){
+  renderGradeTabs();
+  updateGlobalStats();
+}
+
+function renderGradeTabs(){
+  var tabs = document.getElementById('grade-tabs');
+  // Garder le label "Grade :"
+  tabs.innerHTML = '<span style="font-size:12px;color:#444;align-self:center">Grade :</span>';
+  ALL_GRADES.forEach(function(g){
+    var count = (EXAM_BANK[g.key]||{questions:[]}).questions.length;
+    var tab = document.createElement('button');
+    tab.className = 'grade-tab' + (g.key===currentGradeKey?' active':'');
+    tab.innerHTML = g.label + (count>0?' <span style="font-size:10px;color:#555">('+count+')</span>':'');
+    tab.style.borderColor = currentGradeKey===g.key ? g.color+'88' : '';
+    tab.onclick = function(){ selectGrade(g.key, g.label, g.color); };
+    tabs.appendChild(tab);
+  });
+}
+
+function selectGrade(key, label, color){
+  if(dirty && !confirm('Des modifications non sauvegardées seront perdues. Continuer ?')) return;
+  currentGradeKey = key;
+  dirty = false;
+  var bank = EXAM_BANK[key];
+  questions = bank && bank.questions ? JSON.parse(JSON.stringify(bank.questions)) : [];
+  certificationSections = bank && bank.sections ? JSON.parse(JSON.stringify(bank.sections)) : [];
+  if(!certificationSections.length) certificationSections = [
+    {key:'fundamentals',label:'Fondamentaux',points:30},
+    {key:'tactics',label:'Reconnaissance tactique',points:25},
+    {key:'strategy',label:'Strategie',points:25},
+    {key:'blind_tactics',label:"Tactique a l'aveugle",points:20}
+  ];
+  document.getElementById('editor-title').textContent = label;
+  document.getElementById('add-form').style.display = '';
+  document.getElementById('cert-settings').style.display = '';
+  document.getElementById('pass-pct').value = bank && bank.pass_pct != null ? bank.pass_pct : (ALL_GRADES.find(function(g){return g.key===key;})||{}).threshold || 70;
+  document.getElementById('save-bar').style.display = '';
+  document.getElementById('save-grade-label').textContent = label;
+  renderGradeTabs();
+  renderQuestions();
+  renderSections();
+  updateSaveCount();
+}
+
+function sectionKey(label, index){
+  var key=String(label||'section').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  return key || 'section_'+(index+1);
+}
+function renderSections(){
+  var list=document.getElementById('section-list');
+  list.innerHTML='';
+  certificationSections.forEach(function(section,index){
+    var row=document.createElement('div'); row.className='section-row';
+    row.innerHTML='<input class="fi" value="'+escapeHtml(section.label||'')+'" placeholder="Nom de section">'+
+      '<input class="fi" type="number" min="0.5" step="0.5" value="'+(parseFloat(section.points)||0)+'" title="Points">'+
+      '<button type="button" title="Supprimer">x</button>';
+    var inputs=row.querySelectorAll('input');
+    inputs[0].oninput=function(){certificationSections[index].label=this.value;certificationSections[index].key=sectionKey(this.value,index);markSettingsDirty();};
+    inputs[1].oninput=function(){certificationSections[index].points=parseFloat(this.value)||0;markSettingsDirty();updateSaveCount();};
+    row.querySelector('button').onclick=function(){certificationSections.splice(index,1);markSettingsDirty();renderSections();updateSaveCount();};
+    list.appendChild(row);
+  });
+}
+function addSection(){certificationSections.push({key:'section_'+(certificationSections.length+1),label:'Nouvelle section',points:5});markSettingsDirty();renderSections();}
+function markSettingsDirty(){dirty=true;}
+
+function updateGlobalStats(){
+  var grades = Object.keys(EXAM_BANK).length;
+  var total = 0, imgs = 0, pts = 0;
+  var currentPts = 0;
+  Object.values(EXAM_BANK).forEach(function(b){
+    if(!b.questions) return;
+    total += b.questions.length;
+    imgs  += b.questions.filter(function(q){return !!q.image;}).length;
+    var p = b.questions.reduce(function(s,q){return s+(parseFloat(q.points)||1);},0);
+    pts = Math.max(pts, p);
+  });
+  document.getElementById('stat-grades').textContent    = grades;
+  document.getElementById('stat-questions').textContent = total;
+  document.getElementById('stat-images').textContent    = imgs;
+  document.getElementById('stat-pts').textContent       = pts.toFixed(1).replace(/\.0$/,'');
+}
+
+// ── Rendu liste ───────────────────────────────────────────────────
+function renderQuestions(){
+  var list = document.getElementById('q-list');
+  var empty = document.getElementById('q-empty');
+  if(!questions.length){
+    empty.style.display='';
+    empty.textContent = 'Aucune question pour cette certification. Ajoute-en ci-dessous.';
+    list.innerHTML='';
+    list.appendChild(empty);
+    return;
+  }
+  empty.style.display='none';
+  var typeIcon = {text:'💬',yesno:'✅',image:'🖼️',pgn:'♟️',fen:'FEN'};
+  list.innerHTML = '';
+  questions.forEach(function(q,i){
+    var row = document.createElement('div');
+    row.className = 'q-row';
+    row.draggable = true;
+    row.dataset.idx = i;
+    row.ondragstart  = function(e){ onDragStart(e,i); };
+    row.ondragover   = function(e){ onDragOverRow(e,i); };
+    row.ondragleave  = function(e){ row.classList.remove('drag-over'); };
+    row.ondrop       = function(e){ onDropRow(e,i); };
+    row.ondragend    = function(){ document.querySelectorAll('.q-row').forEach(function(r){r.classList.remove('drag-over','dragging');}); };
+
+    var pts = parseFloat(q.points)||1;
+    var imgHtml = q.image
+      ? '<img src="'+escapeHtml(q.image)+'" class="q-image-preview" onerror="this.style.display=\'none\'">'
+      : '';
+    var fenHtml = q.fen
+      ? '<div class="q-answer">FEN: '+escapeHtml(q.fen)+'</div>'
+      : '';
+    var ansHtml = q.answer
+      ? '<div class="q-answer">→ '+escapeHtml(q.answer)+'</div>'
+      : '';
+
+    row.innerHTML =
+      '<div class="q-handle">⠿⠿</div>'+
+      '<div class="q-body">'+
+        '<div class="q-text">'+escapeHtml(q.question||'')+'</div>'+
+        imgHtml+
+        fenHtml+
+        '<div class="q-meta">'+
+          '<span class="q-badge" style="color:#888">'+( typeIcon[q.type]||'💬')+'</span>'+
+          '<span class="q-pts">'+pts+'pt'+(pts>1?'s':'')+'</span>'+
+        '</div>'+
+        ansHtml+
+      '</div>'+
+      '<div class="q-actions">'+
+        '<button class="q-edit-btn" onclick="moveUp('+i+')" title="Monter">↑</button>'+
+        '<button class="q-edit-btn" onclick="moveDown('+i+')" title="Descendre">↓</button>'+
+        '<button class="q-edit-btn" style="color:#cc1a1a;border-color:#cc1a1a33" onclick="deleteQuestion('+i+')" title="Supprimer">🗑</button>'+
+      '</div>';
+    list.appendChild(row);
+  });
+}
+
+function updateSaveCount(){
+  var total = questions.reduce(function(s,q){return s+(parseFloat(q.points)||1);},0);
+  var rubricTotal = certificationSections.reduce(function(s,row){return s+(parseFloat(row.points)||0);},0);
+  document.getElementById('save-count').textContent =
+    questions.length+' question'+(questions.length>1?'s':'')
+    +' · '+total.toFixed(1).replace(/\.0$/,'')+' pts';
+}
+
+// ── Drag & Drop ───────────────────────────────────────────────────
+function onDragStart(e, idx){
+  dragSrcIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(function(){
+    document.querySelectorAll('.q-row')[idx] &&
+    document.querySelectorAll('.q-row')[idx].classList.add('dragging');
+  },0);
+}
+function onDragOverRow(e, idx){
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.q-row').forEach(function(r){r.classList.remove('drag-over');});
+  if(idx !== dragSrcIdx)
+    document.querySelectorAll('.q-row')[idx] &&
+    document.querySelectorAll('.q-row')[idx].classList.add('drag-over');
+}
+function onDropRow(e, idx){
+  e.preventDefault();
+  if(dragSrcIdx===null||dragSrcIdx===idx) return;
+  var moved = questions.splice(dragSrcIdx, 1)[0];
+  questions.splice(idx, 0, moved);
+  dragSrcIdx = null;
+  dirty = true;
+  renderQuestions();
+  updateSaveCount();
+}
+
+// ── Mouvements clavier ────────────────────────────────────────────
+function moveUp(i){
+  if(i===0) return;
+  var tmp = questions[i]; questions[i]=questions[i-1]; questions[i-1]=tmp;
+  dirty=true; renderQuestions(); updateSaveCount();
+}
+function moveDown(i){
+  if(i===questions.length-1) return;
+  var tmp = questions[i]; questions[i]=questions[i+1]; questions[i+1]=tmp;
+  dirty=true; renderQuestions(); updateSaveCount();
+}
+function deleteQuestion(i){
+  if(!confirm('Supprimer cette question ?')) return;
+  questions.splice(i,1);
+  dirty=true; renderQuestions(); updateSaveCount();
+}
+
+// ── Type change ───────────────────────────────────────────────────
+function onTypeChange(){
+  var t = document.getElementById('new-q-type').value;
+  document.getElementById('image-zone').style.display = t==='image'?'':'none';
+  document.getElementById('fen-zone').style.display = t==='fen'?'':'none';
+}
+
+// ── Upload image ──────────────────────────────────────────────────
+function onDragOver(e){ e.preventDefault(); document.getElementById('upload-zone').classList.add('drag-active'); }
+function onDragLeave(e){ document.getElementById('upload-zone').classList.remove('drag-active'); }
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-active');
+  var files = e.dataTransfer.files;
+  if(files.length) uploadFile(files[0]);
+}
+function onFileSelected(e){
+  var f = e.target.files[0];
+  if(f) uploadFile(f);
+}
+function uploadFile(file){
+  document.getElementById('img-uploading').style.display='';
+  document.getElementById('img-preview-wrap').style.display='none';
+  var fd = new FormData();
+  fd.append('file', file);
+  fetch('/api/upload/image',{method:'POST',body:fd})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      document.getElementById('img-uploading').style.display='none';
+      if(d.ok){
+        document.getElementById('new-q-image').value = d.url;
+        document.getElementById('img-preview').src  = d.url;
+        document.getElementById('img-preview-wrap').style.display='';
+      } else {
+        alert('Erreur upload : '+d.error);
+      }
+    });
+}
+function removeImage(){
+  document.getElementById('new-q-image').value='';
+  document.getElementById('img-preview').src='';
+  document.getElementById('img-preview-wrap').style.display='none';
+  document.getElementById('img-file-input').value='';
+}
+
+// ── Ajout question ────────────────────────────────────────────────
+function addQuestion(){
+  var text   = document.getElementById('new-q-text').value.trim();
+  var type   = document.getElementById('new-q-type').value;
+  var pts    = parseFloat(document.getElementById('new-q-pts').value)||1;
+  var image  = document.getElementById('new-q-image').value.trim();
+  var fen    = document.getElementById('new-q-fen').value.trim();
+  var highlights = document.getElementById('new-q-highlights').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  var answer = document.getElementById('new-q-answer').value.trim();
+  if(!text){ alert('Saisis l\'énoncé de la question.'); return; }
+  if(type==='image' && !image){ alert('Ajoute une image ou change le type.'); return; }
+  if(type==='fen' && !fen){ alert('Ajoute un FEN ou change le type.'); return; }
+  var q = {question:text, type:type, points:pts};
+  if(image)  q.image  = image;
+  if(fen) q.fen = fen;
+  if(highlights.length) q.highlights = highlights;
+  if(answer) q.answer = answer;
+  questions.push(q);
+  dirty = true;
+  // Reset form
+  document.getElementById('new-q-text').value='';
+  document.getElementById('new-q-answer').value='';
+  document.getElementById('new-q-fen').value='';
+  document.getElementById('new-q-highlights').value='';
+  removeImage();
+  document.getElementById('new-q-type').value='text';
+  onTypeChange();
+  renderQuestions();
+  updateSaveCount();
+  // Scroll vers la fin de la liste
+  var list = document.getElementById('q-list');
+  list.lastElementChild && list.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── Sauvegarde ────────────────────────────────────────────────────
+function saveGrade(){
+  if(!currentGradeKey) return;
+  var gradeLabel = ALL_GRADES.find(function(g){return g.key===currentGradeKey;});
+  var label = gradeLabel ? gradeLabel.label : currentGradeKey;
+  var btn = document.getElementById('save-btn');
+  btn.textContent='⏳…'; btn.disabled=true;
+  fetch('/api/certifications/save',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({grade_key:currentGradeKey,grade_label:label,pass_pct:parseFloat(document.getElementById('pass-pct').value)||70,sections:certificationSections,questions:questions})
+  }).then(function(r){return r.json();}).then(function(d){
+    btn.textContent='💾 Sauvegarder'; btn.disabled=false;
+    if(d.ok){
+      dirty=false;
+      EXAM_BANK[currentGradeKey]={grade_key:currentGradeKey,grade_label:label,pass_pct:parseFloat(document.getElementById('pass-pct').value)||70,sections:JSON.parse(JSON.stringify(certificationSections)),questions:JSON.parse(JSON.stringify(questions))};
+      updateGlobalStats();
+      renderGradeTabs();
+      showToast('Banque sauvegardée ✅');
+    } else { alert('Erreur sauvegarde'); }
+  });
+}
+
+function reloadGrade(){
+  if(!confirm('Annuler les modifications ?')) return;
+  var g = ALL_GRADES.find(function(x){return x.key===currentGradeKey;});
+  if(g) selectGrade(g.key, g.label, g.color);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function showToast(msg){
+  var t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style,{position:'fixed',bottom:'70px',right:'20px',
+    background:'#0a0a0a',border:'1px solid #1a1a1a',borderRadius:'8px',
+    color:'#ccc',fontSize:'13px',padding:'10px 16px',zIndex:999,
+    transition:'opacity .3s'});
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove();},300);},2000);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;');
+}
+
+// Warn on unsaved changes
+window.onbeforeunload = function(){if(dirty) return 'Des modifications non sauvegardées seront perdues.';};
+
+init();
+</script>
+</section>
+
+<section id="page-reports" class="page">
+<div class="rp-wrap">
+
+  <div class="rp-header">
+    <a href="/" style="color:#444;text-decoration:none;font-size:13px">← Dashboard</a>
+    <div class="rp-title">📄 Rapports PDF</div>
+    <div class="cron-badge" style="margin-left:auto">
+      <span class="cron-dot"></span>
+      Génération auto · lundi 8h
+    </div>
+  </div>
+
+  <!-- Génération manuelle -->
+  <div class="rp-panel">
+    <div class="rp-section-title">⚡ Générer manuellement</div>
+
+    <!-- Sélection Ghosts -->
+    <div style="font-size:11px;color:#444;margin-bottom:8px">Ghosts à inclure</div>
+    <div style="margin-bottom:8px">
+      <button class="week-btn" onclick="selectAllGhosts()">Tous</button>
+      <button class="week-btn" onclick="selectNoGhosts()">Aucun</button>
+    </div>
+    <div class="ghost-grid" id="ghost-grid">
+      {% for s in students %}
+      <button class="ghost-chip selected" data-idx="{{ loop.index0 }}"
+        onclick="toggleGhost(this,{{ loop.index0 }})">
+        <span class="gc-emoji">{{ s._rank.emoji }}</span>
+        <span>{{ s.name or '?' }}</span>
+        <span style="font-size:10px;opacity:.5">{{ '🎖️' if s._rank.branch=='marine' else '🏴‍☠️' }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Sélection période -->
+    <div style="font-size:11px;color:#444;margin-bottom:8px;margin-top:14px">Période</div>
+    <div class="week-btns">
+      <button class="week-btn active" id="week-prev" onclick="setWeek('prev',this)">Semaine précédente</button>
+      <button class="week-btn" id="week-curr" onclick="setWeek('curr',this)">Semaine en cours</button>
+      <button class="week-btn" id="week-custom" onclick="setWeek('custom',this)">Période personnalisée</button>
+    </div>
+    <div id="custom-dates" style="display:none;display:none;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+      <input type="date" class="fi" id="date-from" style="max-width:160px">
+      <span style="color:#444">→</span>
+      <input type="date" class="fi" id="date-to"   style="max-width:160px">
+    </div>
+    <div style="font-size:11px;color:#555;margin-bottom:14px" id="period-label"></div>
+
+    <button class="btn btn-red" onclick="generateReports()" id="gen-btn"
+      style="font-size:14px;padding:11px 28px">
+      ⚙️ Générer les rapports
+    </button>
+
+    <!-- Résultats génération -->
+    <div class="gen-progress" id="gen-progress" style="margin-top:14px">
+      <div style="font-size:11px;color:#444;margin-bottom:8px" id="gen-period-lbl"></div>
+      <div id="gen-results"></div>
+    </div>
+  </div>
+
+  <!-- Liste PDFs existants -->
+  <div class="rp-panel">
+    <div class="rp-section-title" style="display:flex;align-items:center;gap:8px">
+      📁 Rapports générés
+      <span style="font-size:10px;color:#333;font-weight:400;text-transform:none">{{ pdfs|length }} fichier{{ 's' if pdfs|length > 1 }}</span>
+    </div>
+
+    {% if pdfs %}
+    <div class="pdf-list" id="pdf-list">
+      {% for p in pdfs %}
+      <div class="pdf-row">
+        <span class="pdf-icon">📄</span>
+        <span class="pdf-name">{{ p.filename }}</span>
+        <span class="pdf-meta">{{ p.size_kb }} Ko · {{ p.date }}</span>
+        <a class="pdf-dl" href="/reports/download/{{ p.filename }}">⬇ Télécharger</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:#333;font-size:13px;text-align:center;padding:24px">
+      Aucun rapport généré pour l'instant.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+var selectedGhosts = new Set({{ range(students|length)|list|tojson }});
+var weekMode = 'prev';
+
+// ── Ghosts ────────────────────────────────────────────────────────
+function toggleGhost(el, idx){
+  if(selectedGhosts.has(idx)){ selectedGhosts.delete(idx); el.classList.remove('selected'); }
+  else { selectedGhosts.add(idx); el.classList.add('selected'); }
+}
+function selectAllGhosts(){
+  document.querySelectorAll('.ghost-chip').forEach(function(el){
+    selectedGhosts.add(parseInt(el.dataset.idx)); el.classList.add('selected');
+  });
+}
+function selectNoGhosts(){
+  selectedGhosts.clear();
+  document.querySelectorAll('.ghost-chip').forEach(function(el){ el.classList.remove('selected'); });
+}
+
+// ── Semaines ──────────────────────────────────────────────────────
+function setWeek(mode, btn){
+  weekMode = mode;
+  document.querySelectorAll('.week-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var custom = document.getElementById('custom-dates');
+  custom.style.display = mode==='custom' ? 'flex' : 'none';
+  updatePeriodLabel();
+}
+
+function getMonday(d){ var day=d.getDay(),diff=d.getDate()-day+(day==0?-6:1); return new Date(d.setDate(diff)); }
+function fmtDate(d){ return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear(); }
+
+function updatePeriodLabel(){
+  var lbl = document.getElementById('period-label');
+  var today = new Date();
+  if(weekMode==='prev'){
+    var mon = getMonday(new Date(today)); mon.setDate(mon.getDate()-7);
+    var sun = new Date(mon); sun.setDate(sun.getDate()+6);
+    lbl.textContent = 'Période : '+fmtDate(mon)+' → '+fmtDate(sun);
+  } else if(weekMode==='curr'){
+    var mon = getMonday(new Date(today));
+    var sun = new Date(mon); sun.setDate(sun.getDate()+6);
+    lbl.textContent = 'Période : '+fmtDate(mon)+' → '+fmtDate(sun);
+  } else {
+    lbl.textContent = '';
+  }
+}
+
+// ── Génération ────────────────────────────────────────────────────
+function generateReports(){
+  if(!selectedGhosts.size){ alert('Sélectionne au moins un Ghost.'); return; }
+
+  var payload = { student_indices: [...selectedGhosts] };
+  if(weekMode==='prev')   payload.week_offset = 1;
+  else if(weekMode==='curr') payload.week_offset = 0;
+  else {
+    payload.date_from = document.getElementById('date-from').value;
+    payload.date_to   = document.getElementById('date-to').value;
+    if(!payload.date_from||!payload.date_to){ alert('Sélectionne une période.'); return; }
+  }
+
+  var btn = document.getElementById('gen-btn');
+  btn.disabled=true; btn.textContent='⏳ Génération…';
+  var prog = document.getElementById('gen-progress');
+  prog.classList.add('visible');
+  document.getElementById('gen-results').innerHTML = '<span style="color:#444;font-size:12px">Génération en cours…</span>';
+
+  fetch('/api/reports/generate',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false; btn.textContent='⚙️ Générer les rapports';
+    document.getElementById('gen-period-lbl').textContent = 'Période : '+(d.period||'');
+    var html = '';
+    (d.results||[]).forEach(function(r){
+      if(r.ok){
+        html += '<div class="gen-result-row">'+
+          '<span style="color:#4ade80">✅</span>'+
+          '<span style="color:#ccc">'+r.name+'</span>'+
+          '<a href="/reports/download/'+r.file+'" class="pdf-dl" style="margin-left:auto">⬇ Télécharger</a>'+
+          '</div>';
+      } else {
+        html += '<div class="gen-result-row">'+
+          '<span style="color:#ef4444">❌</span>'+
+          '<span style="color:#888">'+r.name+' — '+r.error+'</span>'+
+          '</div>';
+      }
+    });
+    document.getElementById('gen-results').innerHTML = html || '<span style="color:#444">Aucun résultat.</span>';
+    // Recharge la liste PDF après 1s
+    setTimeout(function(){ location.reload(); }, 1500);
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='⚙️ Générer les rapports';
+    document.getElementById('gen-results').innerHTML='<span style="color:#ef4444">Erreur réseau.</span>';
+  });
+}
+
+updatePeriodLabel();
+</script>
 </section>
 
 <!-- Modal: Créer/Éditer Unité -->
