@@ -123,6 +123,14 @@
 @keyframes ghHighlightFlash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px #fbbf24aa}}
 .highlight-flash{animation:ghHighlightFlash 1.8s ease}
 @media(max-width:760px){.pz-solver-grid{grid-template-columns:1fr}}
+/* Bulle pédagogique façon ChessReps — ancrée sous le plateau, pas une modale */
+.op-bubble{position:absolute;left:6%;right:6%;bottom:10px;background:linear-gradient(135deg,#151230f2,#0b0b1af2);border:1px solid #a78bfa55;border-radius:16px;padding:12px 14px;box-shadow:0 14px 40px #000a;backdrop-filter:blur(4px);animation:opBubbleIn .18s ease}
+.op-bubble[hidden]{display:none}
+.op-bubble-text{font-weight:800;font-size:13px;line-height:1.4;color:#fff}
+.op-bubble-good .op-bubble-text{color:#bbf7d0}
+.op-bubble-bad .op-bubble-text{color:#fecaca}
+.op-bubble-continue{margin-top:9px}
+@keyframes opBubbleIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 /* V37 — conversation continue au lieu de cartes isolées par sujet */
 .chat-thread{display:flex;flex-direction:column;gap:4px}
 .chat-msg{border-top:1px solid #ffffff0b;padding:14px 0}
@@ -427,16 +435,20 @@
         <button class="btn secondary tiny" type="button" onclick="exitOpeningSolver()">← Retour</button>
         <span class="pill" id="op-solver-title"></span>
         <span id="op-solver-status" class="pz-status"></span>
+        <button class="btn secondary tiny" type="button" onclick="toggleOpSound()" id="op-sound-btn" style="margin-left:auto" title="Son">🔊</button>
       </div>
       <div class="pz-solver-grid">
-        <div id="op-solver-board"></div>
+        <div class="op-board-wrap" style="position:relative">
+          <div id="op-solver-board"></div>
+          <div id="op-bubble" class="op-bubble" hidden></div>
+        </div>
         <div class="pz-solver-side">
           <div class="pz-instruction" id="op-instruction">Trouve le coup du répertoire.</div>
           <div class="pz-move-list" id="op-move-list"></div>
           <div class="pz-solver-actions">
             <button class="btn secondary tiny" type="button" onclick="opHint()" id="op-hint-btn">💡 Indice</button>
             <button class="btn secondary tiny" type="button" onclick="opReveal()" id="op-reveal-btn">Voir le coup</button>
-            <button class="btn tiny" type="button" id="op-restart-btn" style="display:none">↺ Recommencer</button>
+            <button class="btn secondary tiny" type="button" onclick="replayOpeningDemo()" id="op-replay-btn">🔁 Revoir la démo</button>
           </div>
           <div class="muted small" id="op-why" style="margin-top:8px;display:none"></div>
         </div>
@@ -1230,8 +1242,8 @@ function addOpMove(san){
 function setupOpeningTrainerUI(){
   document.getElementById('op-hint-btn').style.display = '';
   document.getElementById('op-reveal-btn').style.display = '';
-  document.getElementById('op-restart-btn').style.display = 'none';
   document.getElementById('op-why').style.display = 'none';
+  hideOpBubble();
 }
 
 // ── Séance continue façon ChessReps ─────────────────────────────────
@@ -1261,6 +1273,68 @@ let opNextLineCache = null; // {id, name, eco, line} préchargé pendant que le 
 let opVariantDemoShown = false; // remis à false à chaque nouvelle variante
 let opInDemo = false; // phase d'apprentissage en cours (coups du Ghost guidés par une flèche, jouables à la main)
 let opDemoTimer = null;
+
+// ── Bulle pédagogique (ancrée sous le plateau, pas une modale) ─────────
+// Sert uniquement aux moments qui demandent une vraie pause avant de
+// continuer (fin de ligne, série débloquée, erreur) — pas aux transitions
+// coup-à-coup qui doivent rester instantanées.
+function showOpBubble(text, opts){
+  opts = opts || {};
+  const el = document.getElementById('op-bubble');
+  el.className = 'op-bubble' + (opts.tone ? ' op-bubble-' + opts.tone : '');
+  el.innerHTML = '<div class="op-bubble-text">' + text + '</div>' +
+    (opts.withContinue ? '<button class="btn tiny op-bubble-continue" type="button">Continuer →</button>' : '');
+  el.hidden = false;
+  if(opts.withContinue){
+    el.querySelector('.op-bubble-continue').onclick = () => { hideOpBubble(); if(opts.onContinue) opts.onContinue(); };
+  }
+}
+function hideOpBubble(){
+  const el = document.getElementById('op-bubble');
+  if(!el) return;
+  el.hidden = true;
+  el.innerHTML = '';
+}
+
+// ── Sons (synthétisés, pas de fichier audio à charger) ──────────────────
+let opSoundMuted = false;
+try { opSoundMuted = localStorage.getItem('opSoundMuted') === '1'; } catch(e){}
+let opAudioCtx = null;
+function opTone(freq, duration, type, gain){
+  if(opSoundMuted) return;
+  try{
+    if(!opAudioCtx) opAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(opAudioCtx.state === 'suspended') opAudioCtx.resume();
+    const osc = opAudioCtx.createOscillator(), g = opAudioCtx.createGain();
+    osc.type = type || 'sine'; osc.frequency.value = freq;
+    const now = opAudioCtx.currentTime;
+    g.gain.setValueAtTime(gain || 0.06, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(g); g.connect(opAudioCtx.destination);
+    osc.start(now); osc.stop(now + duration);
+  }catch(e){}
+}
+function playOpSound(kind){
+  if(kind === 'move') opTone(420, 0.07, 'triangle', 0.05);
+  else if(kind === 'good') opTone(660, 0.12, 'sine', 0.07);
+  else if(kind === 'wrong') opTone(170, 0.18, 'sawtooth', 0.06);
+  else if(kind === 'success'){ opTone(660, 0.1, 'sine', 0.07); setTimeout(() => opTone(880, 0.16, 'sine', 0.08), 110); }
+}
+function toggleOpSound(){
+  opSoundMuted = !opSoundMuted;
+  try { localStorage.setItem('opSoundMuted', opSoundMuted ? '1' : '0'); } catch(e){}
+  document.getElementById('op-sound-btn').textContent = opSoundMuted ? '🔇' : '🔊';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('op-sound-btn');
+  if(btn) btn.textContent = opSoundMuted ? '🔇' : '🔊';
+});
+
+// Revoir la démo à la demande (bouton) sans toucher au score ni à la série.
+function replayOpeningDemo(){
+  opVariantDemoShown = false;
+  beginVariantAttempt();
+}
 
 function startOpeningSession(entryId){
   const entry = opRepertoireCache.find(e => e.id === entryId);
@@ -1314,6 +1388,7 @@ function openVariantSession(title, line){
 
 function beginVariantAttempt(){
   clearDemoTimer();
+  hideOpBubble();
   opInDemo = false;
   opStepIdx = 0;
   opHadMistake = false;
@@ -1367,7 +1442,7 @@ function advanceDemoStep(){
     // Coup adverse : automatique, non cliquable — ce n'est pas au Ghost de le jouer.
     opBoard.setInteractive(false);
     const mv = opGame.move(step.move_san, {sloppy: true});
-    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); }
+    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); playOpSound('move'); }
     opStepIdx++;
     opDemoTimer = setTimeout(advanceDemoStep, 380);
     return;
@@ -1377,7 +1452,7 @@ function advanceDemoStep(){
   opDemoTimer = setTimeout(() => {
     if(!opInDemo) return;
     const real = opGame.move(step.move_san, {sloppy: true});
-    if(real){ opBoard.setFen(opGame.fen(), {from: real.from, to: real.to}); addOpMove(step.move_san); }
+    if(real){ opBoard.setFen(opGame.fen(), {from: real.from, to: real.to}); addOpMove(step.move_san); playOpSound('move'); }
     opStepIdx++;
     advanceDemoStep();
   }, 1000);
@@ -1403,7 +1478,7 @@ function advanceOpeningAuto(){
   while(opStepIdx + 1 < opLine.length && !studentTurnAtStep(opStepIdx + 1)){
     const step = opLine[opStepIdx + 1];
     const mv = opGame.move(step.move_san, {sloppy: true});
-    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); }
+    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); playOpSound('move'); }
     opStepIdx++;
   }
   if(opStepIdx + 1 >= opLine.length) finishOpeningLine();
@@ -1424,6 +1499,7 @@ function handleOpeningMove(from, to, promotion){
       showGuideArrow(expected);
       return;
     }
+    playOpSound('wrong');
     opHadMistake = true;
     document.getElementById('op-solver-status').textContent = "Ce n'est pas le coup attendu, réessaie.";
     document.getElementById('op-solver-status').className = 'pz-status bad';
@@ -1433,6 +1509,7 @@ function handleOpeningMove(from, to, promotion){
   clearDemoTimer();
   opBoard.setFen(opGame.fen(), {from, to}); // efface aussi la flèche-guide, le coup est joué
   addOpMove(mv.san);
+  playOpSound('move');
   document.getElementById('op-solver-status').textContent = '';
   if(!opInDemo && opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
   opStepIdx++;
@@ -1462,25 +1539,23 @@ function finishOpeningLine(){
     }).catch(()=>{});
   }
 
-  const status = document.getElementById('op-solver-status');
+  // Le résultat reste affiché dans une bulle jusqu'à ce que le Ghost clique
+  // "Continuer" — plus de message qui s'efface tout seul après 300-700ms
+  // avant même d'avoir pu le lire.
   if(finished){
-    status.textContent = '🎉 Parcours terminé — toutes les variantes sont maîtrisées !';
-    status.className = 'pz-status good';
-    setTimeout(exitOpeningSolver, 1200);
+    playOpSound('success');
+    showOpBubble('🎉 Parcours terminé — toutes les variantes de cette ouverture sont maîtrisées !', {tone: 'good', withContinue: true, onContinue: exitOpeningSolver});
     return;
   }
   if(advanced){
-    status.textContent = '🎉 3 réussites d\'affilée — variante suivante !';
-    status.className = 'pz-status good';
-    setTimeout(continueToNextVariant, 600);
+    playOpSound('success');
+    showOpBubble('🎉 3 réussites d\'affilée — on passe à la variante suivante.', {tone: 'good', withContinue: true, onContinue: continueToNextVariant});
   } else if(hadMistake){
-    status.textContent = 'Une erreur sur la ligne — série remise à 0, on la refait.';
-    status.className = 'pz-status bad';
-    setTimeout(beginVariantAttempt, 700);
+    playOpSound('wrong');
+    showOpBubble('Une erreur sur la ligne — série remise à 0, on la refait.', {tone: 'bad', withContinue: true, onContinue: beginVariantAttempt});
   } else {
-    status.textContent = `✅ Réussi sans erreur ! 🔥 ${opCleanStreak}/3 — on la rejoue pour continuer la série.`;
-    status.className = 'pz-status good';
-    setTimeout(beginVariantAttempt, 500);
+    playOpSound('good');
+    showOpBubble(`✅ Réussi sans erreur ! 🔥 ${opCleanStreak}/3 — on la rejoue pour continuer la série.`, {tone: 'good', withContinue: true, onContinue: beginVariantAttempt});
   }
 }
 
@@ -1526,6 +1601,7 @@ function opReveal(){
 
 function exitOpeningSolver(){
   clearDemoTimer();
+  hideOpBubble();
   opInDemo = false;
   document.getElementById('op-solver').style.display = 'none';
   document.getElementById('op-picker').style.display = '';
