@@ -445,7 +445,7 @@
             <button class="btn secondary tiny" type="button" onclick="opReveal()" id="op-reveal-btn">Voir le coup</button>
             <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(-1)" id="op-prev-btn" style="display:none">◀ Précédent</button>
             <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(1)" id="op-next-btn" style="display:none">Suivant ▶</button>
-            <button class="btn tiny" type="button" onclick="opRestart()" id="op-restart-btn" style="display:none">↺ Recommencer</button>
+            <button class="btn tiny" type="button" id="op-restart-btn" style="display:none">↺ Recommencer</button>
           </div>
           <div class="muted small" id="op-why" style="margin-top:8px;display:none"></div>
         </div>
@@ -1182,7 +1182,7 @@ async function loadOpeningRepertoire(){
       <b>${e.family || '?'}</b> <span class="muted small">${e.side==='white'?'Blancs':'Noirs'}</span>
       <div class="bar" style="margin:8px 0"><span style="width:${e.progress.percent}%"></span></div>
       <div class="muted small">${finished ? '🎉 Parcours terminé' : `Variante ${e.progress.current_variant_index+1}/${e.progress.total_variants} : ${e.opening_name||'?'}`}${streakDots}</div>
-      ${finished ? '' : `<button class="tool" style="margin-top:8px" onclick="startOpeningLearn('${e.id}')">📖 Continuer</button>`}
+      ${finished ? '' : `<button class="tool" style="margin-top:8px" onclick="startOpeningSession('${e.id}')">▶ Jouer</button>`}
     </div>`;
   }).join('');
 }
@@ -1256,69 +1256,74 @@ function setupOpeningTrainerUI(){
   document.getElementById('op-variant-prev-btn').style.display = 'none';
   document.getElementById('op-variant-next-btn').style.display = 'none';
   document.getElementById('op-restart-btn').style.display = 'none';
-  document.getElementById('op-restart-btn').onclick = opRestart;
-  document.getElementById('op-restart-btn').textContent = '↺ Recommencer';
   document.getElementById('op-why').style.display = 'none';
 }
 
+// ── Séance continue façon ChessReps ─────────────────────────────────
+// Un seul écran, un seul flux : ouvrir -> jouer -> répondre -> feedback ->
+// position suivante, sans re-choisir de mode ni recliquer entre chaque
+// tentative. La ligne courante rejoue automatiquement le camp adverse ; le
+// Ghost trouve ses propres coups (Indice/Voir le coup restent disponibles
+// s'il bloque — c'est l'assistance, plus besoin d'un écran "apprentissage"
+// séparé). Une ligne réussie sans erreur relance la MÊME variante ; à la
+// 3e réussite propre d'affilée, la variante suivante s'enchaîne toute
+// seule. La synchronisation serveur (complete_line) part en arrière-plan
+// sans jamais bloquer l'affichage — c'est ça qui supprimait le "lag".
 let opCurrentEntryId = null;
 let opHadMistake = false;
+let opCourse = [];
+let opCoursePos = 0;
+let opCleanStreak = 0;
+let opNextLineCache = null; // {id, name, eco, line} préchargé pendant que le Ghost joue
 
-// ── Phase 1 : apprentissage assisté — on rejoue la ligne pas à pas (le
-// Ghost avance lui-même avec les boutons, chaque coup est montré par une
-// flèche), sans notation ni pression. Une fois arrivé au bout, un bouton
-// permet de passer à l'évaluation sur cette même ligne.
-function startOpeningLearn(entryId){
+function startOpeningSession(entryId){
   const entry = opRepertoireCache.find(e => e.id === entryId);
   if(!entry) return;
   opCurrentEntryId = entryId;
-  opDiscoverLine = entry.line;
-  opDiscoverIdx = 0;
-  opMode = 'learn';
-  document.getElementById('op-picker').style.display = 'none';
-  document.getElementById('op-solver').style.display = 'block';
-  document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
-  document.getElementById('op-instruction').textContent = '📖 Apprentissage — avance avec les boutons pour voir la ligne, coup par coup.';
-  document.getElementById('op-hint-btn').style.display = 'none';
-  document.getElementById('op-reveal-btn').style.display = 'none';
-  document.getElementById('op-prev-btn').style.display = '';
-  document.getElementById('op-next-btn').style.display = '';
-  document.getElementById('op-variant-prev-btn').style.display = 'none';
-  document.getElementById('op-variant-next-btn').style.display = 'none';
-  document.getElementById('op-restart-btn').style.display = '';
-  document.getElementById('op-restart-btn').textContent = "🎯 Passer à l'évaluation";
-  document.getElementById('op-restart-btn').onclick = () => startOpeningEval(entryId);
-  const el = document.getElementById('op-solver-board');
-  if(opBoard) opBoard.destroy();
-  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: entry.side, interactive: false});
-  document.getElementById('op-move-list').innerHTML = '';
-  renderDiscoverStep();
-  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
-}
-
-// ── Phase 2 : évaluation — le Ghost doit retrouver seul les coups de sa
-// couleur. 3 lignes propres (sans erreur) d'affilée débloquent la variante
-// suivante du parcours (géré côté serveur dans complete_line).
-function startOpeningEval(entryId){
-  const entry = opRepertoireCache.find(e => e.id === entryId);
-  if(!entry) return;
-  opCurrentEntryId = entryId;
-  opLine = entry.line; opSide = entry.side; opMode = 'eval';
-  opStepIdx = 0;
-  opHadMistake = false;
+  opCourse = entry.course || [];
+  opCoursePos = entry.course_position || 0;
+  opCleanStreak = entry.clean_streak || 0;
+  opSide = entry.side;
+  opLine = entry.line;
+  opMode = 'eval';
   document.getElementById('op-picker').style.display = 'none';
   document.getElementById('op-solver').style.display = 'block';
   document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
   setupOpeningTrainerUI();
-  opGame = new Chess();
   const el = document.getElementById('op-solver-board');
   if(opBoard) opBoard.destroy();
   opBoard = createPuzzleBoard(el, {fen: 'start', orientation: opSide, interactive: true, onAttemptMove: handleOpeningMove});
+  beginVariantAttempt();
+  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
+  prefetchNextVariant();
+}
+
+function beginVariantAttempt(){
+  opStepIdx = 0;
+  opHadMistake = false;
+  opGame = new Chess();
+  opBoard.setFen('start');
+  opBoard.setInteractive(true);
   document.getElementById('op-move-list').innerHTML = '';
   document.getElementById('op-solver-status').textContent = '';
-  document.getElementById('op-instruction').textContent = (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire. 🔥 ' + (entry.progress?.clean_streak||0) + '/3 sans erreur.';
+  updateOpStreakInstruction();
   advanceOpeningAuto();
-  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function updateOpStreakInstruction(){
+  document.getElementById('op-instruction').textContent =
+    (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire. 🔥 ' + opCleanStreak + '/3 sans erreur.';
+}
+
+async function prefetchNextVariant(){
+  opNextLineCache = null;
+  const next = opCourse[opCoursePos + 1];
+  if(!next) return;
+  try{
+    const r = await fetch('/api/client/openings/node/' + next.id);
+    const d = await r.json();
+    if(d.ok) opNextLineCache = {id: next.id, name: d.node.name, eco: d.node.eco, line: d.node.line};
+  }catch(e){}
 }
 
 function advanceOpeningAuto(){
@@ -1351,37 +1356,70 @@ function handleOpeningMove(from, to, promotion){
   document.getElementById('op-solver-status').textContent = '';
   postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
   opStepIdx++;
-  setTimeout(advanceOpeningAuto, 350);
+  // Transition quasi instantanée : juste assez pour voir la réponse adverse,
+  // pas un temps de chargement.
+  setTimeout(advanceOpeningAuto, 180);
 }
 
-async function finishOpeningLine(){
+function finishOpeningLine(){
   if(opBoard) opBoard.setInteractive(false);
-  const d = await postJSON('/api/client/openings/complete_line', {entry_id: opCurrentEntryId, had_mistake: opHadMistake});
-  const status = document.getElementById('op-solver-status');
-  if(!d.ok){ status.textContent = '✅ Ligne terminée !'; status.className = 'pz-status good'; }
-  else if(d.finished){ status.textContent = '🎉 Parcours terminé — toutes les variantes sont maîtrisées !'; status.className = 'pz-status good'; }
-  else if(d.advanced){ status.textContent = '🎉 3 réussites d\'affilée — variante suivante débloquée !'; status.className = 'pz-status good'; }
-  else if(opHadMistake){ status.textContent = 'Ligne terminée, mais avec une erreur — série remise à 0. Réessaie !'; status.className = 'pz-status bad'; }
-  else { const s = d.entry?.clean_streak || 0; status.textContent = `✅ Réussi sans erreur ! 🔥 ${s}/3 — encore ${3-s} pour débloquer la suite.`; status.className = 'pz-status good'; }
-  if(d.ok && d.finished){
-    document.getElementById('op-restart-btn').style.display = 'none';
-  } else {
-    document.getElementById('op-restart-btn').style.display = '';
-    document.getElementById('op-restart-btn').textContent = d.ok && d.advanced ? "📖 Apprendre la variante suivante" : '↺ Rejouer';
-    document.getElementById('op-restart-btn').onclick = () => (d.ok && d.advanced ? startOpeningLearn(opCurrentEntryId) : startOpeningEval(opCurrentEntryId));
+  const hadMistake = opHadMistake;
+  // Calcul optimiste côté client — l'écran enchaîne tout de suite, la
+  // synchronisation serveur se fait derrière sans jamais faire attendre.
+  opCleanStreak = hadMistake ? 0 : opCleanStreak + 1;
+  let advanced = false, finished = false;
+  if(opCleanStreak >= 3){
+    if(opCoursePos + 1 < opCourse.length){ opCoursePos++; opCleanStreak = 0; advanced = true; }
+    else { finished = true; }
   }
-  loadOpeningRepertoire();
+  postJSON('/api/client/openings/complete_line', {entry_id: opCurrentEntryId, had_mistake: hadMistake}).then(d=>{
+    if(d.ok){
+      const idx = opRepertoireCache.findIndex(e => e.id === opCurrentEntryId);
+      if(idx >= 0) opRepertoireCache[idx] = d.entry;
+    }
+  }).catch(()=>{});
+
+  const status = document.getElementById('op-solver-status');
+  if(finished){
+    status.textContent = '🎉 Parcours terminé — toutes les variantes sont maîtrisées !';
+    status.className = 'pz-status good';
+    setTimeout(exitOpeningSolver, 1200);
+    return;
+  }
+  if(advanced){
+    status.textContent = '🎉 3 réussites d\'affilée — variante suivante !';
+    status.className = 'pz-status good';
+    setTimeout(continueToNextVariant, 600);
+  } else if(hadMistake){
+    status.textContent = 'Une erreur sur la ligne — série remise à 0, on la refait.';
+    status.className = 'pz-status bad';
+    setTimeout(beginVariantAttempt, 700);
+  } else {
+    status.textContent = `✅ Réussi sans erreur ! 🔥 ${opCleanStreak}/3 — on la rejoue pour continuer la série.`;
+    status.className = 'pz-status good';
+    setTimeout(beginVariantAttempt, 500);
+  }
 }
 
-function opRestart(){
-  opStepIdx = 0;
-  opGame = new Chess();
-  opBoard.setFen('start');
-  opBoard.setInteractive(true);
-  document.getElementById('op-move-list').innerHTML = '';
-  document.getElementById('op-solver-status').textContent = '';
-  document.getElementById('op-restart-btn').style.display = 'none';
-  advanceOpeningAuto();
+function continueToNextVariant(){
+  const target = opCourse[opCoursePos];
+  if(opNextLineCache && opNextLineCache.id === target.id){
+    opLine = opNextLineCache.line;
+    document.getElementById('op-solver-title').textContent = opNextLineCache.name || 'Ouverture';
+    opNextLineCache = null;
+    beginVariantAttempt();
+    prefetchNextVariant();
+  } else {
+    // Rare : le préchargement n'a pas fini. On charge sans bloquer l'oeil
+    // plus d'un instant, plutot que de figer tout l'écran sur une roue qui tourne.
+    fetch('/api/client/openings/node/' + target.id).then(r => r.json()).then(d => {
+      if(!d.ok) return;
+      opLine = d.node.line;
+      document.getElementById('op-solver-title').textContent = d.node.name || 'Ouverture';
+      beginVariantAttempt();
+      prefetchNextVariant();
+    });
+  }
 }
 
 function opHint(){
@@ -1396,9 +1434,10 @@ function opReveal(){
   const step = opLine[opStepIdx + 1];
   const mv = opGame.move(step.move_san, {sloppy: true});
   if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); opBoard.showArrow(mv.from, mv.to); addOpMove(mv.san); }
+  opHadMistake = true;
   postJSON('/api/client/openings/attempt', {opening_id: step.id, correct: false}).catch(()=>{});
   opStepIdx++;
-  setTimeout(advanceOpeningAuto, 400);
+  setTimeout(advanceOpeningAuto, 250);
 }
 
 async function startOpeningDiscover(nodeId, fromVariantList){
@@ -1455,7 +1494,7 @@ function opDiscoverStepFn(dir){
 function exitOpeningSolver(){
   document.getElementById('op-solver').style.display = 'none';
   document.getElementById('op-picker').style.display = '';
-  if(opMode === 'training') loadOpeningRepertoire();
+  if(opMode === 'eval') loadOpeningRepertoire();
 }
 
 document.addEventListener('DOMContentLoaded', loadOpeningRepertoire);
