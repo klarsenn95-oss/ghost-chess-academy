@@ -13,10 +13,21 @@ from __future__ import annotations
 
 import random
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from supabase_backend import supabase_configured, get_supabase_client
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
+
+
+def _today_paris() -> date:
+    """"Aujourd'hui" pour le programme d'entraînement doit changer à minuit
+    heure de Paris, comme le reste de l'app (now_fr()) — pas à minuit UTC,
+    qui décale le renouvellement d'1h ou 2h selon l'heure d'été/hiver."""
+    return datetime.now(PARIS_TZ).date()
+
 
 TABLE_PUZZLES = "ghost_puzzles"
 TABLE_ATTEMPTS = "ghost_puzzle_attempts"
@@ -464,7 +475,7 @@ def delete_program(program_id: str) -> bool:
 
 
 def is_program_day(program: dict, today: Optional[date] = None) -> bool:
-    d = today or date.today()
+    d = today or _today_paris()
     if isinstance(d, str):
         d = date.fromisoformat(d)
     return d.weekday() in (program.get("frequency_days") or [])
@@ -478,7 +489,7 @@ def is_program_expired(program: dict, today: Optional[date] = None) -> bool:
     if not start_raw:
         return False
     start = date.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
-    d = today or date.today()
+    d = today or _today_paris()
     if isinstance(d, str):
         d = date.fromisoformat(d)
     return (d - start).days >= duration
@@ -520,7 +531,7 @@ def get_today_set(program: dict, user_id: str, today: Optional[str] = None) -> d
     persisted on first access so reloading the page (or the coach checking
     progress) sees the same set for the day rather than a fresh random
     draw every time."""
-    today = today or date.today().isoformat()
+    today = today or _today_paris().isoformat()
     client = get_supabase_client()
     existing = (client.table(TABLE_PROGRAM_DAYS).select("*")
                 .eq("program_id", program["id"]).eq("day", today).limit(1).execute().data)

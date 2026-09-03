@@ -310,6 +310,12 @@ links.forEach(btn=>btn.addEventListener('click',()=>{
         if(frame.contentWindow && typeof frame.contentWindow.showPage === 'function'){
           frame.contentWindow.showPage(internalPage, null);
           frame.contentWindow.scrollTo(0,0);
+          // Un changement d'onglet interne (même iframe, pas de rechargement) ne
+          // déclenche jamais l'événement 'load' de l'iframe — donc sans cet appel,
+          // la hauteur de l'iframe restait celle du DERNIER chargement complet
+          // (souvent le tableau de bord au login) sur tous les onglets suivants,
+          // d'où le grand vide scrollable "à l'infini" que le coach voyait.
+          settleFrameSize();
           stopFrameLoading();
           return true;
         }
