@@ -141,31 +141,47 @@ def assign_repertoire(student_index: int, opening_id: str, side: str) -> dict:
 
 
 MAX_COURSE_SIZE = 20
+MIN_COURSE_PLY = 8  # au moins 4 coups complets — exclut les "variantes" de
+# 1-3 coups (souvent juste le nom de la position racine de la famille) que
+# le coach a signalées comme pas assez serieuses pour un vrai entrainement.
 
 
 def build_family_course(family: str) -> list[dict]:
     """The curriculum for a whole family, capped and deduplicated by variation
     name. A deep family like the Sicilian has 390+ named lines — nowhere near
-    learnable as one course — so this keeps only the shallowest (most
-    fundamental) named branches, one per distinct variation name, up to
-    MAX_COURSE_SIZE. This is a structural approximation (no popularity data
-    available yet): it favours breadth over judging which line matters most."""
+    learnable as one course — so this keeps only the shallowest-but-still-
+    substantial named branches (>= MIN_COURSE_PLY half-moves), one per
+    distinct variation name, up to MAX_COURSE_SIZE. Falls back to shorter
+    lines only if a family genuinely has nothing deeper (rare, obscure
+    families) — never returns nothing just because the family is shallow.
+    This is a structural approximation (no popularity data available yet):
+    it favours breadth over judging which line matters most."""
     client = get_supabase_client()
     rows = (client.table(TABLE_OPENINGS)
             .select("id,name,eco,variation,subvariation,ply")
             .eq("family", family).not_.is_("name", "null")
-            .order("ply").limit(MAX_COURSE_SIZE * 15).execute().data or [])
-    seen = set()
-    course = []
-    for r in rows:
-        key = r.get("variation") or r["name"]
-        if key in seen:
-            continue
-        seen.add(key)
-        course.append({"id": r["id"], "name": r["name"], "eco": r.get("eco")})
-        if len(course) >= MAX_COURSE_SIZE:
-            break
-    return course
+            .order("ply").limit(MAX_COURSE_SIZE * 25).execute().data or [])
+
+    def _curate(min_ply: int) -> list[dict]:
+        seen = set()
+        course = []
+        for r in rows:
+            if r["ply"] < min_ply:
+                continue
+            key = r.get("variation") or r["name"]
+            if key in seen:
+                continue
+            seen.add(key)
+            course.append({"id": r["id"], "name": r["name"], "eco": r.get("eco")})
+            if len(course) >= MAX_COURSE_SIZE:
+                break
+        return course
+
+    for threshold in (MIN_COURSE_PLY, 6, 4, 0):
+        course = _curate(threshold)
+        if course:
+            return course
+    return []
 
 
 def assign_family(student_index: int, family: str, side: str) -> dict:

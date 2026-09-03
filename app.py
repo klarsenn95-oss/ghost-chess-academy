@@ -5735,6 +5735,18 @@ def api_client_openings_family(family):
         return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
     return jsonify({"ok": True, "variations": opening_service.get_family_variations(family)})
 
+@app.route("/api/client/openings/family_course/<path:family>")
+def api_client_openings_family_course(family):
+    """Le parcours curaté d'une famille pour le mode Découvrir — le Ghost
+    choisit juste l'ouverture, jamais une variante précise (même logique
+    que l'attribution coach, mais ici sans suivi persistant)."""
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    course = opening_service.build_family_course(family)
+    if not course:
+        return jsonify({"ok": False, "error": "Aucune variante trouvée pour cette famille."}), 404
+    return jsonify({"ok": True, "family": family, "course": course})
+
 @app.route("/api/client/openings/node/<opening_id>")
 def api_client_openings_node(opening_id):
     if not opening_service.backend_ready():

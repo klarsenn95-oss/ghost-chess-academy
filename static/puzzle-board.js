@@ -21,6 +21,7 @@
   // plateau.
   const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   const PIECE_TYPE_LETTER = { p: 'P', n: 'N', b: 'B', r: 'R', q: 'Q', k: 'K' };
+  const DEFAULT_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
   function pieceImageUrl(piece) {
     if (!piece) return null;
@@ -161,7 +162,12 @@
 
     return {
       setFen(fen, moveJustPlayed) {
-        chess.load(fen);
+        // 'start' is accepted by the constructor (falls back to chess.js's
+        // own default) but NOT by chess.load(fen) itself — passing the
+        // literal string 'start' here silently failed and left the board
+        // showing whatever position it had before, with no pieces movable
+        // whenever a caller reset to the initial position mid-session.
+        chess.load(fen && fen !== 'start' ? fen : DEFAULT_FEN);
         if (moveJustPlayed) lastMove = moveJustPlayed;
         clearSelection();
         render();

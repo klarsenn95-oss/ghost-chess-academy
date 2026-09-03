@@ -413,16 +413,12 @@
       </div>
 
       <div id="op-discover-view" style="display:none">
-        <div class="pg-row">
-          <select class="fi" id="op-c-family-select" onchange="onClientFamilyChange()">
-            <option value="">Choisis une ouverture…</option>
-          </select>
-          <select class="fi" id="op-c-variation-select" onchange="onClientVariationChange()" disabled>
-            <option value="">— Variante —</option>
-          </select>
-        </div>
+        <div class="muted small" style="margin-bottom:6px">Choisis juste l'ouverture — le parcours démarre tout de suite.</div>
+        <select class="fi" id="op-c-family-select" onchange="onClientFamilyChange()">
+          <option value="">Choisis une ouverture…</option>
+        </select>
         <div class="muted small" style="margin-top:8px">Ou cherche directement :</div>
-        <input class="fi" id="op-c-search" placeholder="Najdorf, B90, Dragon…" oninput="clientSearchOpenings()" style="margin-top:4px">
+        <input class="fi" id="op-c-search" placeholder="Najdorf, London, Sicilienne…" oninput="clientSearchOpenings()" style="margin-top:4px">
         <div class="puzzle-list" id="op-c-search-results" style="margin-top:8px"></div>
       </div>
     </div>
@@ -430,9 +426,7 @@
     <div class="card full" id="op-solver" style="display:none">
       <div class="pz-solver-head">
         <button class="btn secondary tiny" type="button" onclick="exitOpeningSolver()">← Retour</button>
-        <button class="btn secondary tiny" type="button" onclick="opVariantStep(-1)" id="op-variant-prev-btn" style="display:none">◀ Variante précédente</button>
         <span class="pill" id="op-solver-title"></span>
-        <button class="btn secondary tiny" type="button" onclick="opVariantStep(1)" id="op-variant-next-btn" style="display:none">Variante suivante ▶</button>
         <span id="op-solver-status" class="pz-status"></span>
       </div>
       <div class="pz-solver-grid">
@@ -443,8 +437,6 @@
           <div class="pz-solver-actions">
             <button class="btn secondary tiny" type="button" onclick="opHint()" id="op-hint-btn">💡 Indice</button>
             <button class="btn secondary tiny" type="button" onclick="opReveal()" id="op-reveal-btn">Voir le coup</button>
-            <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(-1)" id="op-prev-btn" style="display:none">◀ Précédent</button>
-            <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(1)" id="op-next-btn" style="display:none">Suivant ▶</button>
             <button class="btn tiny" type="button" id="op-restart-btn" style="display:none">↺ Recommencer</button>
           </div>
           <div class="muted small" id="op-why" style="margin-top:8px;display:none"></div>
@@ -1156,7 +1148,6 @@ document.addEventListener('DOMContentLoaded', loadTodayProgram);
 // ── Ouvertures ────────────────────────────────────────────────────
 let opRepertoireCache = [];
 let opLine = [], opStepIdx = 0, opSide = 'white', opMode = 'training';
-let opDiscoverLine = [], opDiscoverIdx = 0;
 let opGame = null, opBoard = null;
 
 function showOpeningsSubTab(which){
@@ -1188,8 +1179,6 @@ async function loadOpeningRepertoire(){
 }
 
 let opFamiliesLoaded = false;
-let opVariantList = [];  // variations of the family currently selected — powers "parcours" prev/next
-let opVariantIdx = -1;
 
 async function loadClientOpeningFamilies(){
   opFamiliesLoaded = true;
@@ -1208,31 +1197,13 @@ async function clientSearchOpenings(){
   const d = await r.json();
   if(!d.ok){ box.innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
   box.innerHTML = d.results.map(o =>
-    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startOpeningDiscover('${o.id}')"><b>${o.name}</b> <span class="muted small">${o.eco||''}</span></div>`
+    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startDiscoverSession('${o.family.replace(/'/g,"\\'")}')"><b>${o.name}</b> <span class="muted small">${o.eco||''}</span></div>`
   ).join('') || '<div class="empty">Aucun résultat.</div>';
 }
-async function onClientFamilyChange(){
+function onClientFamilyChange(){
   const family = document.getElementById('op-c-family-select').value;
-  const varSel = document.getElementById('op-c-variation-select');
-  if(!family){ varSel.innerHTML = '<option value="">— Variante —</option>'; varSel.disabled = true; opVariantList = []; return; }
-  const r = await fetch('/api/client/openings/family/' + encodeURIComponent(family));
-  const d = await r.json();
-  if(!d.ok){ varSel.innerHTML = '<option value="">'+d.error+'</option>'; return; }
-  opVariantList = d.variations;
-  varSel.disabled = false;
-  varSel.innerHTML = '<option value="">— Variante —</option>' +
-    d.variations.map(v => `<option value="${v.id}">${(v.variation||v.name)}${v.subvariation ? ' — '+v.subvariation : ''}</option>`).join('');
-}
-function onClientVariationChange(){
-  const id = document.getElementById('op-c-variation-select').value;
-  if(!id) return;
-  opVariantIdx = opVariantList.findIndex(v => v.id === id);
-  startOpeningDiscover(id, true);
-}
-function opVariantStep(dir){
-  if(!opVariantList.length) return;
-  opVariantIdx = Math.max(0, Math.min(opVariantList.length - 1, opVariantIdx + dir));
-  startOpeningDiscover(opVariantList[opVariantIdx].id, true);
+  if(!family) return;
+  startDiscoverSession(family);
 }
 
 function studentTurnAtStep(i){
@@ -1251,30 +1222,35 @@ function addOpMove(san){
 function setupOpeningTrainerUI(){
   document.getElementById('op-hint-btn').style.display = '';
   document.getElementById('op-reveal-btn').style.display = '';
-  document.getElementById('op-prev-btn').style.display = 'none';
-  document.getElementById('op-next-btn').style.display = 'none';
-  document.getElementById('op-variant-prev-btn').style.display = 'none';
-  document.getElementById('op-variant-next-btn').style.display = 'none';
   document.getElementById('op-restart-btn').style.display = 'none';
   document.getElementById('op-why').style.display = 'none';
 }
 
 // ── Séance continue façon ChessReps ─────────────────────────────────
-// Un seul écran, un seul flux : ouvrir -> jouer -> répondre -> feedback ->
-// position suivante, sans re-choisir de mode ni recliquer entre chaque
-// tentative. La ligne courante rejoue automatiquement le camp adverse ; le
-// Ghost trouve ses propres coups (Indice/Voir le coup restent disponibles
-// s'il bloque — c'est l'assistance, plus besoin d'un écran "apprentissage"
-// séparé). Une ligne réussie sans erreur relance la MÊME variante ; à la
-// 3e réussite propre d'affilée, la variante suivante s'enchaîne toute
-// seule. La synchronisation serveur (complete_line) part en arrière-plan
-// sans jamais bloquer l'affichage — c'est ça qui supprimait le "lag".
+// Un seul écran, un seul flux : ouvrir -> (démo assistée si 1re fois) ->
+// jouer -> répondre -> feedback -> position suivante, sans re-choisir de
+// mode ni recliquer entre chaque tentative.
+//
+// À la toute première rencontre d'une variante dans la séance, le système
+// la rejoue lui-même une fois (les deux camps, avec une pause visible à
+// chaque coup) — c'est la phase d'apprentissage, automatique, sans écran
+// séparé. Elle enchaîne ensuite directement sur l'évaluation : le Ghost
+// trouve ses propres coups (Indice/Voir le coup restent là s'il bloque).
+// Une ligne réussie sans erreur relance la MÊME variante ; à la 3e
+// réussite propre d'affilée, la variante suivante s'enchaîne toute seule
+// (et repasse par sa propre démo, une fois). La synchro serveur
+// (complete_line) part en arrière-plan sans jamais bloquer l'affichage —
+// c'est ça qui supprimait le "lag" perçu.
+//
+// Le même moteur sert au répertoire assigné (suivi, entryId réel) et au
+// mode Découverte (libre, entryId = null, aucune sauvegarde serveur).
 let opCurrentEntryId = null;
 let opHadMistake = false;
 let opCourse = [];
 let opCoursePos = 0;
 let opCleanStreak = 0;
 let opNextLineCache = null; // {id, name, eco, line} préchargé pendant que le Ghost joue
+let opVariantDemoShown = false; // remis à false à chaque nouvelle variante
 
 function startOpeningSession(entryId){
   const entry = opRepertoireCache.find(e => e.id === entryId);
@@ -1284,11 +1260,32 @@ function startOpeningSession(entryId){
   opCoursePos = entry.course_position || 0;
   opCleanStreak = entry.clean_streak || 0;
   opSide = entry.side;
-  opLine = entry.line;
-  opMode = 'eval';
+  openVariantSession(entry.opening_name || 'Ouverture', entry.line);
+}
+
+async function startDiscoverSession(family){
   document.getElementById('op-picker').style.display = 'none';
   document.getElementById('op-solver').style.display = 'block';
-  document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
+  document.getElementById('op-solver-title').textContent = 'Chargement…';
+  document.getElementById('op-solver-status').textContent = '';
+  const r = await fetch('/api/client/openings/family_course/' + encodeURIComponent(family));
+  const d = await r.json();
+  if(!d.ok){ document.getElementById('op-solver-status').textContent = d.error || 'Erreur.'; return; }
+  opCurrentEntryId = null; // mode libre : pas de suivi persistant
+  opCourse = d.course;
+  opCoursePos = 0;
+  opCleanStreak = 0;
+  opSide = 'white';
+  const node = await (await fetch('/api/client/openings/node/' + opCourse[0].id)).json();
+  if(!node.ok) return;
+  openVariantSession(node.node.name || family, node.node.line);
+}
+
+function openVariantSession(title, line){
+  opLine = line;
+  opMode = 'eval';
+  opVariantDemoShown = false;
+  document.getElementById('op-solver-title').textContent = title;
   setupOpeningTrainerUI();
   const el = document.getElementById('op-solver-board');
   if(opBoard) opBoard.destroy();
@@ -1303,11 +1300,36 @@ function beginVariantAttempt(){
   opHadMistake = false;
   opGame = new Chess();
   opBoard.setFen('start');
-  opBoard.setInteractive(true);
   document.getElementById('op-move-list').innerHTML = '';
   document.getElementById('op-solver-status').textContent = '';
-  updateOpStreakInstruction();
-  advanceOpeningAuto();
+  if(!opVariantDemoShown){
+    runVariantDemo();
+  } else {
+    opBoard.setInteractive(true);
+    updateOpStreakInstruction();
+    advanceOpeningAuto();
+  }
+}
+
+// Phase d'apprentissage automatique : rejoue toute la ligne (les deux
+// camps) une fois, sans que le Ghost n'ait rien à cliquer — puis bascule
+// directement en évaluation, dans le même écran.
+function runVariantDemo(){
+  opBoard.setInteractive(false);
+  document.getElementById('op-instruction').textContent = '📖 Regarde la ligne — elle se rejoue toute seule…';
+  let i = 0;
+  function step(){
+    if(i + 1 >= opLine.length){
+      opVariantDemoShown = true;
+      setTimeout(beginVariantAttempt, 500);
+      return;
+    }
+    const mv = opGame.move(opLine[i + 1].move_san, {sloppy: true});
+    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(opLine[i + 1].move_san); }
+    i++;
+    setTimeout(step, 550);
+  }
+  step();
 }
 
 function updateOpStreakInstruction(){
@@ -1348,13 +1370,13 @@ function handleOpeningMove(from, to, promotion){
     opHadMistake = true;
     document.getElementById('op-solver-status').textContent = "Ce n'est pas le coup attendu, réessaie.";
     document.getElementById('op-solver-status').className = 'pz-status bad';
-    postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: false}).catch(()=>{});
+    if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: false}).catch(()=>{});
     return;
   }
   opBoard.setFen(opGame.fen(), {from, to});
   addOpMove(mv.san);
   document.getElementById('op-solver-status').textContent = '';
-  postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
+  if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
   opStepIdx++;
   // Transition quasi instantanée : juste assez pour voir la réponse adverse,
   // pas un temps de chargement.
@@ -1365,19 +1387,22 @@ function finishOpeningLine(){
   if(opBoard) opBoard.setInteractive(false);
   const hadMistake = opHadMistake;
   // Calcul optimiste côté client — l'écran enchaîne tout de suite, la
-  // synchronisation serveur se fait derrière sans jamais faire attendre.
+  // synchronisation serveur (si suivi persistant) se fait derrière sans
+  // jamais faire attendre.
   opCleanStreak = hadMistake ? 0 : opCleanStreak + 1;
   let advanced = false, finished = false;
   if(opCleanStreak >= 3){
     if(opCoursePos + 1 < opCourse.length){ opCoursePos++; opCleanStreak = 0; advanced = true; }
     else { finished = true; }
   }
-  postJSON('/api/client/openings/complete_line', {entry_id: opCurrentEntryId, had_mistake: hadMistake}).then(d=>{
-    if(d.ok){
-      const idx = opRepertoireCache.findIndex(e => e.id === opCurrentEntryId);
-      if(idx >= 0) opRepertoireCache[idx] = d.entry;
-    }
-  }).catch(()=>{});
+  if(opCurrentEntryId){
+    postJSON('/api/client/openings/complete_line', {entry_id: opCurrentEntryId, had_mistake: hadMistake}).then(d=>{
+      if(d.ok){
+        const idx = opRepertoireCache.findIndex(e => e.id === opCurrentEntryId);
+        if(idx >= 0) opRepertoireCache[idx] = d.entry;
+      }
+    }).catch(()=>{});
+  }
 
   const status = document.getElementById('op-solver-status');
   if(finished){
@@ -1402,6 +1427,7 @@ function finishOpeningLine(){
 }
 
 function continueToNextVariant(){
+  opVariantDemoShown = false;
   const target = opCourse[opCoursePos];
   if(opNextLineCache && opNextLineCache.id === target.id){
     opLine = opNextLineCache.line;
@@ -1435,66 +1461,15 @@ function opReveal(){
   const mv = opGame.move(step.move_san, {sloppy: true});
   if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); opBoard.showArrow(mv.from, mv.to); addOpMove(mv.san); }
   opHadMistake = true;
-  postJSON('/api/client/openings/attempt', {opening_id: step.id, correct: false}).catch(()=>{});
+  if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: step.id, correct: false}).catch(()=>{});
   opStepIdx++;
   setTimeout(advanceOpeningAuto, 250);
-}
-
-async function startOpeningDiscover(nodeId, fromVariantList){
-  const r = await fetch('/api/client/openings/node/' + nodeId);
-  const d = await r.json();
-  if(!d.ok) return;
-  opDiscoverLine = d.node.line;
-  opDiscoverIdx = 0;
-  opMode = 'discover';
-  document.getElementById('op-picker').style.display = 'none';
-  document.getElementById('op-solver').style.display = 'block';
-  document.getElementById('op-solver-title').textContent = d.node.name || 'Position';
-  document.getElementById('op-instruction').textContent = 'Mode découverte — avance avec les boutons, ou essaie tes propres coups sur l\'échiquier.';
-  document.getElementById('op-hint-btn').style.display = 'none';
-  document.getElementById('op-reveal-btn').style.display = 'none';
-  document.getElementById('op-prev-btn').style.display = '';
-  document.getElementById('op-next-btn').style.display = '';
-  document.getElementById('op-restart-btn').style.display = '';
-  document.getElementById('op-restart-btn').textContent = '↺ Depuis le début';
-  document.getElementById('op-restart-btn').onclick = () => { opDiscoverIdx = 0; renderDiscoverStep(); };
-  document.getElementById('op-variant-prev-btn').style.display = fromVariantList ? '' : 'none';
-  document.getElementById('op-variant-next-btn').style.display = fromVariantList ? '' : 'none';
-  const el = document.getElementById('op-solver-board');
-  if(opBoard) opBoard.destroy();
-  // Interactif : l'élève peut essayer ses propres coups librement pour explorer,
-  // sans notation ni contrainte — Précédent/Suivant remet toujours sur la ligne du livre.
-  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: 'white', interactive: true, onAttemptMove: handleDiscoverFreeMove});
-  document.getElementById('op-move-list').innerHTML = '';
-  renderDiscoverStep();
-  document.getElementById('op-solver').scrollIntoView({behavior: 'smooth', block: 'start'});
-}
-
-function handleDiscoverFreeMove(from, to, promotion){
-  const step = opDiscoverLine[opDiscoverIdx];
-  const chess = new Chess(step.fen);
-  const mv = chess.move({from, to, promotion: promotion || 'q'});
-  if(!mv) return;
-  opBoard.setFen(chess.fen(), {from, to});
-}
-
-function renderDiscoverStep(){
-  const step = opDiscoverLine[opDiscoverIdx];
-  opBoard.setFen(step.fen);
-  document.getElementById('op-solver-status').textContent = step.move_san ? (opDiscoverIdx) + '. ' + step.move_san : 'Position de départ';
-  document.getElementById('op-solver-status').className = 'pz-status';
-  document.getElementById('op-move-list').innerHTML = opDiscoverLine.slice(1, opDiscoverIdx + 1).map(s => '<span>' + s.move_san + '</span>').join('');
-}
-
-function opDiscoverStepFn(dir){
-  opDiscoverIdx = Math.max(0, Math.min(opDiscoverLine.length - 1, opDiscoverIdx + dir));
-  renderDiscoverStep();
 }
 
 function exitOpeningSolver(){
   document.getElementById('op-solver').style.display = 'none';
   document.getElementById('op-picker').style.display = '';
-  if(opMode === 'eval') loadOpeningRepertoire();
+  if(opCurrentEntryId) loadOpeningRepertoire();
 }
 
 document.addEventListener('DOMContentLoaded', loadOpeningRepertoire);
