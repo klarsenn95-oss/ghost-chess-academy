@@ -218,7 +218,7 @@
     <button class="tab-group" data-group="calendrier">📅 Calendrier</button>
     <button class="tab-group" data-group="profil">👤 Profil</button>
   </nav>
-  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
+  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('openings',this)">📚 Ouvertures</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active gh-home">
     {% if student and student.client_notifications %}
@@ -401,6 +401,59 @@
             </div>
             <div class="muted small" id="pz-replay-status" style="margin-top:6px">Revois les coups du puzzle.</div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-openings" class="panel">
+    <div class="card full" id="op-picker">
+      <div class="ttl">📚 Ouvertures</div>
+      <div class="pz-solver-actions" style="margin-bottom:12px">
+        <button class="btn tiny" type="button" id="op-tab-repertoire-btn" onclick="showOpeningsSubTab('repertoire')">Mon répertoire</button>
+        <button class="btn secondary tiny" type="button" id="op-tab-discover-btn" onclick="showOpeningsSubTab('discover')">Découvrir</button>
+      </div>
+
+      <div id="op-repertoire-view">
+        <div id="op-repertoire-list" class="muted">Chargement…</div>
+      </div>
+
+      <div id="op-discover-view" style="display:none">
+        <input class="fi" id="op-c-search" placeholder="Rechercher : Najdorf, B90, Dragon…" oninput="clientSearchOpenings()">
+        <div class="puzzle-list" id="op-c-search-results" style="margin-top:8px"></div>
+        <div class="pg-row" style="margin-top:14px;align-items:flex-start">
+          <div style="flex:1;min-width:200px">
+            <div class="pg-label">Familles</div>
+            <div class="puzzle-list" id="op-c-families" style="max-height:240px;overflow-y:auto"></div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div class="pg-label">Variantes — <span id="op-c-family-title">choisis une famille</span></div>
+            <div class="puzzle-list" id="op-c-variations" style="max-height:240px;overflow-y:auto"></div>
+          </div>
+        </div>
+        <div id="op-c-detail" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div class="card full" id="op-solver" style="display:none">
+      <div class="pz-solver-head">
+        <button class="btn secondary tiny" type="button" onclick="exitOpeningSolver()">← Retour</button>
+        <span class="pill" id="op-solver-title"></span>
+        <span id="op-solver-status" class="pz-status"></span>
+      </div>
+      <div class="pz-solver-grid">
+        <div id="op-solver-board"></div>
+        <div class="pz-solver-side">
+          <div class="pz-instruction" id="op-instruction">Trouve le coup du répertoire.</div>
+          <div class="pz-move-list" id="op-move-list"></div>
+          <div class="pz-solver-actions">
+            <button class="btn secondary tiny" type="button" onclick="opHint()" id="op-hint-btn">💡 Indice</button>
+            <button class="btn secondary tiny" type="button" onclick="opReveal()" id="op-reveal-btn">Voir le coup</button>
+            <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(-1)" id="op-prev-btn" style="display:none">◀ Précédent</button>
+            <button class="btn secondary tiny" type="button" onclick="opDiscoverStepFn(1)" id="op-next-btn" style="display:none">Suivant ▶</button>
+            <button class="btn tiny" type="button" onclick="opRestart()" id="op-restart-btn" style="display:none">↺ Recommencer</button>
+          </div>
+          <div class="muted small" id="op-why" style="margin-top:8px;display:none"></div>
         </div>
       </div>
     </div>
@@ -1105,6 +1158,226 @@ function openProgramPuzzle(i){
 
 document.addEventListener('DOMContentLoaded', loadPuzzleThemeCounts);
 document.addEventListener('DOMContentLoaded', loadTodayProgram);
+
+// ── Ouvertures ────────────────────────────────────────────────────
+let opRepertoireCache = [];
+let opLine = [], opStepIdx = 0, opSide = 'white', opMode = 'training';
+let opDiscoverLine = [], opDiscoverIdx = 0;
+let opGame = null, opBoard = null;
+
+function showOpeningsSubTab(which){
+  document.getElementById('op-repertoire-view').style.display = which === 'repertoire' ? '' : 'none';
+  document.getElementById('op-discover-view').style.display = which === 'discover' ? '' : 'none';
+  document.getElementById('op-tab-repertoire-btn').className = which === 'repertoire' ? 'btn tiny' : 'btn secondary tiny';
+  document.getElementById('op-tab-discover-btn').className = which === 'discover' ? 'btn tiny' : 'btn secondary tiny';
+  if(which === 'discover' && !opFamiliesLoaded) loadClientOpeningFamilies();
+}
+
+async function loadOpeningRepertoire(){
+  const r = await fetch('/api/client/openings/repertoire');
+  const d = await r.json();
+  const box = document.getElementById('op-repertoire-list');
+  if(!d.ok){ box.innerHTML = '<div class="empty">'+(d.error||'Bibliothèque non disponible.')+'</div>'; return; }
+  opRepertoireCache = d.entries;
+  if(!d.entries.length){ box.innerHTML = '<div class="empty">Ton coach ne t\'a pas encore attribué d\'ouverture. Regarde l\'onglet Découvrir en attendant.</div>'; return; }
+  box.innerHTML = d.entries.map(e => `
+    <div class="item">
+      <b>${e.opening_name || '?'}</b> <span class="muted small">${e.opening_eco||''} · ${e.side==='white'?'Blancs':'Noirs'}</span>
+      <div class="bar" style="margin:8px 0"><span style="width:${e.progress.percent}%"></span></div>
+      <div class="muted small">${e.progress.mastered_positions}/${e.progress.total_positions} positions maîtrisées</div>
+      <button class="tool" style="margin-top:8px" onclick="startOpeningTraining('${e.id}')">🎯 S'entraîner</button>
+    </div>`).join('');
+}
+
+let opFamiliesLoaded = false;
+let opFamiliesCacheClient = null;
+async function loadClientOpeningFamilies(){
+  opFamiliesLoaded = true;
+  const r = await fetch('/api/client/openings/families');
+  const d = await r.json();
+  if(!d.ok){ document.getElementById('op-c-families').innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
+  opFamiliesCacheClient = d.families;
+  document.getElementById('op-c-families').innerHTML = d.families.map(f =>
+    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="openClientOpeningFamily('${f.family.replace(/'/g,"\\'")}')"><b>${f.family}</b> <span class="muted small">${f.count} variante(s)</span></div>`
+  ).join('') || '<div class="empty">Aucune famille.</div>';
+}
+async function clientSearchOpenings(){
+  const q = document.getElementById('op-c-search').value.trim();
+  const box = document.getElementById('op-c-search-results');
+  if(!q){ box.innerHTML=''; return; }
+  const r = await fetch('/api/client/openings/search?q=' + encodeURIComponent(q));
+  const d = await r.json();
+  if(!d.ok){ box.innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
+  box.innerHTML = d.results.map(o =>
+    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startOpeningDiscover('${o.id}')"><b>${o.name}</b> <span class="muted small">${o.eco||''}</span></div>`
+  ).join('') || '<div class="empty">Aucun résultat.</div>';
+}
+async function openClientOpeningFamily(family){
+  document.getElementById('op-c-family-title').textContent = family;
+  const r = await fetch('/api/client/openings/family/' + encodeURIComponent(family));
+  const d = await r.json();
+  if(!d.ok){ document.getElementById('op-c-variations').innerHTML = '<div class="empty">'+d.error+'</div>'; return; }
+  document.getElementById('op-c-variations').innerHTML = d.variations.map(v =>
+    `<div class="item" style="cursor:pointer;padding:8px 10px" onclick="startOpeningDiscover('${v.id}')">${v.variation||v.name}${v.subvariation ? ' — '+v.subvariation : ''} <span class="muted small">${v.eco||''}</span></div>`
+  ).join('') || '<div class="empty">Aucune variante.</div>';
+}
+
+function studentTurnAtStep(i){
+  const ply = opLine[i].ply;
+  const moverIsWhite = (ply % 2 === 1);
+  return (opSide === 'white' && moverIsWhite) || (opSide === 'black' && !moverIsWhite);
+}
+
+function addOpMove(san){
+  const list = document.getElementById('op-move-list');
+  const span = document.createElement('span');
+  span.textContent = san;
+  list.appendChild(span);
+}
+
+function setupOpeningTrainerUI(){
+  document.getElementById('op-hint-btn').style.display = '';
+  document.getElementById('op-reveal-btn').style.display = '';
+  document.getElementById('op-prev-btn').style.display = 'none';
+  document.getElementById('op-next-btn').style.display = 'none';
+  document.getElementById('op-restart-btn').style.display = 'none';
+  document.getElementById('op-restart-btn').onclick = opRestart;
+  document.getElementById('op-restart-btn').textContent = '↺ Recommencer';
+  document.getElementById('op-why').style.display = 'none';
+}
+
+function startOpeningTraining(entryId){
+  const entry = opRepertoireCache.find(e => e.id === entryId);
+  if(!entry) return;
+  opLine = entry.line; opSide = entry.side; opMode = 'training';
+  opStepIdx = 0;
+  document.getElementById('op-picker').style.display = 'none';
+  document.getElementById('op-solver').style.display = 'block';
+  document.getElementById('op-solver-title').textContent = entry.opening_name || 'Ouverture';
+  setupOpeningTrainerUI();
+  opGame = new Chess();
+  const el = document.getElementById('op-solver-board');
+  if(opBoard) opBoard.destroy();
+  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: opSide, interactive: true, onAttemptMove: handleOpeningMove});
+  document.getElementById('op-move-list').innerHTML = '';
+  document.getElementById('op-solver-status').textContent = '';
+  document.getElementById('op-instruction').textContent = (opSide === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le coup du répertoire.';
+  advanceOpeningAuto();
+}
+
+function advanceOpeningAuto(){
+  while(opStepIdx + 1 < opLine.length && !studentTurnAtStep(opStepIdx + 1)){
+    const step = opLine[opStepIdx + 1];
+    const mv = opGame.move(step.move_san, {sloppy: true});
+    if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); addOpMove(step.move_san); }
+    opStepIdx++;
+  }
+  if(opStepIdx + 1 >= opLine.length) finishOpeningLine();
+}
+
+function handleOpeningMove(from, to, promotion){
+  if(!opGame || opStepIdx + 1 >= opLine.length) return;
+  const mv = opGame.move({from, to, promotion: promotion || 'q'});
+  if(!mv) return;
+  const expected = opLine[opStepIdx + 1];
+  if(mv.san !== expected.move_san){
+    opGame.undo();
+    opBoard.setFen(opGame.fen());
+    opBoard.flashSquare(to, 'bad');
+    document.getElementById('op-solver-status').textContent = "Ce n'est pas le coup attendu, réessaie.";
+    document.getElementById('op-solver-status').className = 'pz-status bad';
+    postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: false}).catch(()=>{});
+    return;
+  }
+  opBoard.setFen(opGame.fen(), {from, to});
+  addOpMove(mv.san);
+  document.getElementById('op-solver-status').textContent = '';
+  postJSON('/api/client/openings/attempt', {opening_id: expected.id, correct: true}).catch(()=>{});
+  opStepIdx++;
+  setTimeout(advanceOpeningAuto, 350);
+}
+
+function finishOpeningLine(){
+  document.getElementById('op-solver-status').textContent = '✅ Ligne terminée !';
+  document.getElementById('op-solver-status').className = 'pz-status good';
+  document.getElementById('op-restart-btn').style.display = '';
+  if(opBoard) opBoard.setInteractive(false);
+  loadOpeningRepertoire();
+}
+
+function opRestart(){
+  opStepIdx = 0;
+  opGame = new Chess();
+  opBoard.setFen('start');
+  opBoard.setInteractive(true);
+  document.getElementById('op-move-list').innerHTML = '';
+  document.getElementById('op-solver-status').textContent = '';
+  document.getElementById('op-restart-btn').style.display = 'none';
+  advanceOpeningAuto();
+}
+
+function opHint(){
+  if(!opGame || opStepIdx + 1 >= opLine.length) return;
+  const expected = opLine[opStepIdx + 1].move_san;
+  document.getElementById('op-solver-status').textContent = 'Indice : le coup commence par « ' + expected[0] + ' »';
+  document.getElementById('op-solver-status').className = 'pz-status';
+}
+
+function opReveal(){
+  if(!opGame || opStepIdx + 1 >= opLine.length) return;
+  const step = opLine[opStepIdx + 1];
+  const mv = opGame.move(step.move_san, {sloppy: true});
+  if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); opBoard.showArrow(mv.from, mv.to); addOpMove(mv.san); }
+  postJSON('/api/client/openings/attempt', {opening_id: step.id, correct: false}).catch(()=>{});
+  opStepIdx++;
+  setTimeout(advanceOpeningAuto, 400);
+}
+
+async function startOpeningDiscover(nodeId){
+  const r = await fetch('/api/client/openings/node/' + nodeId);
+  const d = await r.json();
+  if(!d.ok) return;
+  opDiscoverLine = d.node.line;
+  opDiscoverIdx = 0;
+  opMode = 'discover';
+  document.getElementById('op-picker').style.display = 'none';
+  document.getElementById('op-solver').style.display = 'block';
+  document.getElementById('op-solver-title').textContent = d.node.name || 'Position';
+  document.getElementById('op-instruction').textContent = 'Mode découverte — avance coup par coup pour comprendre la ligne.';
+  document.getElementById('op-hint-btn').style.display = 'none';
+  document.getElementById('op-reveal-btn').style.display = 'none';
+  document.getElementById('op-prev-btn').style.display = '';
+  document.getElementById('op-next-btn').style.display = '';
+  document.getElementById('op-restart-btn').style.display = '';
+  document.getElementById('op-restart-btn').textContent = '↺ Depuis le début';
+  document.getElementById('op-restart-btn').onclick = () => { opDiscoverIdx = 0; renderDiscoverStep(); };
+  const el = document.getElementById('op-solver-board');
+  if(opBoard) opBoard.destroy();
+  opBoard = createPuzzleBoard(el, {fen: 'start', orientation: 'white', interactive: false});
+  document.getElementById('op-move-list').innerHTML = '';
+  renderDiscoverStep();
+}
+
+function renderDiscoverStep(){
+  const step = opDiscoverLine[opDiscoverIdx];
+  opBoard.setFen(step.fen);
+  document.getElementById('op-solver-status').textContent = step.move_san ? (opDiscoverIdx) + '. ' + step.move_san : 'Position de départ';
+  document.getElementById('op-solver-status').className = 'pz-status';
+  document.getElementById('op-move-list').innerHTML = opDiscoverLine.slice(1, opDiscoverIdx + 1).map(s => '<span>' + s.move_san + '</span>').join('');
+}
+
+function opDiscoverStepFn(dir){
+  opDiscoverIdx = Math.max(0, Math.min(opDiscoverLine.length - 1, opDiscoverIdx + dir));
+  renderDiscoverStep();
+}
+
+function exitOpeningSolver(){
+  document.getElementById('op-solver').style.display = 'none';
+  document.getElementById('op-picker').style.display = '';
+  if(opMode === 'training') loadOpeningRepertoire();
+}
+
+document.addEventListener('DOMContentLoaded', loadOpeningRepertoire);
 </script>
 </body>
 </html>

@@ -30,6 +30,7 @@ from supabase_backend import (
     storage_configured, upload_bytes, supabase_configured, get_supabase_client
 )
 import puzzle_service
+import opening_service
 
 
 # ReportLab
@@ -2379,7 +2380,7 @@ def public_student_payload(student):
                 "kind": k,
                 "linked_type": f.get("linked_type"),
                 "linked_id": f.get("linked_id"),
-                "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("puzzles" if f.get("linked_type") == "program" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers"))))),
+                "target_tab": "homework" if f.get("linked_type") == "puzzle_devoir" else ("puzzles" if f.get("linked_type") == "program" else ("openings" if f.get("linked_type") == "opening" else ("feedback" if k in pedagogic_kinds else ("profile" if k == "rank" else ("tournois" if k == "tournament" else ("rdv" if k == "appointment" else "divers")))))),
             })
     return {
         "name": student.get("name", "Ghost"),
@@ -5626,6 +5627,155 @@ def api_client_puzzle_solve():
         "ok": True, "xp_gained": xp_gained, "total_xp": student.get("puzzle_xp", 0),
         "already_solved": already_solved, "solved_count": len(solved_ids), "streak": 0,
     })
+
+# ── Ouvertures : bibliothèque auto-alimentée (jamais d'import côté coach) ──
+
+@app.route("/api/admin/openings/families")
+def api_admin_openings_families():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée (Supabase requis)."}), 400
+    return jsonify({"ok": True, "families": opening_service.list_families()})
+
+@app.route("/api/admin/openings/search")
+def api_admin_openings_search():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    q = request.args.get("q", "")
+    return jsonify({"ok": True, "results": opening_service.search_openings(q)})
+
+@app.route("/api/admin/openings/family/<path:family>")
+def api_admin_openings_family(family):
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    return jsonify({"ok": True, "variations": opening_service.get_family_variations(family)})
+
+@app.route("/api/admin/openings/node/<opening_id>")
+def api_admin_openings_node(opening_id):
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    node = opening_service.get_node_detail(opening_id)
+    if not node:
+        return jsonify({"ok": False, "error": "Position introuvable."}), 404
+    return jsonify({"ok": True, "node": node})
+
+@app.route("/api/admin/openings/assign", methods=["POST"])
+def api_admin_openings_assign():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    data = load_data()
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Élève invalide."}), 400
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    opening_id = body.get("opening_id")
+    side = body.get("side") or "white"
+    if not opening_id:
+        return jsonify({"ok": False, "error": "Ouverture manquante."}), 400
+    try:
+        entry = opening_service.assign_repertoire(idx, opening_id, side)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    node = opening_service.get_node_detail(opening_id)
+    add_student_feedback(
+        data, idx, "📚 Nouvelle ouverture",
+        f"{node.get('name') if node else 'Une ouverture'} a été ajoutée à ton répertoire — {len(entry.get('line') or [])} positions à apprendre.",
+        kind="opening", linked_type="opening", linked_id=opening_id,
+    )
+    save_data(data)
+    return jsonify({"ok": True, "entry": entry})
+
+@app.route("/api/admin/openings/unassign", methods=["POST"])
+def api_admin_openings_unassign():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    entry_id = body.get("entry_id")
+    if not entry_id:
+        return jsonify({"ok": False, "error": "Entrée manquante."}), 400
+    opening_service.remove_repertoire(entry_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/openings/repertoire")
+def api_admin_openings_repertoire():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    try:
+        idx = int(request.args.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Élève invalide."}), 400
+    data = load_data()
+    user = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
+    entries = opening_service.list_repertoire(idx)
+    progress = opening_service.repertoire_progress(user["id"], entries) if user else {}
+    for e in entries:
+        node = e["line"][-1] if e.get("line") else {}
+        e["opening_name"] = node.get("name")
+        e["opening_eco"] = node.get("eco")
+        e["progress"] = progress.get(e["id"], {"total_positions": 0, "mastered_positions": 0, "percent": 0})
+    return jsonify({"ok": True, "entries": entries})
+
+
+@app.route("/api/client/openings/families")
+def api_client_openings_families():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    return jsonify({"ok": True, "families": opening_service.list_families()})
+
+@app.route("/api/client/openings/search")
+def api_client_openings_search():
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    q = request.args.get("q", "")
+    return jsonify({"ok": True, "results": opening_service.search_openings(q)})
+
+@app.route("/api/client/openings/family/<path:family>")
+def api_client_openings_family(family):
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    return jsonify({"ok": True, "variations": opening_service.get_family_variations(family)})
+
+@app.route("/api/client/openings/node/<opening_id>")
+def api_client_openings_node(opening_id):
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    node = opening_service.get_node_detail(opening_id)
+    if not node:
+        return jsonify({"ok": False, "error": "Position introuvable."}), 404
+    return jsonify({"ok": True, "node": node})
+
+@app.route("/api/client/openings/repertoire")
+def api_client_openings_repertoire():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    idx = user.get("student_index")
+    entries = opening_service.list_repertoire(idx) if isinstance(idx, int) else []
+    progress = opening_service.repertoire_progress(user["id"], entries)
+    for e in entries:
+        node = e["line"][-1] if e.get("line") else {}
+        e["opening_name"] = node.get("name")
+        e["opening_eco"] = node.get("eco")
+        e["progress"] = progress.get(e["id"], {"total_positions": 0, "mastered_positions": 0, "percent": 0})
+    return jsonify({"ok": True, "entries": entries})
+
+@app.route("/api/client/openings/attempt", methods=["POST"])
+def api_client_openings_attempt():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    opening_id = body.get("opening_id")
+    correct = bool(body.get("correct"))
+    if not opening_id:
+        return jsonify({"ok": False, "error": "Position manquante."}), 400
+    row = opening_service.record_progress(user["id"], opening_id, correct)
+    return jsonify({"ok": True, "progress": row})
+
 
 @app.route("/api/admin/backup/export")
 def api_admin_backup_export():

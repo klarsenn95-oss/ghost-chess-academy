@@ -388,6 +388,7 @@ body{padding:8px 8px 72px!important}
     <a class="cc-menu-btn" data-section="exercises"><span class="icon">🎯</span><span class="label">Exercices</span></a>
     <a class="cc-menu-btn" data-section="puzzles"><span class="icon">🎯</span><span class="label">Programmes</span></a>
     <a class="cc-menu-btn" data-section="puzzles-bank"><span class="icon">🧩</span><span class="label">Banque de puzzles</span></a>
+    <a class="cc-menu-btn" data-section="openings"><span class="icon">📚</span><span class="label">Ouvertures</span></a>
     <a class="cc-menu-btn" data-section="included-usage"><span class="icon">📊</span><span class="label">Socle inclus</span></a>
     <a class="cc-menu-btn" data-section="finance"><span class="icon">💰</span><span class="label">Finances</span></a>
     <a class="cc-menu-btn" data-section="accounts"><span class="icon">🔐</span><span class="label">Comptes</span></a>
@@ -692,6 +693,24 @@ body{padding:8px 8px 72px!important}
     </div>
   </div>
 
+  <div class="card full cc-section" id="openings">
+    <div class="ttl">📚 Bibliothèque des ouvertures</div>
+    <div class="section-note" id="op-bank-note">Bibliothèque déjà prête — tu choisis une ouverture et l'attribues à un Ghost, rien à importer.</div>
+    <input class="fi" id="op-search" placeholder="Rechercher : Najdorf, B90, Dragon…" oninput="searchOpenings()">
+    <div class="puzzle-list" id="op-search-results" style="margin-top:8px"></div>
+    <div class="pg-row" style="margin-top:16px;align-items:flex-start">
+      <div style="flex:1;min-width:220px">
+        <div class="pg-label">Familles</div>
+        <div class="puzzle-list" id="op-families" style="max-height:280px;overflow-y:auto"></div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <div class="pg-label">Variantes — <span id="op-family-title">choisis une famille</span></div>
+        <div class="puzzle-list" id="op-variations" style="max-height:280px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div id="op-detail" style="margin-top:16px"></div>
+  </div>
+
   <div class="card full cc-section" id="accounts"><div class="ttl">🔐 Comptes / accès</div>
     {% for u in all_users %}<div class="mini-item"><span>{{ u.name }} · {{ u.email }} {% if u.banned or u.access_restricted %}<span class="badge danger">suspendu</span>{% endif %}</span><span><button class="btn secondary" onclick="resetPassword('{{ u.id }}')">Réinitialiser mot de passe</button> {% if u.banned or u.access_restricted %}<button class="btn good" onclick="setBan('{{ u.id }}',false)">Réactiver</button>{% else %}<button class="btn danger" onclick="setBan('{{ u.id }}',true)">Suspendre</button>{% endif %}</span></div>{% else %}<div class="muted">Aucun compte Ghost pour le moment.</div>{% endfor %}
   </div>
@@ -903,6 +922,74 @@ if(document.getElementById('pg-current')) loadPrograms();
 const $ = (id)=>document.getElementById(id);
 const ADMIN_STUDENTS = {{ students|map(attribute='name')|list|tojson }};
 async function postJSON(url,payload){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});return await r.json()}
+
+// ── Ouvertures ────────────────────────────────────────────────────
+let opFamiliesCache = null;
+async function loadOpeningFamilies(){
+  if(opFamiliesCache){ renderOpeningFamilies(opFamiliesCache); return; }
+  const r = await fetch('/api/admin/openings/families');
+  const d = await r.json();
+  if(!d.ok){ $('op-families').innerHTML = '<div class="muted">'+(d.error||'Erreur')+'</div>'; return; }
+  opFamiliesCache = d.families;
+  renderOpeningFamilies(d.families);
+}
+function renderOpeningFamilies(families){
+  $('op-families').innerHTML = families.map(f =>
+    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningFamily('${f.family.replace(/'/g,"\\'")}')"><span><b>${f.family}</b> <span class="muted">${f.eco||''}</span></span><span class="pill">${f.count}</span></div>`
+  ).join('') || '<div class="muted">Aucune famille.</div>';
+}
+async function searchOpenings(){
+  const q = $('op-search').value.trim();
+  const box = $('op-search-results');
+  if(!q){ box.innerHTML=''; return; }
+  const r = await fetch('/api/admin/openings/search?q=' + encodeURIComponent(q));
+  const d = await r.json();
+  if(!d.ok){ box.innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
+  box.innerHTML = d.results.map(o =>
+    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningNode('${o.id}')"><span><b>${o.name}</b> <span class="muted">${o.eco||''}</span></span></div>`
+  ).join('') || '<div class="muted">Aucun résultat.</div>';
+}
+async function openOpeningFamily(family){
+  $('op-family-title').textContent = family;
+  const r = await fetch('/api/admin/openings/family/' + encodeURIComponent(family));
+  const d = await r.json();
+  if(!d.ok){ $('op-variations').innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
+  $('op-variations').innerHTML = d.variations.map(v =>
+    `<div class="mini-item" style="cursor:pointer" onclick="openOpeningNode('${v.id}')"><span>${v.variation||v.name}${v.subvariation ? ' — '+v.subvariation : ''}</span><span class="pill">${v.eco||''}</span></div>`
+  ).join('') || '<div class="muted">Aucune variante.</div>';
+}
+async function openOpeningNode(id){
+  const r = await fetch('/api/admin/openings/node/' + id);
+  const d = await r.json();
+  if(!d.ok){ $('op-detail').innerHTML = '<div class="muted">'+d.error+'</div>'; return; }
+  const n = d.node;
+  const lineText = n.line.filter(s=>s.move_san).map((s,i)=> (i%2===0?((i/2+1)+'.'):'') + s.move_san).join(' ');
+  const studentOpts = ADMIN_STUDENTS.map((name,i)=>'<option value="'+i+'">'+(name||'?')+'</option>').join('');
+  $('op-detail').innerHTML = `<div class="program-card">
+    <div class="ttl">${n.name || '(position sans nom)'} <span class="muted small">${n.eco||''}</span></div>
+    <div class="muted small" style="margin:6px 0 12px;font-family:var(--font-mono,monospace)">${lineText || 'Position de départ'}</div>
+    <div class="pg-row">
+      <select class="fi" id="op-assign-student">${studentOpts}</select>
+      <select class="fi" id="op-assign-side" style="max-width:160px">
+        <option value="white">Avec les Blancs</option>
+        <option value="black">Avec les Noirs</option>
+      </select>
+      <button class="btn" type="button" onclick="assignOpening('${n.id}')">🎯 Attribuer à ce Ghost</button>
+    </div>
+    <span class="muted" id="op-assign-msg"></span>
+  </div>`;
+}
+async function assignOpening(openingId){
+  const msg = $('op-assign-msg');
+  msg.textContent = 'Attribution…';
+  const d = await postJSON('/api/admin/openings/assign', {
+    student_index: $('op-assign-student').value,
+    opening_id: openingId,
+    side: $('op-assign-side').value,
+  });
+  msg.textContent = d.ok ? '✅ Attribué — le Ghost est notifié.' : (d.error || 'Erreur');
+}
+if(document.getElementById('op-families')) loadOpeningFamilies();
 function mergeFileSelection(input){if(!input||!window.DataTransfer)return;const previous=input.__ghostSelectedFiles||[];const incoming=[...(input.files||[])];const byKey=new Map();[...previous,...incoming].forEach(f=>byKey.set([f.name,f.size,f.lastModified].join('|'),f));const dt=new DataTransfer();byKey.forEach(f=>dt.items.add(f));input.files=dt.files;input.__ghostSelectedFiles=[...dt.files];}
 function showFileCount(input,id){mergeFileSelection(input);const el=$(id); if(el) el.textContent = input.files && input.files.length ? input.files.length+' fichier(s) sélectionné(s)' : ''}
 async function uploadAdminFiles(inputId){const files=[...($(inputId)?.files||[])];if(!files.length)return [];const fd=new FormData();files.forEach(f=>fd.append('files',f));const r=await fetch('/api/admin/upload',{method:'POST',body:fd});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Impossible d\u2019envoyer le fichier.');return(d.urls||[d.url]).filter(Boolean)}
