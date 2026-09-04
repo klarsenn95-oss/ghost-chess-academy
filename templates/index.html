@@ -326,15 +326,9 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <div id="compare-legend" class="chart-legend"></div>
   </div>
 
-  <div class="card">
-    <div class="card-title">🎯 Styles & ouvertures</div>
-    {% for s in students %}
-    <div class="style-row">
-      <span class="style-name">{{ s.name or '?' }}</span>
-      <span class="style-val">{{ [s.style,('Blancs: '~s.opening_white) if s.opening_white,('Noirs: '~s.opening_black) if s.opening_black]|select|join('  ·  ') or '—' }}</span>
-    </div>
-    {% endfor %}
-  </div>
+  <!-- "Styles & ouvertures" (une ligne de texte libre par Ghost) retiré :
+       signalé par le coach comme inutile ici — le style et les ouvertures
+       de chaque Ghost restent visibles sur sa fiche individuelle. -->
 </section>
 
 <!-- ════════ RANGS & HAKIS ════════════════════════════════ -->
@@ -1784,7 +1778,22 @@ function initCompareChart() {
   const datasets=[];
   const legend=document.getElementById('compare-legend');
   legend.innerHTML='';
-  STUDENTS_DATA.forEach((s,si)=>{
+  // Un tracé par Ghost avec seulement 8 couleurs qui tournent devenait
+  // illisible dès qu'il y a plus de 8 élèves (couleurs qui se répètent,
+  // courbes qui se chevauchent) — on limite au top 8 par ELO moyen, le
+  // sous-groupe le plus pertinent à comparer, plutôt que d'entasser tout
+  // le groupe sur un seul graphique.
+  const MAX_COMPARED = 8;
+  const eligible = STUDENTS_DATA.filter(s => (s.elo_history||[]).length >= 2);
+  const shown = [...eligible].sort((a,b) => (b._avg_elo||0) - (a._avg_elo||0)).slice(0, MAX_COMPARED);
+  if(eligible.length > MAX_COMPARED){
+    const note=document.createElement('div');
+    note.className='muted';
+    note.style.cssText='font-size:11px;margin-bottom:6px';
+    note.textContent = `Top ${MAX_COMPARED} par ELO moyen (${eligible.length} Ghosts ont un historique) — ouvre la fiche d'un Ghost pour sa courbe individuelle.`;
+    legend.appendChild(note);
+  }
+  shown.forEach((s,si)=>{
     const hist=(s.elo_history||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const points=hist.map(e=>{
       const v=e.elo_li_blitz||e.elo_cc_blitz||e.elo_li||e.elo_cc;

@@ -377,10 +377,29 @@ function resizeFrameToContent(){
     frame.style.height = h + 'px';
   }catch(e){ frame.style.height = '600px'; }
 }
+// Le contenu qui finit de s'installer après le rendu initial (39 avatars
+// qui chargent, un chart qui se dessine...) ne changeait de hauteur qu'au
+// prochain tick du polling ci-dessous — jusqu'à 2600ms d'attente avant que
+// l'iframe se corrige, ressenti comme "3 secondes avant que ça réagisse"
+// à CHAQUE clic d'onglet. Un ResizeObserver réagit dans la frame suivante
+// dès que la hauteur change réellement, au lieu d'attendre le prochain
+// timeout — le polling reste en filet de sécurité (réduit) pour les cas
+// où l'observer rate quelque chose (ex. juste après un swap de <body>).
+let frameBodyResizeObserver = null;
+function watchFrameBodyResize(){
+  try{
+    const d = frame.contentDocument || frame.contentWindow.document;
+    if(!d || !d.body) return;
+    if(frameBodyResizeObserver) frameBodyResizeObserver.disconnect();
+    frameBodyResizeObserver = new ResizeObserver(() => resizeFrameToContent());
+    frameBodyResizeObserver.observe(d.body);
+  }catch(e){}
+}
 function settleFrameSize(){
   enforceFrameScroll();
   resizeFrameToContent();
-  [100,350,900,1600,2600].forEach(ms=>setTimeout(()=>{ enforceFrameScroll(); resizeFrameToContent(); },ms));
+  watchFrameBodyResize();
+  [80,400].forEach(ms=>setTimeout(()=>{ enforceFrameScroll(); resizeFrameToContent(); },ms));
 }
 frame.addEventListener('load',()=>{
   stopFrameLoading();
