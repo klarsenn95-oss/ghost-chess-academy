@@ -221,7 +221,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
         <span class="vel-badge" style="background:{{ s._badge_color }}22;color:{{ s._badge_color }};border-color:{{ s._badge_color }}44">{{ s._badge_label }}</span>
       </div>
       {% for h in s._hakis[:2] %}<div class="haki-badge" style="color:{{ h.color }}">{{ h.label }}{% if h.manual %} ✋{% endif %}</div>{% endfor %}
-      <div class="student-name">{% if s.avatar %}<img class="student-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<span>♟</span>{% endif %} {{ s.name or 'Sans nom' }}{% if s.cheat_flag == 'occasional' %}<span class="cheat-pin cheat-pin-occasional" title="Tricheur occasionnel signalé">⚠️</span>{% elif s.cheat_flag == 'permanent' %}<span class="cheat-pin cheat-pin-permanent" title="Tricheur permanent signalé">🚫</span>{% endif %}</div>
+      <div class="student-name">{% if s.avatar %}<img class="student-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<span>♟</span>{% endif %} {{ s.name or 'Sans nom' }}{% if s.cheat_flag == 'occasional' %}<span class="cheat-pin cheat-pin-occasional" title="Tricheur occasionnel signalé">⚠️</span>{% elif s.cheat_flag == 'permanent' %}<span class="cheat-pin cheat-pin-permanent" title="Tricheur permanent signalé">🚫</span>{% endif %}{% if s.is_coach %}<span class="coach-badge" title="Ce Ghost est coach">🧑‍🏫 Coach</span>{% endif %}</div>
       <div class="student-meta">{{ [s.age~' ans' if s.age, s.city]|select|join(' · ') }}</div>
       {% if s.lichess %}<div class="student-lichess">@ {{ s.lichess }}</div>{% endif %}
       {% if s.style %}<div class="student-style">🎯 {{ s.style }}</div>{% endif %}

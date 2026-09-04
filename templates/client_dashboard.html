@@ -200,7 +200,7 @@
     <button class="tab-group" data-group="calendrier">📅 Calendrier</button>
     <button class="tab-group" data-group="profil">👤 Profil</button>
   </nav>
-  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('openings',this)">📚 Ouvertures</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
+  <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('openings',this)">📚 Ouvertures</button>{% if student and student.is_coach %}<button class="tab" data-group="entrainement" onclick="showTab('myghosts',this)">🧑‍🏫 Mes élèves</button>{% endif %}<button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active gh-home">
     <!-- La liste "À faire" faisait doublon avec la cloche 🔔 Notifications du
@@ -425,6 +425,16 @@
     </div>
   </section>
 
+  {% if student and student.is_coach %}
+  <section id="tab-myghosts" class="panel">
+    <div class="card full">
+      <div class="ttl">🧑‍🏫 Mes élèves</div>
+      <div class="muted small" style="margin-bottom:10px">Les élèves qui te sont assignés — envoie-leur un puzzle ou une ouverture directement depuis leur carte.</div>
+      <div id="mg-list" class="muted">Chargement…</div>
+    </div>
+  </section>
+  {% endif %}
+
   <section id="tab-send" class="panel">
     <div class="card {{ 'locked' if payment.restricted }}"><div class="ttl">♟ Ajouter une partie / image</div><input class="fi" id="game-url" placeholder="URL Lichess / Chess.com"><textarea class="ta" id="game-note" placeholder="Ce que tu veux que le coach regarde : ouverture, erreur, moment critique…"></textarea><input class="fi" id="game-fen" placeholder="Position FEN optionnelle"><textarea class="ta" id="game-pgn" placeholder="PGN / variante optionnelle" style="min-height:58px"></textarea><input class="fi" type="file" id="game-file" accept="image/*,video/mp4,video/webm,.m4v,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.pgn,.txt" multiple onchange="showFileCount(this,'game-file-count')"><div class="file-count" id="game-file-count"></div><button class="btn" onclick="sendGame()" {% if payment.restricted %}disabled{% endif %}>📤 Envoyer au coach</button><span class="msg" id="game-msg"></span></div>
     <div class="card {{ 'locked' if payment.restricted }}"><div class="ttl">📝 Objectif / note personnelle</div><select class="fi" id="note-cat"><option value="objectif">Objectif</option><option value="question">Question</option><option value="ressenti">Ressenti</option><option value="tactique">Tactique</option></select><textarea class="ta" id="note-text" placeholder="J'aimerais travailler..., je bloque sur..., j'ai remarqué que..."></textarea><button class="btn secondary" onclick="sendNote()" {% if payment.restricted %}disabled{% endif %}>Envoyer une note</button><span class="msg" id="note-msg"></span></div>
@@ -556,7 +566,7 @@ function selectTabGroup(group){
   document.querySelectorAll('.tab-group').forEach(b=>b.classList.toggle('active',b.dataset.group===group));
   document.querySelectorAll('.tabs .tab').forEach(b=>{ b.style.display = (b.dataset.group===group) ? '' : 'none'; });
 }
-function showTab(name,btn){if(typeof exitExchangeFocus==='function')exitExchangeFocus();let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil'); if(name==='openings'&&typeof loadOpeningRepertoire==='function')loadOpeningRepertoire()}
+function showTab(name,btn){if(typeof exitExchangeFocus==='function')exitExchangeFocus();let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil'); if(name==='openings'&&typeof loadOpeningRepertoire==='function')loadOpeningRepertoire(); if(name==='myghosts'&&typeof loadMyGhosts==='function')loadMyGhosts()}
 document.querySelectorAll('.tab-group').forEach(btn=>{
   btn.addEventListener('click',()=>{
     selectTabGroup(btn.dataset.group);
@@ -1599,6 +1609,108 @@ function exitOpeningSolver(){
 }
 
 document.addEventListener('DOMContentLoaded', loadOpeningRepertoire);
+
+// ── Mes élèves (Ghost-coach) ─────────────────────────────────────────
+let mgFamiliesCache = null;
+
+async function loadMyGhosts(){
+  const box = document.getElementById('mg-list');
+  const r = await fetch('/api/client/coach/students');
+  const d = await r.json();
+  if(!d.ok){ box.innerHTML = '<div class="empty">'+(d.error||'Erreur')+'</div>'; return; }
+  if(!d.students.length){ box.innerHTML = '<div class="empty">Aucun élève ne t\'est encore assigné — demande à ton coach.</div>'; return; }
+  box.innerHTML = d.students.map(s => `
+    <div class="item" id="mg-card-${s.student_index}">
+      <b>${s.name}</b> <span class="muted small">⚡ ${s.avg_elo || '—'} ELO · 🧩 ${s.puzzle_xp} XP (${s.puzzle_solved_count} résolus)</span>
+      ${s.openings.length ? '<div class="muted small" style="margin-top:6px">' + s.openings.map(o => `📚 ${o.family} — ${o.percent}%`).join(' · ') + '</div>' : ''}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="tool" onclick="mgToggle(${s.student_index},'puzzle')">🧩 Envoyer un puzzle</button>
+        <button class="tool" onclick="mgToggle(${s.student_index},'opening')">📚 Assigner une ouverture</button>
+      </div>
+      <div id="mg-puzzle-${s.student_index}" style="display:none;margin-top:8px">
+        <select class="fi" id="mg-puzzle-theme-${s.student_index}" onchange="mgRunPuzzleSearch(${s.student_index})">
+          <option value="">— Filtrer par thème (optionnel) —</option>
+        </select>
+        <div id="mg-puzzle-results-${s.student_index}" class="puzzle-list"></div>
+      </div>
+      <div id="mg-opening-${s.student_index}" style="display:none;margin-top:8px">
+        <select class="fi" id="mg-opening-family-${s.student_index}"><option value="">Chargement…</option></select>
+        <select class="fi" id="mg-opening-side-${s.student_index}"><option value="white">Blancs</option><option value="black">Noirs</option></select>
+        <button class="tool" onclick="mgAssignOpening(${s.student_index})">📤 Assigner</button>
+        <span class="msg" id="mg-opening-msg-${s.student_index}"></span>
+      </div>
+    </div>`).join('');
+}
+
+let mgThemesCache = null;
+
+function mgToggle(idx, kind){
+  const el = document.getElementById('mg-'+kind+'-'+idx);
+  const wasOpen = el.style.display !== 'none';
+  el.style.display = wasOpen ? 'none' : '';
+  if(wasOpen) return;
+  if(kind === 'opening'){
+    if(!mgFamiliesCache) mgLoadFamilies(idx); else mgFillFamilySelect(idx);
+  } else if(kind === 'puzzle'){
+    if(!mgThemesCache) mgLoadThemes(idx); else mgFillThemeSelect(idx);
+  }
+}
+
+async function mgLoadThemes(idx){
+  const r = await fetch('/api/client/puzzle/list');
+  const d = await r.json();
+  mgThemesCache = d.ok ? Object.keys(d.theme_counts || {}).sort() : [];
+  mgFillThemeSelect(idx);
+  mgRunPuzzleSearch(idx);
+}
+function mgFillThemeSelect(idx){
+  const sel = document.getElementById('mg-puzzle-theme-'+idx);
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Filtrer par thème (optionnel) —</option>' +
+    (mgThemesCache||[]).map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+async function mgLoadFamilies(idx){
+  const r = await fetch('/api/client/openings/families');
+  const d = await r.json();
+  if(d.ok) mgFamiliesCache = d.families;
+  mgFillFamilySelect(idx);
+}
+function mgFillFamilySelect(idx){
+  const sel = document.getElementById('mg-opening-family-'+idx);
+  if(!sel) return;
+  if(!mgFamiliesCache){ sel.innerHTML = '<option value="">Erreur de chargement</option>'; return; }
+  sel.innerHTML = '<option value="">Choisis une ouverture…</option>' +
+    mgFamiliesCache.map(f => `<option value="${f.family.replace(/"/g,'&quot;')}">${f.family} (${f.count})</option>`).join('');
+}
+
+async function mgRunPuzzleSearch(idx){
+  const sel = document.getElementById('mg-puzzle-theme-'+idx);
+  const theme = sel ? sel.value : '';
+  const box = document.getElementById('mg-puzzle-results-'+idx);
+  const r = await fetch('/api/client/coach/puzzle/browse' + (theme ? '?theme=' + encodeURIComponent(theme) : ''));
+  const d = await r.json();
+  if(!d.ok || !d.puzzles || !d.puzzles.length){ box.innerHTML = '<div class="empty">Aucun résultat.</div>'; return; }
+  box.innerHTML = d.puzzles.slice(0, 6).map(p => `
+    <div class="item" style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+      <span class="muted small">${(p.themes||[]).join(', ')} · ${p.difficulty} · ${p.rating||''}</span>
+      <button class="tool" onclick="mgAssignPuzzle(${idx},'${p.id}')">📤</button>
+    </div>`).join('');
+}
+async function mgAssignPuzzle(idx, puzzleId){
+  const d = await postJSON('/api/client/coach/assign_puzzle', {student_index: idx, puzzle_id: puzzleId});
+  alert(d.ok ? 'Puzzle envoyé.' : (d.error || 'Erreur'));
+}
+async function mgAssignOpening(idx){
+  const msg = document.getElementById('mg-opening-msg-'+idx);
+  const family = document.getElementById('mg-opening-family-'+idx).value;
+  const side = document.getElementById('mg-opening-side-'+idx).value;
+  if(!family){ msg.textContent = 'Choisis une ouverture.'; return; }
+  msg.textContent = 'Envoi…';
+  const d = await postJSON('/api/client/coach/assign_opening', {student_index: idx, family, side});
+  msg.textContent = d.ok ? 'Assignée.' : (d.error || 'Erreur');
+  if(d.ok) loadMyGhosts();
+}
 </script>
 </body>
 </html>

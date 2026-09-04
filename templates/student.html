@@ -171,6 +171,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div class="s-name">{{ s.name or 'Ghost' }}
       {% if s.cheat_flag == 'occasional' %}<span class="cheat-pin cheat-pin-occasional" title="Tricheur occasionnel signalé">⚠️</span>
       {% elif s.cheat_flag == 'permanent' %}<span class="cheat-pin cheat-pin-permanent" title="Tricheur permanent signalé">🚫</span>{% endif %}
+      {% if s.is_coach %}<span class="coach-badge" title="Ce Ghost est coach">🧑‍🏫 Coach</span>{% endif %}
     </div>
     <div class="s-meta" style="font-size:12px;color:#444">{{ [s.age~' ans' if s.age, s.city, s.job]|select|join(' · ') }}</div>
     <div style="margin-top:8px">
@@ -180,6 +181,26 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <option value="occasional" {% if s.cheat_flag=='occasional' %}selected{% endif %}>⚠️ Tricheur occasionnel</option>
         <option value="permanent" {% if s.cheat_flag=='permanent' %}selected{% endif %}>🚫 Tricheur permanent</option>
       </select>
+    </div>
+    <div style="margin-top:8px">
+      <label style="font-size:11px;color:#555;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="is-coach-chk" {% if s.is_coach %}checked{% endif %} onchange="toggleCoachPanel()"> 🧑‍🏫 Ce Ghost est aussi coach
+      </label>
+    </div>
+    <div id="coach-assign-panel" style="margin-top:8px;{% if not s.is_coach %}display:none{% endif %}">
+      <label style="font-size:10px;color:#555;display:block;margin-bottom:3px">Élèves assignés à ce coach</label>
+      <div id="coach-assign-list" style="max-height:160px;overflow-y:auto;background:#060606;border:1px solid #1a1a1a;border-radius:8px;padding:8px">
+        {% for other in students %}
+        {% if other._index != idx %}
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0">
+          <input type="checkbox" class="coach-student-chk" value="{{ other._index }}" {% if other._index in (s.coached_student_indices or []) %}checked{% endif %}>
+          {{ other.name or 'Sans nom' }}
+        </label>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveCoachAssignments()">💾 Enregistrer</button>
+      <div class="msg" id="coach-assign-msg"></div>
     </div>
     {% if rank.best_elo %}
     <div class="s-elo" id="sidebar-elo-display">
@@ -1322,6 +1343,23 @@ function saveCheatFlag() {
   var v = document.getElementById('cheat-flag-select').value;
   post('/api/students/save', {_index: STUDENT_IDX, cheat_flag: v}, function(r) {
     toast(r.ok ? 'Statut anti-triche mis à jour' : 'Erreur lors de la sauvegarde');
+  });
+}
+
+function toggleCoachPanel() {
+  var checked = document.getElementById('is-coach-chk').checked;
+  document.getElementById('coach-assign-panel').style.display = checked ? '' : 'none';
+  post('/api/students/save', {_index: STUDENT_IDX, is_coach: checked}, function(r) {
+    toast(r.ok ? (checked ? 'Ghost promu coach' : 'Statut coach retiré') : 'Erreur lors de la sauvegarde');
+  });
+}
+
+function saveCoachAssignments() {
+  var msg = document.getElementById('coach-assign-msg');
+  var checked = Array.from(document.querySelectorAll('.coach-student-chk:checked')).map(function(el){ return parseInt(el.value, 10); });
+  msg.textContent = 'Enregistrement…';
+  post('/api/students/save', {_index: STUDENT_IDX, coached_student_indices: checked}, function(r) {
+    msg.textContent = r.ok ? (checked.length + ' élève(s) assigné(s).') : (r.error || 'Erreur');
   });
 }
 

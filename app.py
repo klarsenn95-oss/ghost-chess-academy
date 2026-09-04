@@ -2395,6 +2395,9 @@ def public_student_payload(student):
             })
     return {
         "name": student.get("name", "Ghost"),
+        "is_coach": bool(student.get("is_coach")),
+        "coached_student_indices": student.get("coached_student_indices") or [],
+        "cheat_flag": student.get("cheat_flag") or "",
         "lichess": student.get("lichess", ""),
         "chesscom": student.get("chesscom", ""),
         "email": student.get("email", ""),
@@ -2461,6 +2464,19 @@ def require_client_json():
     if not user:
         return data, None, jsonify({"ok": False, "error": "not_authenticated"}), 401
     return data, user, None, None
+
+def require_coach_json():
+    """Comme require_client_json, mais exige en plus que le compte connecté
+    soit un Ghost flaggé is_coach — pour les routes où un Ghost agit sur SES
+    élèves assignés (envoyer un puzzle/une ouverture), pas sur lui-même."""
+    data, user, resp, code = require_client_json()
+    if resp:
+        return data, user, None, resp, code
+    idx = user.get("student_index")
+    coach_student = data["students"][idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else None
+    if not coach_student or not coach_student.get("is_coach"):
+        return data, user, None, jsonify({"ok": False, "error": "Accès coach requis."}), 403
+    return data, user, coach_student, None, None
 
 def client_is_restricted(user):
     # V22 : les relances paiement ne suspendent plus automatiquement un compte.
@@ -5400,28 +5416,18 @@ def api_admin_puzzle_browse():
     result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page, sort=sort)
     return jsonify({"ok": True, **result})
 
-@app.route("/api/admin/puzzle/assign", methods=["POST"])
-def api_admin_puzzle_assign():
-    if not puzzle_service.backend_ready():
-        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
-    body = request.get_json(force=True, silent=True) or {}
-    puzzle_id = body.get("puzzle_id")
-    note = (body.get("note") or "").strip()
-    try:
-        idx = int(body.get("student_index"))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+def _assign_puzzle_to_student(data, student_index, puzzle_id, note, sender_label="Ton coach"):
+    """Cœur partagé entre l'assignation admin et l'assignation par un
+    Ghost-coach (via ses élèves assignés) — un seul endroit qui écrit le
+    devoir + le feedback, pour que les deux chemins restent identiques."""
     puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
     if not puzzle:
-        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
-    data = load_data()
-    if idx < 0 or idx >= len(data.get("students", [])):
-        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
-    puzzle_service.assign_puzzle(puzzle_id, idx, note)
+        return None, None, "Puzzle introuvable."
+    puzzle_service.assign_puzzle(puzzle_id, student_index, note)
     theme_label = puzzle.get("theme") or puzzle.get("difficulty") or ""
     title = f"🧩 Nouveau puzzle — {theme_label}".strip(" —")
-    text = note or "Ton coach t'a envoyé un puzzle à résoudre. Retrouve-le dans tes devoirs."
-    entry = add_student_feedback(data, idx, title, text, kind="homework", linked_type="puzzle_devoir", linked_id=puzzle_id)
+    text = note or f"{sender_label} t'a envoyé un puzzle à résoudre. Retrouve-le dans tes devoirs."
+    entry = add_student_feedback(data, student_index, title, text, kind="homework", linked_type="puzzle_devoir", linked_id=puzzle_id)
     devoir = {
         "id": str(uuid.uuid4()),
         "type": "puzzle",
@@ -5435,9 +5441,133 @@ def api_admin_puzzle_assign():
         "feedback_id": entry.get("id") if entry else None,
         "created_at": now_fr(),
     }
-    data["students"][idx].setdefault("devoirs", []).insert(0, devoir)
+    data["students"][student_index].setdefault("devoirs", []).insert(0, devoir)
+    return entry, devoir, None
+
+
+@app.route("/api/admin/puzzle/assign", methods=["POST"])
+def api_admin_puzzle_assign():
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    puzzle_id = body.get("puzzle_id")
+    note = (body.get("note") or "").strip()
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+    data = load_data()
+    if idx < 0 or idx >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    entry, devoir, err = _assign_puzzle_to_student(data, idx, puzzle_id, note)
+    if err:
+        return jsonify({"ok": False, "error": err}), 404
     save_data(data)
     return jsonify({"ok": True, "feedback": entry, "devoir": devoir})
+
+# ─── Espace Ghost-coach (un Ghost flaggé is_coach agit sur ses élèves
+# assignés, depuis SON PROPRE espace client — pas un portail séparé) ──────
+
+@app.route("/api/client/coach/students")
+def api_client_coach_students():
+    data, user, coach_student, resp, code = require_coach_json()
+    if resp:
+        return resp, code
+    indices = coach_student.get("coached_student_indices") or []
+    out = []
+    for idx in indices:
+        if not isinstance(idx, int) or idx < 0 or idx >= len(data.get("students", [])):
+            continue
+        s = data["students"][idx]
+        target_user = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
+        puzzle_stats = {"xp": 0, "solved_count": 0, "streak": 0}
+        if target_user and puzzle_service.backend_ready():
+            puzzle_stats = puzzle_service.student_puzzle_stats(target_user["id"])
+        openings_summary = []
+        if opening_service.backend_ready():
+            entries = opening_service.list_repertoire(idx)
+            progress = opening_service.repertoire_progress(entries)
+            for e in entries:
+                p = progress.get(e["id"], {})
+                openings_summary.append({"family": e.get("family"), "percent": p.get("percent", 0), "status": e.get("status")})
+        out.append({
+            "student_index": idx, "name": s.get("name") or "Sans nom", "avatar": s.get("avatar", ""),
+            "avg_elo": get_avg_elo(s), "puzzle_xp": puzzle_stats.get("xp", 0),
+            "puzzle_solved_count": puzzle_stats.get("solved_count", 0),
+            "openings": openings_summary,
+        })
+    return jsonify({"ok": True, "students": out})
+
+@app.route("/api/client/coach/puzzle/browse")
+def api_client_coach_puzzle_browse():
+    data, user, coach_student, resp, code = require_coach_json()
+    if resp:
+        return resp, code
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    theme = request.args.get("theme") or None
+    difficulty = request.args.get("difficulty") or None
+    search = request.args.get("q") or None
+    sort = request.args.get("sort") or "rating_asc"
+    try:
+        page = int(request.args.get("page") or 1)
+    except ValueError:
+        page = 1
+    result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page, sort=sort)
+    return jsonify({"ok": True, **result})
+
+@app.route("/api/client/coach/assign_puzzle", methods=["POST"])
+def api_client_coach_assign_puzzle():
+    data, user, coach_student, resp, code = require_coach_json()
+    if resp:
+        return resp, code
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+    if idx not in (coach_student.get("coached_student_indices") or []):
+        return jsonify({"ok": False, "error": "Cet élève ne t'est pas assigné."}), 403
+    puzzle_id = body.get("puzzle_id")
+    note = (body.get("note") or "").strip()
+    sender = f"{coach_student.get('name') or 'Ton coach'} (coach)"
+    entry, devoir, err = _assign_puzzle_to_student(data, idx, puzzle_id, note, sender_label=sender)
+    if err:
+        return jsonify({"ok": False, "error": err}), 404
+    save_data(data)
+    return jsonify({"ok": True, "feedback": entry, "devoir": devoir})
+
+@app.route("/api/client/coach/assign_opening", methods=["POST"])
+def api_client_coach_assign_opening():
+    data, user, coach_student, resp, code = require_coach_json()
+    if resp:
+        return resp, code
+    if not opening_service.backend_ready():
+        return jsonify({"ok": False, "error": "Bibliothèque d'ouvertures non connectée."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        idx = int(body.get("student_index"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Choisis un élève."}), 400
+    if idx not in (coach_student.get("coached_student_indices") or []):
+        return jsonify({"ok": False, "error": "Cet élève ne t'est pas assigné."}), 403
+    family = body.get("family")
+    side = body.get("side") or "white"
+    if not family:
+        return jsonify({"ok": False, "error": "Famille manquante."}), 400
+    try:
+        entry = opening_service.assign_family(idx, family, side)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
+    add_student_feedback(
+        data, idx, "📚 Nouvelle ouverture",
+        f"{coach_student.get('name') or 'Ton coach'} (coach) t'a assigné {family} — {len(entry.get('course') or [])} variantes à apprendre.",
+        kind="opening", linked_type="opening", linked_id=entry.get("opening_id"),
+    )
+    save_data(data)
+    return jsonify({"ok": True, "entry": entry})
 
 # ─── Programmes d'entraînement ────────────────────────────────────────────
 
