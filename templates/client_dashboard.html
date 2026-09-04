@@ -1107,6 +1107,7 @@ function giveUpPuzzle(){
       pzBoard.setFen(pzGame.fen(), {from: rm.from, to: rm.to});
       pzBoard.showArrow(rm.from, rm.to);
       addMoveToList(rm.san);
+      playOpSound('move');
     }
     i++;
     setTimeout(playNext, 400);
@@ -1654,7 +1655,7 @@ function opReveal(){
   if(!opGame || opStepIdx + 1 >= opLine.length) return;
   const step = opLine[opStepIdx + 1];
   const mv = opGame.move(step.move_san, {sloppy: true});
-  if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); opBoard.showArrow(mv.from, mv.to); addOpMove(mv.san); }
+  if(mv){ opBoard.setFen(opGame.fen(), {from: mv.from, to: mv.to}); opBoard.showArrow(mv.from, mv.to); addOpMove(mv.san); playOpSound('move'); }
   opHadMistake = true;
   if(opCurrentEntryId) postJSON('/api/client/openings/attempt', {opening_id: step.id, correct: false}).catch(()=>{});
   opStepIdx++;
