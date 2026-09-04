@@ -2179,7 +2179,7 @@ def student_puzzle_overview(data, student_index):
     et taux de réussite par thème pour repérer les points faibles réels
     (pas juste 'il a fait X puzzles') sans obliger le coach à éplucher
     l'historique brut."""
-    empty = {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
+    empty = {"xp": 0, "solved_count": 0, "streak": 0, "day_streak": 0, "today_count": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
     if not puzzle_service.backend_ready():
         return empty
     user = next((u for u in data.get("users", []) if u.get("student_index") == student_index), None)
@@ -2450,6 +2450,7 @@ def public_student_payload(student):
         "puzzle_xp": int(student.get("puzzle_xp", 0)),
         "puzzle_solved_count": len(student.get("puzzle_solved_ids", [])),
         "puzzle_streak": 0,
+        "opening_xp": 0,
         "recurring_errors": student.get("recurring_errors", []),
         "workplans": student.get("workplans", [])[-5:],
         "agenda": student.get("agenda", [])[-8:],
@@ -2750,6 +2751,7 @@ def student_page(idx):
     puzzle_overview = student_puzzle_overview(data, idx)
     active_program = None
     recent_puzzle_attempts = []
+    program_today_status = None
     if puzzle_service.backend_ready():
         user_for_puzzle = next((u for u in data.get("users", []) if u.get("student_index") == idx), None)
         active_program = puzzle_service.get_active_program(idx)
@@ -2760,6 +2762,20 @@ def student_page(idx):
         if user_for_puzzle:
             recent_puzzle_attempts = puzzle_service.recent_attempts(user_for_puzzle["id"], limit=30)
             enrich_puzzle_feedback(s.get("client_feedback", []), user_for_puzzle["id"])
+        if active_program:
+            # Le coach doit voir clairement si le Ghost a fait sa quotité du
+            # jour SANS avoir à éplucher la liste "puzzles récents" à la main —
+            # comparaison directe entre les tentatives d'aujourd'hui et la
+            # quotité du programme, uniquement les jours où le programme est
+            # censé tourner (frequency_days).
+            quota = int(active_program.get("puzzles_per_day") or 0)
+            today_count = puzzle_overview.get("today_count", 0)
+            program_today_status = {
+                "scheduled": puzzle_service.is_program_day(active_program),
+                "quota": quota,
+                "today_count": today_count,
+                "done": quota > 0 and today_count >= quota,
+            }
     # L'onglet ÉCHANGES de la fiche montrait TOUT ce qui passe par
     # add_student_feedback (ouvertures assignées, tournois, changements de
     # rang, paiements...), pas seulement les vraies conversations — d'où la
@@ -2825,6 +2841,7 @@ def student_page(idx):
         students=enrich_students(data["students"]),
         puzzle_stats=puzzle_overview,
         active_program=active_program,
+        program_today_status=program_today_status,
         recent_puzzle_attempts=recent_puzzle_attempts)
 
 @app.route("/islands")
@@ -3761,6 +3778,8 @@ def client_portal():
             if d.get("type") == "puzzle":
                 d["solved"] = d.get("puzzle_id") in solved_ids
         enrich_puzzle_feedback(student_payload.get("client_feedback", []), user["id"])
+    if student_payload and opening_service.backend_ready():
+        student_payload["opening_xp"] = opening_service.student_opening_xp(idx)
     return render_template(
         "client_dashboard.html",
         user=user,
@@ -5430,6 +5449,17 @@ def api_admin_puzzle_browse():
     result = puzzle_service.browse_puzzles(theme, difficulty, search, page=page, sort=sort)
     return jsonify({"ok": True, **result})
 
+@app.route("/api/admin/puzzle/view/<puzzle_id>")
+def api_admin_puzzle_view(puzzle_id):
+    """Le coach revoit un puzzle depuis 'Puzzles récents' sur la fiche
+    élève — mêmes fen/solution que côté élève, en lecture seule."""
+    if not puzzle_service.backend_ready():
+        return jsonify({"ok": False, "error": "Banque de puzzles non connectée (Supabase requis)."}), 400
+    puzzle = puzzle_service.get_puzzle_with_solution(puzzle_id)
+    if not puzzle:
+        return jsonify({"ok": False, "error": "Puzzle introuvable."}), 404
+    return jsonify({"ok": True, "puzzle": puzzle})
+
 def _assign_puzzle_to_student(data, student_index, puzzle_id, note, sender_label="Ton coach"):
     """Cœur partagé entre l'assignation admin et l'assignation par un
     Ghost-coach (via ses élèves assignés) — un seul endroit qui écrit le
@@ -5708,6 +5738,7 @@ def api_client_puzzle_list():
         return jsonify({
             "ok": True, "puzzles": result["puzzles"], "theme_counts": result["theme_counts"],
             "xp": stats["xp"], "solved_count": stats["solved_count"], "streak": stats["streak"],
+            "day_streak": stats["day_streak"],
         })
     idx = user.get("student_index")
     student = data["students"][idx] if isinstance(idx, int) and 0 <= idx < len(data.get("students", [])) else {}
@@ -5727,6 +5758,7 @@ def api_client_puzzle_list():
         "xp": student.get("puzzle_xp", 0),
         "solved_count": len(solved_ids),
         "streak": 0,  # no chronological attempt log in the local JSON fallback
+        "day_streak": 0,
     })
 
 @app.route("/api/client/puzzle/start", methods=["POST"])
@@ -5780,7 +5812,7 @@ def api_client_puzzle_solve():
     save_data(data)
     return jsonify({
         "ok": True, "xp_gained": xp_gained, "total_xp": student.get("puzzle_xp", 0),
-        "already_solved": already_solved, "solved_count": len(solved_ids), "streak": 0,
+        "already_solved": already_solved, "solved_count": len(solved_ids), "streak": 0, "day_streak": 0,
     })
 
 # ── Ouvertures : bibliothèque auto-alimentée (jamais d'import côté coach) ──
@@ -5984,8 +6016,8 @@ def api_client_openings_complete_line():
         result = opening_service.complete_line(entry_id, had_mistake)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 404
+    idx = user.get("student_index")
     if result["finished"]:
-        idx = user.get("student_index")
         if isinstance(idx, int):
             entry = result["entry"]
             add_student_feedback(
@@ -5994,7 +6026,8 @@ def api_client_openings_complete_line():
                 kind="opening", linked_type="opening", linked_id=entry.get("opening_id"),
             )
             save_data(data)
-    return jsonify({"ok": True, **result})
+    opening_xp = opening_service.student_opening_xp(idx) if isinstance(idx, int) else 0
+    return jsonify({"ok": True, "opening_xp": opening_xp, **result})
 
 @app.route("/api/client/openings/attempt", methods=["POST"])
 def api_client_openings_attempt():

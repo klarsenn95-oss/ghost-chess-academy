@@ -411,7 +411,7 @@
 
   <section id="tab-openings" class="panel">
     <div class="card full" id="op-picker">
-      <div class="ttl">📚 Ouvertures</div>
+      <div class="ttl">📚 Ouvertures <span id="op-xp-summary" class="muted small">— {{ student.opening_xp if student else 0 }} XP</span></div>
       <div class="pz-solver-actions" style="margin-bottom:12px">
         <button class="btn tiny" type="button" id="op-tab-repertoire-btn" onclick="showOpeningsSubTab('repertoire')">Mon répertoire</button>
         <button class="btn secondary tiny" type="button" id="op-tab-discover-btn" onclick="showOpeningsSubTab('discover')">Découvrir</button>
@@ -931,13 +931,13 @@ async function loadPuzzleThemeCounts(){
       total += n;
     });
     document.getElementById('pz-empty-msg').style.display = total ? 'none' : 'block';
-    updatePuzzleSummary(d.xp || 0, d.solved_count || 0, d.streak || 0);
+    updatePuzzleSummary(d.xp || 0, d.solved_count || 0, d.streak || 0, d.day_streak || 0);
   }catch(e){}
 }
 
-function updatePuzzleSummary(xp, solvedCount, streak){
+function updatePuzzleSummary(xp, solvedCount, streak, dayStreak){
   const summary = document.getElementById('pz-xp-summary');
-  if(summary) summary.textContent = `— ${xp} XP · ${solvedCount} résolu(s)${streak > 1 ? ' · 🔥 ' + streak + ' d’affilée' : ''}`;
+  if(summary) summary.textContent = `— ${xp} XP · ${solvedCount} résolu(s)${streak > 1 ? ' · 🔥 ' + streak + ' d’affilée' : ''}${dayStreak > 1 ? ' · 📅 ' + dayStreak + ' jour(s) de suite' : ''}`;
 }
 
 async function startPuzzleTheme(theme){
@@ -1005,6 +1005,21 @@ function handlePuzzleMove(from, to, promotion){
   if(!mv) return;
   const expected = pzSolution[pzSolutionIdx];
   if(mv.san !== expected){
+    // Un mat est un mat, même si ce n'est pas exactement le coup du jeu de
+    // données (plusieurs coups peuvent souvent mater dans la même position,
+    // ex. une tour qui glisse sur n'importe quelle case de la colonne/rangée
+    // ouverte) : on ne compare pas juste la chaîne de coup, on vérifie si le
+    // coup joué met effectivement échec et mat.
+    if(pzGame.in_checkmate()){
+      pzBoard.setFen(pzGame.fen(), {from, to});
+      pzBoard.flashSquare(to, 'good');
+      playOpSound('move');
+      addMoveToList(mv.san);
+      document.getElementById('pz-solver-status').textContent = '';
+      pzSolutionIdx = pzSolution.length;
+      finishPuzzle(true);
+      return;
+    }
     pzGame.undo();
     pzBoard.setFen(pzGame.fen());
     pzBoard.flashSquare(to, 'bad');
@@ -1072,7 +1087,7 @@ async function finishPuzzle(success){
     status.textContent = 'Solution révélée.';
     status.className = 'pz-status bad';
   }
-  if(d.ok) updatePuzzleSummary(d.total_xp, d.solved_count || 0, d.streak || 0);
+  if(d.ok) updatePuzzleSummary(d.total_xp, d.solved_count || 0, d.streak || 0, d.day_streak || 0);
   pzReplayStep = pzPlayedMoves.length;
   document.getElementById('pz-replay').style.display = pzPlayedMoves.length ? 'block' : 'none';
   updatePzReplayStatus();
@@ -1598,6 +1613,8 @@ function finishOpeningLine(){
       if(d.ok){
         const idx = opRepertoireCache.findIndex(e => e.id === opCurrentEntryId);
         if(idx >= 0) opRepertoireCache[idx] = d.entry;
+        const xpEl = document.getElementById('op-xp-summary');
+        if(xpEl && d.opening_xp !== undefined) xpEl.textContent = `— ${d.opening_xp} XP`;
       }
     }).catch(()=>{});
   }

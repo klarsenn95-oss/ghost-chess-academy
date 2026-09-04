@@ -331,6 +331,25 @@ def record_progress(user_id: str, opening_id: str, correct: bool) -> dict:
     return (res.data or [payload])[0]
 
 
+OPENING_XP_PER_VARIANT = 15  # doit rester cohérent avec l'échelle des puzzles (PUZZLE_XP_BY_DIFFICULTY)
+
+
+def student_opening_xp(student_index: int) -> int:
+    """XP calculée à la volée depuis course_position/status — jamais stockée
+    ni incrémentée séparément, donc pas de risque de double comptage ni de
+    migration de schéma : une variante maîtrisée (streak propre de 3) fait
+    avancer course_position ou passe status à 'completed', ce qui suffit à
+    en déduire combien de variantes ont été maîtrisées au total."""
+    total = 0
+    for entry in list_repertoire(student_index):
+        course = entry.get("course") or []
+        pos = min(entry.get("course_position") or 0, len(course))
+        total += pos * OPENING_XP_PER_VARIANT
+        if entry.get("status") == "completed":
+            total += OPENING_XP_PER_VARIANT
+    return total
+
+
 CLEAN_STREAK_TARGET = 3  # doit rester en phase avec le seuil de complete_line()
 
 

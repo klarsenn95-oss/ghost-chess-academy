@@ -240,6 +240,55 @@ def _current_streak(attempts_newest_first: list[dict]) -> int:
     return streak
 
 
+def _day_streak(attempts_newest_first: list[dict]) -> int:
+    """Number of consecutive CALENDAR days (Paris time) with at least one
+    attempt, counting back from today. Distinct from _current_streak (which
+    counts consecutive puzzles solved clean) — a coach wants to know if a
+    Ghost is showing up every day, independently of whether they nail every
+    puzzle first try. If nothing was attempted today yet, the streak is
+    still considered "alive" as long as yesterday had activity (the day
+    isn't over), it only breaks once a full day is skipped entirely."""
+    days = set()
+    for a in attempts_newest_first:
+        ts = a.get("created_at")
+        if not ts:
+            continue
+        try:
+            d = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(PARIS_TZ).date()
+        except (ValueError, TypeError):
+            continue
+        days.add(d)
+    if not days:
+        return 0
+    today = _today_paris()
+    cursor = today
+    if cursor not in days:
+        cursor = today.fromordinal(today.toordinal() - 1)
+        if cursor not in days:
+            return 0
+    streak = 0
+    while cursor in days:
+        streak += 1
+        cursor = cursor.fromordinal(cursor.toordinal() - 1)
+    return streak
+
+
+def _today_attempt_count(attempts_newest_first: list[dict]) -> int:
+    today = _today_paris()
+    count = 0
+    for a in attempts_newest_first:
+        ts = a.get("created_at")
+        if not ts:
+            continue
+        try:
+            d = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(PARIS_TZ).date()
+        except (ValueError, TypeError):
+            continue
+        if d == today:
+            count += 1
+    return count
+
+
 def _avg_duration(attempts: list[dict]) -> Optional[int]:
     durations = [a["duration_seconds"] for a in attempts if a.get("duration_seconds")]
     return round(sum(durations) / len(durations)) if durations else None
@@ -255,6 +304,8 @@ def student_puzzle_stats(user_id: str) -> dict:
         "solved_count": len(solved_ids),
         "solved_ids": list(solved_ids),
         "streak": _current_streak(attempts),
+        "day_streak": _day_streak(attempts),
+        "today_count": _today_attempt_count(attempts),
         "attempts_count": len(attempts),
         "failed_count": failed_attempts,
         "avg_duration_seconds": _avg_duration(attempts),
@@ -267,7 +318,7 @@ def coach_puzzle_overview(user_id: str) -> dict:
     raw XP number."""
     attempts = _user_attempts(user_id)
     if not attempts:
-        return {"xp": 0, "solved_count": 0, "streak": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
+        return {"xp": 0, "solved_count": 0, "streak": 0, "day_streak": 0, "today_count": 0, "attempts_count": 0, "by_theme": [], "solved_ids": []}
     puzzle_ids = list({a["puzzle_id"] for a in attempts})
     client = get_supabase_client()
     puzzles = {}
@@ -297,6 +348,7 @@ def coach_puzzle_overview(user_id: str) -> dict:
     solved_ids = {a["puzzle_id"] for a in attempts if a.get("success")}
     return {
         "xp": xp, "solved_count": len(solved_ids), "streak": _current_streak(attempts),
+        "day_streak": _day_streak(attempts), "today_count": _today_attempt_count(attempts),
         "attempts_count": len(attempts), "by_theme": by_theme,
         "avg_duration_seconds": _avg_duration(attempts),
         "solved_ids": list(solved_ids),
@@ -344,7 +396,7 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
     stats = student_puzzle_stats(user_id)
     return {
         "xp_gained": xp_gained, "total_xp": stats["xp"], "already_solved": already_rewarded,
-        "solved_count": stats["solved_count"], "streak": stats["streak"],
+        "solved_count": stats["solved_count"], "streak": stats["streak"], "day_streak": stats["day_streak"],
     }
 
 

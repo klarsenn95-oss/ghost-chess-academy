@@ -570,4 +570,9 @@ input[type="date"]:focus,input[type="datetime-local"]:focus{outline:none;border-
 .gpb-square.gpb-light .gpb-coord{color:#b58863;}
 .gpb-square.gpb-dark .gpb-coord{color:#f0d9b5;}
 .gpb-arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.gpb-promo-backdrop{position:absolute;inset:0;z-index:50;background:#000000b3;}
+.gpb-promo-picker{position:absolute;width:12.5%;height:50%;display:flex;flex-direction:column;box-shadow:0 12px 30px #000c;border-radius:6px;overflow:hidden;}
+.gpb-promo-choice{flex:1;border:0;padding:0;cursor:pointer;background-color:#1c1730;background-size:65%;background-position:center;background-repeat:no-repeat;border-bottom:1px solid #ffffff22;transition:background-color .1s ease;}
+.gpb-promo-choice:last-child{border-bottom:0;}
+.gpb-promo-choice:hover{background-color:#3a3260;}
 

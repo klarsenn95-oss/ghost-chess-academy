@@ -125,10 +125,56 @@
       const targets = chess.moves({ square: from, verbose: true });
       const target = targets.find(t => t.to === to);
       if (!target) return false;
-      let promotion;
-      if (target.flags && target.flags.indexOf('p') !== -1) promotion = 'q';
-      onAttemptMove(from, to, promotion);
+      if (target.flags && target.flags.indexOf('p') !== -1) {
+        // Promotion : on ne joue rien tout de suite, on demande la pièce.
+        showPromoPicker(from, to);
+        return true;
+      }
+      onAttemptMove(from, to, undefined);
       return true;
+    }
+
+    // ── Choix de la pièce de promotion (dame/tour/fou/cavalier) ───────
+    function squareGridPos(sq) {
+      const file = FILES.indexOf(sq[0]);
+      const rank = parseInt(sq[1], 10) - 1;
+      const col = orientation === 'white' ? file : 7 - file;
+      const row = orientation === 'white' ? 7 - rank : rank;
+      return { col, row };
+    }
+
+    function hidePromoPicker() {
+      const el = container.querySelector('.gpb-promo-backdrop');
+      if (el) el.remove();
+    }
+
+    function showPromoPicker(from, to) {
+      hidePromoPicker();
+      const { col, row } = squareGridPos(to);
+      const color = chess.turn(); // couleur du camp qui promeut (avant le coup)
+      const order = ['q', 'r', 'b', 'n'];
+      const stackDown = row === 0; // promotion en haut du plateau affiché → la liste descend, sinon elle remonte
+      const backdrop = document.createElement('div');
+      backdrop.className = 'gpb-promo-backdrop';
+      backdrop.addEventListener('click', () => { hidePromoPicker(); clearSelection(); render(); });
+      const picker = document.createElement('div');
+      picker.className = 'gpb-promo-picker';
+      picker.style.left = (col * 12.5) + '%';
+      picker.style.top = (stackDown ? row * 12.5 : (row - 3) * 12.5) + '%';
+      order.forEach(pt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gpb-promo-choice';
+        btn.style.backgroundImage = `url(${pieceImageUrl({ color, type: pt })})`;
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          hidePromoPicker();
+          onAttemptMove(from, to, pt);
+        });
+        picker.appendChild(btn);
+      });
+      backdrop.appendChild(picker);
+      container.appendChild(backdrop);
     }
 
     function onSquareClick(sq) {
@@ -295,6 +341,7 @@
         // literal string 'start' here silently failed and left the board
         // showing whatever position it had before, with no pieces movable
         // whenever a caller reset to the initial position mid-session.
+        hidePromoPicker();
         chess.load(fen && fen !== 'start' ? fen : DEFAULT_FEN);
         if (moveJustPlayed) {
           lastMove = moveJustPlayed;
@@ -366,6 +413,7 @@
       destroy() {
         if (dragState) { dragState.ghostEl.remove(); dragState = null; }
         cleanupDrag();
+        hidePromoPicker();
         container.innerHTML = '';
       },
     };

@@ -140,6 +140,8 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .haki-toggle-btn.active{border-color:currentColor;background:#111;}
 </style>
 <script src="/static/scroll-preserve.js"></script>
+<script src="/static/chess.min.js"></script>
+<script src="/static/puzzle-board.js"></script>
 </head>
 <body class="student-body">
 <div class="s-wrap">
@@ -1139,12 +1141,25 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       <div class="muted small" style="margin-top:4px">{{ active_program.themes|join(', ') }} · {{ active_program.difficulties|join(', ') }} · {{ active_program.puzzles_per_day }}/jour</div>
       <div style="height:8px;background:#151528;border-radius:999px;overflow:hidden;margin:8px 0"><span style="display:block;height:100%;width:{{ active_program.progress.percent }}%;background:linear-gradient(90deg,#22c55e,#fbbf24)"></span></div>
       <div class="muted small">{{ active_program.progress.total_solved }}/{{ active_program.progress.total_assigned }} puzzle(s) résolus depuis le début</div>
+      {% if program_today_status %}
+      <div style="margin-top:10px">
+        {% if not program_today_status.scheduled %}
+        <span class="pill" style="background:#1a1a1a;color:#666">Pas de puzzle prévu aujourd'hui</span>
+        {% elif program_today_status.done %}
+        <span class="pill" style="background:#052e16;color:#4ade80">✅ Fait aujourd'hui ({{ program_today_status.today_count }}/{{ program_today_status.quota }})</span>
+        {% elif program_today_status.today_count > 0 %}
+        <span class="pill" style="background:#3b2a04;color:#fbbf24">⏳ En cours aujourd'hui ({{ program_today_status.today_count }}/{{ program_today_status.quota }})</span>
+        {% else %}
+        <span class="pill" style="background:#3b0a0a;color:#f87171">❌ Aucun puzzle fait aujourd'hui</span>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
     {% else %}
     <div style="color:#333;padding:8px 0 14px">Aucun programme actif — crée-en un dans le menu Programmes du Centre de commandement.</div>
     {% endif %}
     <div class="s-section-title">🧩 Puzzles</div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
       <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:#fbbf24">{{ puzzle_stats.xp }}</div>
         <div style="font-size:10px;color:#444;margin-top:2px">XP</div>
@@ -1155,7 +1170,13 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
       </div>
       <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:#f87171">🔥 {{ puzzle_stats.streak }}</div>
-        <div style="font-size:10px;color:#444;margin-top:2px">Série en cours</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Série sans erreur</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:22px;font-weight:700;color:#38bdf8">📅 {{ puzzle_stats.day_streak }}</div>
+        <div style="font-size:10px;color:#444;margin-top:2px">Jours consécutifs</div>
       </div>
       <div class="live-stat" style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:22px;font-weight:700;color:#93c5fd">{{ puzzle_stats.attempts_count }}</div>
@@ -1186,7 +1207,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
   <div class="s-section">
     <div class="s-section-title">Puzzles récents</div>
     {% for a in recent_puzzle_attempts %}
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:10px 12px;margin-bottom:6px">
+    <div onclick="viewPuzzle('{{ a.puzzle_id }}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:10px 12px;margin-bottom:6px" title="Voir ce puzzle">
       <div>
         <span class="pill">🧩 {{ a.theme }}{% if a.themes|length > 1 %} +{{ a.themes|length - 1 }}{% endif %}</span>
         <span class="pill">{{ a.difficulty }}</span>
@@ -2264,6 +2285,52 @@ function saveBillingPlan(){
     if(r.ok) toast('Formule sauvegardée');
   });
 }
+
+// ── Revoir un puzzle depuis "Puzzles récents" (lecture seule, coach) ──
+var pvBoard = null, pvTimer = null;
+async function viewPuzzle(puzzleId){
+  const modal = document.getElementById('pv-modal');
+  const status = document.getElementById('pv-status');
+  modal.style.display = 'flex';
+  status.textContent = 'Chargement…';
+  try{
+    const r = await fetch('/api/admin/puzzle/view/' + encodeURIComponent(puzzleId));
+    const d = await r.json();
+    if(!d.ok){ status.textContent = d.error || 'Puzzle introuvable.'; return; }
+    const p = d.puzzle;
+    status.textContent = (p.theme || '') + ' · ' + (p.difficulty || '') + (p.rating ? ' · ' + p.rating + ' elo' : '');
+    const el = document.getElementById('pv-board');
+    if(pvBoard) pvBoard.destroy();
+    const orientation = p.fen.split(' ')[1] === 'b' ? 'black' : 'white';
+    pvBoard = createPuzzleBoard(el, {fen: p.fen, orientation, interactive: false});
+    const game = new Chess(p.fen);
+    const moves = p.moves || [];
+    let i = 0;
+    if(pvTimer) clearTimeout(pvTimer);
+    const playNext = () => {
+      if(i >= moves.length) return;
+      const mv = game.move(moves[i], {sloppy: true});
+      if(mv){ pvBoard.setFen(game.fen(), {from: mv.from, to: mv.to}); pvBoard.showArrow(mv.from, mv.to); }
+      i++;
+      pvTimer = setTimeout(playNext, 700);
+    };
+    pvTimer = setTimeout(playNext, 500);
+  }catch(e){ status.textContent = 'Erreur de chargement.'; }
+}
+function closePuzzleView(){
+  document.getElementById('pv-modal').style.display = 'none';
+  if(pvTimer) clearTimeout(pvTimer);
+  if(pvBoard){ pvBoard.destroy(); pvBoard = null; }
+}
 </script>
+<div id="pv-modal" onclick="if(event.target===this) closePuzzleView()" style="display:none;position:fixed;inset:0;background:#000000c0;z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:14px;padding:16px;width:100%;max-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div id="pv-status" class="muted small">Chargement…</div>
+      <button type="button" class="tool" onclick="closePuzzleView()">✕ Fermer</button>
+    </div>
+    <div id="pv-board"></div>
+  </div>
+</div>
 </body>
 </html>
