@@ -328,6 +328,13 @@ window.addEventListener('resize', syncNavGroupsForViewport, {passive:true});
 links.forEach(btn=>btn.addEventListener('click',()=>{
   const grp = btn.closest('details.shell-nav-group');
   if(grp) grp.open = true;
+  // A deliberate menu click is a real navigation, not the same-page reload
+  // the scroll-restore above targets — it should land at the top like any
+  // fresh page, not silently inherit wherever the previous section left
+  // .shell-main scrolled to (that container's scroll is independent of
+  // what the iframe swaps to, so without this it just stays put).
+  const mainScroll = document.querySelector('.shell-main');
+  if(mainScroll) mainScroll.scrollTop = 0;
   links.forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   title.textContent = btn.dataset.title || btn.textContent.replace(/^[^A-Za-zÀ-ÿ]+/,'').trim();
@@ -433,6 +440,36 @@ function settleFrameSize(){
   watchFrameBodyResize();
   [80,400].forEach(ms=>setTimeout(()=>{ enforceFrameScroll(); resizeFrameToContent(); },ms));
 }
+// The embedded pages (index.html/admin_clients.html/student.html) reload
+// themselves after almost every save action (~60 call sites) instead of
+// patching just the changed DOM. That reload was reported as "a button
+// takes me back" — traced it live: the iframe has NO internal scrollbar
+// (it's sized to fit its content exactly, see resizeFrameToContent) — the
+// real scroll container is .shell-main itself (overflow-y:auto on desktop,
+// shell.css "V2 fix"), not the iframe and not window/body (which have
+// overflow:hidden). Mid-reload the iframe briefly collapses to its
+// default height before JS re-measures it, so .shell-main's scrollable
+// range momentarily shrinks and the browser clamps its scrollTop down to
+// fit — a clamp that's never undone once the iframe grows back. Capturing
+// .shell-main's scroll position right before the iframe unloads (via its
+// own beforeunload, a harmless same-origin listener) and restoring it once
+// the iframe has re-settled fixes every one of those ~60 call sites at
+// once, with zero changes to any of them.
+// .shell-main is the scroll container on desktop widths only (shell.css
+// switches to window/body scrolling under ~860px for the mobile bottom
+// bar layout) — capture/restore both; setting scrollTop/scrollTo on a
+// container that isn't actually overflowing here is a harmless no-op.
+let pendingParentScrollTop = null;
+function armUnloadScrollCapture(){
+  try{
+    const pathAtArmTime = frame.contentWindow.location.pathname;
+    frame.contentWindow.addEventListener('beforeunload', () => {
+      const main = document.querySelector('.shell-main');
+      pendingParentScrollTop = { main: main ? main.scrollTop : 0, window: window.scrollY, fromPath: pathAtArmTime };
+    });
+  }catch(e){}
+}
+armUnloadScrollCapture();
 frame.addEventListener('load',()=>{
   stopFrameLoading();
   try{ localStorage.setItem('ghost_shell_url', frame.contentWindow.location.pathname + frame.contentWindow.location.search + frame.contentWindow.location.hash); }catch(e){}
@@ -443,6 +480,25 @@ frame.addEventListener('load',()=>{
     if(h && frame.contentWindow.showPage) frame.contentWindow.showPage(h, null);
     settleFrameSize();
   }catch(e){ resizeFrameToContent(); }
+  // Only restore when the SAME page reloaded itself (the ~60-call-site
+  // pattern this fixes) — a deliberate navigation to a different sidebar
+  // section must land at the top like normal, not inherit the old page's
+  // scroll position.
+  const samePage = pendingParentScrollTop && pendingParentScrollTop.fromPath === frame.contentWindow.location.pathname;
+  armUnloadScrollCapture(); // contentWindow identity changes on every navigation — re-arm for the next one
+  if(samePage){
+    const y = pendingParentScrollTop;
+    pendingParentScrollTop = null;
+    // Restore after the same settling passes settleFrameSize() itself uses,
+    // so the iframe has actually regrown to full height by the time we scroll.
+    [100,450,950].forEach(ms=>setTimeout(()=>{
+      const main = document.querySelector('.shell-main');
+      if(main) main.scrollTop = y.main;
+      window.scrollTo(0, y.window);
+    }, ms));
+  } else {
+    pendingParentScrollTop = null;
+  }
 });
 window.addEventListener('resize', resizeFrameToContent, {passive:true});
 try{ const saved=localStorage.getItem('ghost_shell_url'); if(saved && saved !== '/login' && saved !== '/coach/login') frame.src=saved; }catch(e){}

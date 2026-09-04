@@ -17,6 +17,7 @@ body.embedded-page::before{opacity:.7;}
 body.embedded-page .modal-overlay{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(2,2,10,.58)!important;filter:none!important;}
 body.embedded-page .modal-box{filter:none!important;opacity:1!important;transform:none!important;background:#080812!important;}
 </style>
+<script src="/static/scroll-preserve.js"></script>
 </head>
 <body class="{% if embed %}embedded-page{% endif %}">
 {% if not embed %}<aside class="sidebar">
@@ -1548,7 +1549,7 @@ function generateReports(){
     });
     document.getElementById('gen-results').innerHTML = html || '<span style="color:#444">Aucun résultat.</span>';
     // Recharge la liste PDF après 1s
-    setTimeout(function(){ location.reload(); }, 1500);
+    setTimeout(function(){ reloadPreservingScroll(); }, 1500);
   }).catch(function(e){
     btn.disabled=false; btn.textContent='⚙️ Générer les rapports';
     document.getElementById('gen-results').innerHTML='<span style="color:#ef4444">Erreur réseau.</span>';
@@ -1862,7 +1863,7 @@ async function syncAll() {
     document.getElementById('sync-status').textContent=`✅ ${ok} OK${err?' ⚠️ '+err+' erreurs':''}`;
     btn.textContent='🔄 Sync tous'; btn.disabled=false;
     toast('Sync terminé');
-    setTimeout(()=>location.reload(),1500);
+    setTimeout(()=>reloadPreservingScroll(),1500);
   } catch(e) {
     document.getElementById('sync-status').textContent='Erreur: '+(e.message||'réseau');
     btn.textContent='🔄 Sync tous'; btn.disabled=false;
@@ -1872,12 +1873,12 @@ async function syncAll() {
 async function deleteStudent(idx) {
   if(!confirm('Supprimer cet ghost ?')) return;
   await fetch('/api/students/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:idx})});
-  location.reload();
+  reloadPreservingScroll();
 }
 async function deleteSession(idx) {
   if(!confirm('Supprimer ?')) return;
   await fetch('/api/sessions/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:idx})});
-  location.reload();
+  reloadPreservingScroll();
 }
 
 function openStudentModal() {

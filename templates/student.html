@@ -139,6 +139,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
 .haki-toggle-btn{background:#111;border:1px solid #222;border-radius:20px;padding:3px 12px;font-size:11px;color:#555;cursor:pointer;font-family:inherit;transition:.2s;}
 .haki-toggle-btn.active{border-color:currentColor;background:#111;}
 </style>
+<script src="/static/scroll-preserve.js"></script>
 </head>
 <body class="student-body">
 <div class="s-wrap">
@@ -1361,7 +1362,7 @@ function saveRankOverride() {
     manual_hakis: manualHakis
   };
   post('/api/students/set_rank', payload, function(r) {
-    if (r.ok) { toast('Corps & rang sauvegardés'); setTimeout(function(){location.reload();}, 800); }
+    if (r.ok) { toast('Corps & rang sauvegardés'); setTimeout(function(){reloadPreservingScroll();}, 800); }
     else toast('Erreur lors de la sauvegarde');
   });
 }
@@ -1377,14 +1378,14 @@ function saveIslandOverride() {
   if (!val) { payload.reset = true; }
   else { payload.island = val; }
   post('/api/students/island', payload, function(r) {
-    if (r.ok) { toast('Île sauvegardée ✅'); setTimeout(function(){ location.reload(); }, 700); }
+    if (r.ok) { toast('Île sauvegardée ✅'); setTimeout(function(){ reloadPreservingScroll(); }, 700); }
     else toast('Erreur sauvegarde île');
   });
 }
 
 function resetIsland() {
   post('/api/students/island', { index: STUDENT_IDX, reset: true }, function(r) {
-    if (r.ok) { toast('Île remise en auto ✅'); setTimeout(function(){ location.reload(); }, 700); }
+    if (r.ok) { toast('Île remise en auto ✅'); setTimeout(function(){ reloadPreservingScroll(); }, 700); }
   });
 }
 
@@ -1608,7 +1609,7 @@ function syncLichess(){
   btn.textContent='...'; btn.disabled=true;
   post('/api/sync/lichess',{student_index:STUDENT_IDX,username:uname},function(r){
     btn.textContent='Sync Lichess'; btn.disabled=false;
-    if(r.ok){toast('Lichess OK');location.reload();}
+    if(r.ok){toast('Lichess OK');reloadPreservingScroll();}
     else document.getElementById('sync-msg').textContent='Erreur: '+r.error;
   });
 }
@@ -1619,7 +1620,7 @@ function syncChesscom(){
   btn.textContent='...'; btn.disabled=true;
   post('/api/sync/chesscom',{student_index:STUDENT_IDX,username:uname},function(r){
     btn.textContent='Sync Chess.com'; btn.disabled=false;
-    if(r.ok){toast('Chess.com OK');location.reload();}
+    if(r.ok){toast('Chess.com OK');reloadPreservingScroll();}
     else document.getElementById('sync-msg').textContent='Erreur: '+r.error;
   });
 }
@@ -1631,14 +1632,14 @@ async function addDevoir(){
   var dueStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:'';
   var attachments=await uploadStudentFiles('dev-files');
   var d=await postJSON('/api/students/devoir',{student_index:STUDENT_IDX,action:'add',title:title,due:dueStr,note:v('dev-note'),attachments:attachments});
-  if(d.ok) location.reload(); else toast(d.error || 'Erreur devoir');
+  if(d.ok) reloadPreservingScroll(); else toast(d.error || 'Erreur devoir');
 }
 function changeDevStatus(di,status){
   post('/api/students/devoir',{student_index:STUDENT_IDX,action:'status',devoir_index:di,status:status},null);
 }
 function deleteDevoir(di){
   if(!confirm('Supprimer ?')) return;
-  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'delete',devoir_index:di},function(){location.reload();});
+  post('/api/students/devoir',{student_index:STUDENT_IDX,action:'delete',devoir_index:di},function(){reloadPreservingScroll();});
 }
 
 async function sendStudentFeedback(){
@@ -1659,7 +1660,7 @@ async function sendStudentFeedback(){
     action_required:document.getElementById('sf-action')?.checked || false
   });
   if(msg) msg.textContent=d.ok?'Feedback envoye.':(d.error || 'Erreur');
-  if(d.ok) setTimeout(function(){location.reload();},650);
+  if(d.ok) setTimeout(function(){reloadPreservingScroll();},650);
 }
 
 async function replyStudentFeedback(feedbackId){
@@ -1668,7 +1669,7 @@ async function replyStudentFeedback(feedbackId){
   if(msg) msg.textContent='Envoi...';
   var d=await postJSON('/api/admin/feedback/reply',{student_index:STUDENT_IDX,feedback_id:feedbackId,text:el?el.value:''});
   if(msg) msg.textContent=d.ok?'Reponse envoyee.':(d.error || 'Erreur');
-  if(d.ok) setTimeout(function(){location.reload();},650);
+  if(d.ok) setTimeout(function(){reloadPreservingScroll();},650);
 }
 
 function insertTag(tag){var ta=document.getElementById('rem-text');ta.value=(ta.value.trim()+' '+tag).trim();}
@@ -1676,11 +1677,11 @@ function addRemarque(){
   var text=document.getElementById('rem-text').value.trim(); if(!text) return;
   var di=document.getElementById('rem-date').value;
   var date=di?new Date(di).toLocaleString('fr'):new Date().toLocaleString('fr');
-  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'add',text:text,date:date},function(){location.reload();});
+  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'add',text:text,date:date},function(){reloadPreservingScroll();});
 }
 function deleteRemarque(i){
   if(!confirm('Supprimer ?')) return;
-  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'delete',remarque_index:i},function(){location.reload();});
+  post('/api/students/remarque',{student_index:STUDENT_IDX,action:'delete',remarque_index:i},function(){reloadPreservingScroll();});
 }
 
 function toggleTheme(el,t){
@@ -1697,7 +1698,7 @@ function saveWorkplan(){
   post('/api/students/workplan',{student_index:STUDENT_IDX,
     work_plan:{themes:activeThemes,notes:document.getElementById('workplan-notes').value.trim()},
     elo_target:v('elo-target'),elo_target_date:document.getElementById('elo-target-date').value,
-    recurring_errors:activeErrors},function(){toast('Plan sauvegarde');location.reload();});
+    recurring_errors:activeErrors},function(){toast('Plan sauvegarde');reloadPreservingScroll();});
 }
 
 function importParties(){
@@ -1746,11 +1747,11 @@ function addAnalysis(){
   var url=v('ana-url'),opening=v('ana-opening'),notes=document.getElementById('ana-notes').value.trim();
   var result=document.getElementById('ana-result').value;
   post('/api/students/analysis',{student_index:STUDENT_IDX,action:'add',url:url,opening:opening,result:result,notes:notes},
-    function(){location.reload();});
+    function(){reloadPreservingScroll();});
 }
 function deleteAnalysis(i){
   if(!confirm('Supprimer ?')) return;
-  post('/api/students/analysis',{student_index:STUDENT_IDX,action:'delete',analysis_index:i},function(){location.reload();});
+  post('/api/students/analysis',{student_index:STUDENT_IDX,action:'delete',analysis_index:i},function(){reloadPreservingScroll();});
 }
 
 function selectMood(btn,mood){
@@ -1766,7 +1767,7 @@ function addJournalEntry(){
     selectedMood='';
     var btns=document.querySelectorAll('.mood-btn');
     for(var i=0;i<btns.length;i++) btns[i].classList.remove('selected');
-    location.reload();
+    reloadPreservingScroll();
   });
 }
 function startEditJournal(eid,content){
@@ -1787,7 +1788,7 @@ function startEditJournal(eid,content){
 function saveEditJournal(eid){
   var entry=document.getElementById('je-'+eid);
   var content=entry.querySelector('.fta').value.trim(); if(!content) return;
-  post('/api/students/journal',{student_index:STUDENT_IDX,action:'edit',entry_id:eid,content:content},function(){location.reload();});
+  post('/api/students/journal',{student_index:STUDENT_IDX,action:'edit',entry_id:eid,content:content},function(){reloadPreservingScroll();});
 }
 function cancelEditJournal(eid){
   var entry=document.getElementById('je-'+eid);
@@ -1798,7 +1799,7 @@ function cancelEditJournal(eid){
 }
 function deleteJournalEntry(eid){
   if(!confirm('Supprimer ?')) return;
-  post('/api/students/journal',{student_index:STUDENT_IDX,action:'delete',entry_id:eid},function(){location.reload();});
+  post('/api/students/journal',{student_index:STUDENT_IDX,action:'delete',entry_id:eid},function(){reloadPreservingScroll();});
 }
 
 // Init
@@ -1906,7 +1907,7 @@ async function submitCertificationResult(){
     notes:(document.getElementById('cert-notes')||{}).value||'',
     documents:documents
   },function(r){
-    if(r.ok){ toast(state.passed?'Certification validée ✅':'Rattrapage créé à 1000 FCFA'); setTimeout(function(){ location.reload(); },900); }
+    if(r.ok){ toast(state.passed?'Certification validée ✅':'Rattrapage créé à 1000 FCFA'); setTimeout(function(){ reloadPreservingScroll(); },900); }
     else if(msg) msg.textContent=r.error||'Erreur';
   });
 }
@@ -2120,7 +2121,7 @@ function submitExamResult(){
     return {question:q.question || '', answer: input ? input.value.trim() : '', correction: examAnswers[i]};
   });
   post('/api/students/certification_result',{student_index:STUDENT_IDX,grade_key:gradeKey,grade_label:gradeLabel,score:score,total:total,passed:passed,notes:notes,answers:answers},function(r){
-    if(r.ok){ toast(passed?'🎉 Certification réussie !':'❌ Certification échouée'); setTimeout(function(){ location.reload(); },1200); }
+    if(r.ok){ toast(passed?'🎉 Certification réussie !':'❌ Certification échouée'); setTimeout(function(){ reloadPreservingScroll(); },1200); }
     else document.getElementById('exam-msg').textContent='Erreur';
   });
 }
@@ -2210,20 +2211,20 @@ function addAgendaEvent(){
   var type=document.getElementById('ag-type').value;
   if(!d&&!label) return;
   post('/api/students/agenda',{student_index:STUDENT_IDX,action:'add',date:d,time:t,duration:parseInt(dur)||60,label:label,type:type},function(r){
-    if(r.ok){toast('Événement ajouté');location.reload();}
+    if(r.ok){toast('Événement ajouté');reloadPreservingScroll();}
   });
 }
 
 function toggleAgendaEvent(eid){
   post('/api/students/agenda',{student_index:STUDENT_IDX,action:'toggle_done',event_id:eid},function(r){
-    if(r.ok) location.reload();
+    if(r.ok) reloadPreservingScroll();
   });
 }
 
 function deleteAgendaEvent(eid){
   if(!confirm('Supprimer cet événement ?')) return;
   post('/api/students/agenda',{student_index:STUDENT_IDX,action:'delete',event_id:eid},function(r){
-    if(r.ok) location.reload();
+    if(r.ok) reloadPreservingScroll();
   });
 }
 
@@ -2239,20 +2240,20 @@ function addPayment(){
   var parts=date?date.split('-'):[];
   var dateStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:new Date().toLocaleDateString('fr');
   post('/api/students/finance',{student_index:STUDENT_IDX,action:'add_payment',date:dateStr,amount:amount,label:label,type:type,status:status},function(r){
-    if(r.ok){toast('Paiement ajouté');location.reload();}
+    if(r.ok){toast('Paiement ajouté');reloadPreservingScroll();}
   });
 }
 
 function markPaymentPaid(pid){
   post('/api/students/finance',{student_index:STUDENT_IDX,action:'update_status',payment_id:pid,status:'paid'},function(r){
-    if(r.ok) location.reload();
+    if(r.ok) reloadPreservingScroll();
   });
 }
 
 function deletePayment(pid){
   if(!confirm('Supprimer ce paiement ?')) return;
   post('/api/students/finance',{student_index:STUDENT_IDX,action:'delete_payment',payment_id:pid},function(r){
-    if(r.ok) location.reload();
+    if(r.ok) reloadPreservingScroll();
   });
 }
 
