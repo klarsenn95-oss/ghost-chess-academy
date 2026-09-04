@@ -346,6 +346,10 @@
       </div>
       <button class="btn secondary" style="margin-top:14px" type="button" onclick="startPuzzleTheme('')">🎲 Puzzle aléatoire — tous thèmes</button>
       <div class="muted small" id="pz-empty-msg" style="margin-top:10px;display:none">Ton coach n'a pas encore ajouté de puzzle. Reviens bientôt !</div>
+      <label style="display:flex;align-items:center;gap:7px;margin-top:14px;padding:10px 12px;border:1px solid #a78bfa33;background:#a78bfa0d;border-radius:12px;font-size:12px;color:#c4b5fd;cursor:pointer">
+        <input type="checkbox" id="pz-recon-toggle" style="accent-color:#a78bfa">
+        🔎 Mode Recon — trouve aussi les meilleurs coups de l'adversaire, pas seulement les tiens
+      </label>
     </div>
 
     <div class="card full" id="pz-solver" style="display:none">
@@ -353,6 +357,7 @@
         <button class="btn secondary tiny" type="button" onclick="exitPuzzleSolver()">← Retour aux thèmes</button>
         <span class="pill" id="pz-solver-theme"></span>
         <span class="pill" id="pz-timer">⏱ 0:00</span>
+        <span class="pill" id="pz-recon-pill" style="display:none;background:#a78bfa22;color:#c4b5fd;border-color:#a78bfa55">🔎 Recon</span>
         <span id="pz-solver-status" class="pz-status"></span>
       </div>
       <div class="pz-solver-grid">
@@ -796,10 +801,16 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>
 // V41 — Puzzles façon Lichess : plateau interactif, coup à coup, par thème.
 let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = [], pzCurrentId = null, pzCurrentTheme = '', pzStartTs = 0, pzMode = 'theme';
+// Mode Recon : le Ghost doit trouver le meilleur coup des DEUX camps (pas
+// seulement le sien) — la ligne d'un puzzle tactique est par construction
+// la continuation forcée/la mieux jouée pour les deux côtés, donc c'est
+// la même donnée (pzSolution) qui sert, juste sans le coup adverse auto-joué.
+let pzReconMode = false;
 let pzTimerInterval = null, pzHadMistake = false, pzReplayFen = '', pzPlayedMoves = [], pzReplayStep = 0;
 
 async function openAssignedPuzzle(puzzleId){
   pzMode = 'assigned';
+  pzReconMode = false; // le toggle Recon vit dans l'écran thèmes, pas dans ce flux
   pzPool = [];
   showTab('puzzles');
   document.getElementById('pz-solver-theme').textContent = 'Envoyé par ton coach';
@@ -904,6 +915,8 @@ function updatePuzzleSummary(xp, solvedCount, streak){
 async function startPuzzleTheme(theme){
   pzMode = 'theme';
   pzCurrentTheme = theme;
+  const reconChk = document.getElementById('pz-recon-toggle');
+  pzReconMode = !!(reconChk && reconChk.checked);
   const url = theme ? ('/api/client/puzzle/list?theme=' + encodeURIComponent(theme)) : '/api/client/puzzle/list';
   const r = await fetch(url);
   const d = await r.json();
@@ -937,7 +950,10 @@ async function openPuzzle(puzzleId){
   if(pzBoard) pzBoard.destroy();
   pzBoard = createPuzzleBoard(el, { fen: p.fen, orientation, interactive: true, onAttemptMove: handlePuzzleMove });
   document.getElementById('pz-move-list').innerHTML = '';
-  document.getElementById('pz-instruction').textContent = (orientation === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le meilleur coup.';
+  document.getElementById('pz-instruction').textContent = pzReconMode
+    ? '🔎 Recon — trouve le meilleur coup, y compris pour l\'adversaire.'
+    : (orientation === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le meilleur coup.';
+  document.getElementById('pz-recon-pill').style.display = pzReconMode ? '' : 'none';
   document.getElementById('pz-solver-status').textContent = '';
   document.getElementById('pz-solver-status').className = 'pz-status';
   document.getElementById('pz-giveup-btn').style.display = '';
@@ -964,6 +980,7 @@ function handlePuzzleMove(from, to, promotion){
     pzGame.undo();
     pzBoard.setFen(pzGame.fen());
     pzBoard.flashSquare(to, 'bad');
+    playOpSound('wrong');
     document.getElementById('pz-solver-status').textContent = 'Ce n\'est pas le bon coup, réessaie.';
     document.getElementById('pz-solver-status').className = 'pz-status bad';
     if(!pzHadMistake){
@@ -977,17 +994,31 @@ function handlePuzzleMove(from, to, promotion){
   }
   pzBoard.setFen(pzGame.fen(), {from, to});
   pzBoard.flashSquare(to, 'good');
+  playOpSound('move');
   addMoveToList(mv.san);
   pzSolutionIdx++;
   document.getElementById('pz-solver-status').textContent = '';
   if(pzSolutionIdx >= pzSolution.length){ finishPuzzle(true); return; }
-  // Coup de réponse automatique de l'adversaire.
+  if(pzReconMode){
+    // Mode Recon : le coup "adverse" est aussi à trouver par le Ghost —
+    // on ne le joue jamais à sa place, le plateau reste interactif pour
+    // le camp qui doit maintenant jouer (chess.js gère déjà la légalité
+    // par couleur au trait, indépendamment de l'orientation du plateau).
+    updatePzReconInstruction();
+    return;
+  }
+  // Coup de réponse automatique de l'adversaire (mode normal uniquement).
   const reply = pzSolution[pzSolutionIdx];
   setTimeout(()=>{
     const rm = pzGame.move(reply, {sloppy:true});
-    if(rm){ pzBoard.setFen(pzGame.fen(), {from: rm.from, to: rm.to}); addMoveToList(rm.san); pzSolutionIdx++; }
+    if(rm){ pzBoard.setFen(pzGame.fen(), {from: rm.from, to: rm.to}); addMoveToList(rm.san); playOpSound('move'); pzSolutionIdx++; }
     if(pzSolutionIdx >= pzSolution.length) finishPuzzle(true);
   }, 450);
+}
+
+function updatePzReconInstruction(){
+  const toMove = pzGame.turn() === 'w' ? 'Les Blancs jouent' : 'Les Noirs jouent';
+  document.getElementById('pz-instruction').textContent = `🔎 Recon — ${toMove}, trouve le meilleur coup.`;
 }
 
 async function finishPuzzle(success){
@@ -1001,6 +1032,7 @@ async function finishPuzzle(success){
   updatePuzzleIdCards(pzCurrentId, result_type, duration_seconds);
   const status = document.getElementById('pz-solver-status');
   if(success){
+    playOpSound('success');
     const streakBit = d.ok && d.streak > 1 ? ` · 🔥 série de ${d.streak}` : '';
     status.textContent = d.ok && d.xp_gained ? `Puzzle résolu ! +${d.xp_gained} XP${streakBit}` : `Puzzle résolu !${streakBit}`;
     status.className = 'pz-status good';
@@ -1116,6 +1148,7 @@ function continueProgram(){
   const next = pgTodayPuzzles.find(p => !p.solved);
   if(!next){ return; }
   pzMode = 'program';
+  pzReconMode = false; // le toggle Recon vit dans l'écran thèmes, pas dans ce flux
   document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
   document.getElementById('pz-picker').style.display = 'none';
   document.getElementById('pz-solver').style.display = 'block';
@@ -1126,6 +1159,7 @@ function openProgramPuzzle(i){
   const p = pgTodayPuzzles[i];
   if(!p) return;
   pzMode = 'program';
+  pzReconMode = false; // le toggle Recon vit dans l'écran thèmes, pas dans ce flux
   document.getElementById('pz-solver-theme').textContent = 'Programme du jour';
   document.getElementById('pz-picker').style.display = 'none';
   document.getElementById('pz-solver').style.display = 'block';
