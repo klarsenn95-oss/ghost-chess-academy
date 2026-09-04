@@ -48,6 +48,16 @@ from flask_apscheduler import APScheduler
 app = Flask(__name__)
 app.secret_key = os.environ.get("GHOST_SECRET_KEY", "ghost-dev-secret-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 110 * 1024 * 1024
+
+# Warm the puzzle-theme and opening-family caches in the background at
+# startup instead of letting whichever real visitor arrives first pay for
+# the cold full-table scan (~1.4s / ~0.7s measured) synchronously on their
+# page load — a real, measured contributor to "the dashboard feels slow"
+# on the free-tier single-worker deploy, especially right after a cold
+# start. Best-effort: a warm-up failure here must never block startup.
+import threading as _threading
+_threading.Thread(target=puzzle_service.warm_caches, daemon=True).start()
+_threading.Thread(target=opening_service.warm_caches, daemon=True).start()
 PUBLIC_BASE_URL = (
     os.environ.get("PUBLIC_BASE_URL")
     or os.environ.get("GHOST_PUBLIC_URL")

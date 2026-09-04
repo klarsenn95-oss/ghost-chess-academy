@@ -66,9 +66,23 @@ def search_openings(query: str, limit: int = 30) -> list[dict]:
     return rows
 
 
+_FAMILIES_CACHE: list[dict] | None = None
+_FAMILIES_CACHE_AT = 0.0
+_FAMILIES_CACHE_TTL_SECONDS = 3600  # la liste de familles ne change qu'au rebuild de la bibliothèque
+
+
 def list_families() -> list[dict]:
     """Distinct opening families for the browse screen (section 7), each
-    with a representative ECO and how many named variations it holds."""
+    with a representative ECO and how many named variations it holds.
+    Measured at ~700ms uncached (pages through all 8653 rows of
+    ghost_openings just to count) — this was hit on every visit to the
+    Découvrir tab, a real contributor to the "clicking feels slow"
+    complaint. The data is effectively static outside of a library
+    rebuild, so an in-process cache with a generous TTL is safe."""
+    global _FAMILIES_CACHE, _FAMILIES_CACHE_AT
+    import time
+    if _FAMILIES_CACHE is not None and time.monotonic() - _FAMILIES_CACHE_AT < _FAMILIES_CACHE_TTL_SECONDS:
+        return _FAMILIES_CACHE
     rows = _paginate_select(TABLE_OPENINGS, "family,eco",
                              lambda q: q.not_.is_("family", "null"))
     counts: dict[str, dict] = {}
@@ -78,7 +92,20 @@ def list_families() -> list[dict]:
             continue
         entry = counts.setdefault(fam, {"family": fam, "eco": r.get("eco"), "count": 0})
         entry["count"] += 1
-    return sorted(counts.values(), key=lambda e: e["family"])
+    _FAMILIES_CACHE = sorted(counts.values(), key=lambda e: e["family"])
+    _FAMILIES_CACHE_AT = time.monotonic()
+    return _FAMILIES_CACHE
+
+
+def warm_caches() -> None:
+    """Called once at server startup (background thread, best-effort) so
+    the first real visitor after a deploy/cold-start doesn't pay the ~700ms
+    families scan themselves."""
+    try:
+        if backend_ready():
+            list_families()
+    except Exception:
+        pass
 
 
 def get_family_variations(family: str) -> list[dict]:

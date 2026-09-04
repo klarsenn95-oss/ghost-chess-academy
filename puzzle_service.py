@@ -37,7 +37,11 @@ TABLE_PROGRAM_DAYS = "ghost_program_days"
 
 _THEME_COUNTS_CACHE: dict = {}
 _THEME_COUNTS_CACHE_AT = 0.0
-_THEME_COUNTS_TTL_SECONDS = 120
+# Themes only change when the coach adds/edits puzzles, not every 2 minutes —
+# a short TTL meant every list_puzzles() call after a ~2min gap re-paged the
+# whole puzzle bank (measured ~1.4s uncached), which is exactly the kind of
+# per-click cost that made the dashboard feel laggy.
+_THEME_COUNTS_TTL_SECONDS = 1800
 
 
 def backend_ready() -> bool:
@@ -92,6 +96,17 @@ def _theme_counts() -> dict:
     _THEME_COUNTS_CACHE = counts
     _THEME_COUNTS_CACHE_AT = time.monotonic()
     return counts
+
+
+def warm_caches() -> None:
+    """Called once at server startup (background thread, best-effort) so
+    the first real visitor after a deploy/cold-start doesn't pay the
+    ~1.4s theme-count scan themselves."""
+    try:
+        if backend_ready():
+            _theme_counts()
+    except Exception:
+        pass
 
 
 def list_puzzles(user_id: str, theme: Optional[str], difficulty: Optional[str], xp_by_difficulty, limit: int = 300) -> dict:

@@ -179,31 +179,11 @@
     </div>{% if student and student.hakis %}<div class="haki-row">{% for h in student.hakis %}<span class="haki-pill" style="color:{{ h.color }}">{{ h.label }}</span>{% endfor %}</div>{% endif %}
     <div class="syncbox"><button class="btn secondary" onclick="syncElo()">🔄 Actualiser mon ELO</button> <button class="btn secondary" onclick="showTab('profile', document.querySelector(`[onclick*=\'profile\']`))">👤 Modifier mon profil</button><span class="msg" id="elo-msg"></span></div>
     {% endif %}
-    {% if selected_plan.key == 'no_plan' %}
-    <div class="progress-wrap pending-note" style="padding:10px 14px">
-      <div class="progress-top"><span>🎯 Socle Ghost actif <span class="muted small">{{ included_usage.period }}</span></span><span class="muted small">{{ included_usage.games_remaining }} partie(s) · {{ included_usage.coaching_remaining_label }} restant — <a href="#offer" onclick="showTab('offer')">détails</a></span></div>
-    </div>
-    {% elif plan_state.status == 'completed' %}
-    <div class="progress-wrap completed-note">
-      <div class="progress-top"><span>✅ Dernière option terminée</span><span>{{ plan_state.used_sessions }}/{{ plan_state.total_sessions }}</span></div>
-      <a class="btn secondary renew-link" href="#payment" onclick="showTab('payment')">Renouveler / choisir une option</a>
-    </div>
-    {% elif plan_state.status == 'pending' %}
-    <div class="progress-wrap pending-note">
-      <div class="progress-top"><span>⏳ Option demandée : {{ plan_state.name }}</span><span>en attente</span></div>
-      <div class="muted small">Le coach activera l'option individuelle après validation du paiement.</div>
-    </div>
-    {% else %}
-      <div class="progress-wrap">
-      <div class="progress-top"><span>Option : {{ plan_state.name }}</span><span>{{ plan_state.percent }}% utilisé</span></div>
-      <div class="bar"><span style="width:{{ plan_state.percent }}%"></span></div>
-      <div class="muted small" style="margin-top:8px">{{ plan_state.used_sessions }} séance(s) utilisées sur {{ plan_state.total_sessions }} · Statut : {{ plan_state.status }}</div>
-      <div class="included-grid">
-        <div class="included-card"><b>Socle inclus aussi actif</b><div class="muted small">{{ included_usage.games_remaining }}/{{ included_usage.games_total }} partie(s) restantes ce mois-ci · {{ included_usage.coaching_remaining_label }} de suivi standard restant.</div></div>
-        <div class="included-card"><b>Option individuelle</b><div class="muted small">{{ plan_state.remaining_sessions }}/{{ plan_state.total_sessions }} séance(s) individuelle(s) restante(s).</div></div>
-      </div>
-    </div>
-    {% endif %}
+    <!-- Le détail Socle/option (progress-wrap ci-dessous, 4 variantes) faisait
+         doublon avec le stat "Suivi inclus restant" juste au-dessus et avec
+         la carte "💳 État du paiement" de l'onglet Paiements (même info,
+         chiffres identiques) — retiré du bandeau toujours visible, il reste
+         consultable dans l'onglet Paiements. -->
   </section>
 
   {% if payment.restricted %}
@@ -223,20 +203,9 @@
   <nav class="tabs"><button class="tab active" data-group="accueil" onclick="showTab('home',this)">🏠 Accueil</button><button class="tab" data-group="profil" onclick="showTab('offer',this)">🎟️ Offre Ghost</button><button class="tab" data-group="profil" onclick="showTab('profile',this)">👤 Profil</button><button class="tab" data-group="progression" onclick="showTab('certifications',this)">Certifications</button><button class="tab" data-group="progression" onclick="showTab('elo',this)">📈 ELO & progression</button><button class="tab" data-group="profil" onclick="showTab('squad',this)">🛡️ Squad</button><button class="tab" data-group="entrainement" onclick="showTab('puzzles',this)">🧩 Puzzles</button><button class="tab" data-group="entrainement" onclick="showTab('openings',this)">📚 Ouvertures</button><button class="tab" data-group="entrainement" onclick="showTab('send',this)">♟ Envoyer</button><button class="tab" data-group="entrainement" onclick="showTab('homework',this)">📚 Devoirs</button><button class="tab" data-group="calendrier" onclick="showTab('rdv',this)">📅 RDV</button><button class="tab" data-group="coach" onclick="showTab('feedback',this)">💬 Feedbacks</button><button class="tab" data-group="progression" onclick="showTab('grandline',this)">🗺️ Grand Line</button><button class="tab" data-group="calendrier" onclick="showTab('tournois',this)">🏆 Tournois</button><button class="tab" data-group="coach" onclick="showTab('comm',this)">💬 Échanges</button><button class="tab" data-group="profil" onclick="showTab('payment',this)">💳 Paiements</button><button class="tab" data-group="profil" onclick="showTab('divers',this)">🧾 Divers</button></nav>
 
   <section id="tab-home" class="panel active gh-home">
-    {% if student and student.client_notifications %}
-    <div class="card full home-todo">
-      <div class="ttl">🎯 À faire{% if student.client_notifications|length > 3 %}<span class="muted small" style="font-weight:400;text-transform:none;letter-spacing:0"> — {{ student.client_notifications|length }} au total</span>{% endif %}</div>
-      <div class="todo-list">
-      {% for n in student.client_notifications[:2] %}
-        <a class="todo-item" href="#{{ n.target_tab }}" onclick="openGhostNotification(event,'{{ n.id }}','{{ n.target_tab }}','{{ n.linked_id or '' }}')">
-          <b>{{ n.title }}</b>
-          <span class="date">{{ n.date }}</span>
-        </a>
-      {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-
+    <!-- La liste "À faire" faisait doublon avec la cloche 🔔 Notifications du
+         header (même contenu, liste complète) — retirée d'ici, elle reste
+         accessible depuis la cloche sur n'importe quel écran. -->
     <div class="card full gh-menu-grid" aria-label="Navigation Espace Ghost">
       <a class="gh-menu-btn" href="#homework" onclick="showTab('homework')"><span class="icon">📚</span><span class="label">Devoirs</span></a>
       <a class="gh-menu-btn" href="#puzzles" onclick="showTab('puzzles')"><span class="icon">🧩</span><span class="label">Puzzles</span>{% if student and student.puzzle_xp %}<span class="count" style="background:#7c3aed">{{ student.puzzle_xp }} XP</span>{% endif %}</a>
@@ -263,7 +232,7 @@
       <p class="muted" style="max-width:820px">Ce paiement ouvre ton compte Ghost de façon définitive. Il ne s'agit pas d'un abonnement mensuel : une fois ton inscription validée par le coach, ton accès à la plateforme reste actif.</p>
       <div class="offer-split">
         <div class="plan is-included"><b>Inclus dans l'inscription</b><p class="muted">Accès app, devoirs, feedbacks, fichiers, {{ registration_monthly_games }} analyses/mois et {{ registration_monthly_coaching }}.</p></div>
-        <div class="plan"><b>Consommation du mois</b><p class="muted">{{ included_usage.games_used }}/{{ included_usage.games_total }} partie(s) analysée(s) · {{ included_usage.coaching_used_label }}/{{ included_usage.coaching_hours_label }} de suivi standard.</p></div>
+        <div class="plan"><b>Consommation du mois <span class="muted small">({{ included_usage.period }})</span></b><p class="muted">{{ included_usage.games_used }}/{{ included_usage.games_total }} partie(s) analysée(s) · {{ included_usage.coaching_used_label }}/{{ included_usage.coaching_hours_label }} de suivi standard.</p></div>
         <div class="plan is-option"><b>Options payantes</b><p class="muted">Séances individuelles, packs progression, préparation tournoi et suivi premium. Elles ajoutent du temps coach, elles ne remplacent pas ton socle.</p></div>
       </div>
       <div class="plan-grid">
@@ -587,7 +556,7 @@ function selectTabGroup(group){
   document.querySelectorAll('.tab-group').forEach(b=>b.classList.toggle('active',b.dataset.group===group));
   document.querySelectorAll('.tabs .tab').forEach(b=>{ b.style.display = (b.dataset.group===group) ? '' : 'none'; });
 }
-function showTab(name,btn){if(typeof exitExchangeFocus==='function')exitExchangeFocus();let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil')}
+function showTab(name,btn){if(typeof exitExchangeFocus==='function')exitExchangeFocus();let panel=document.getElementById('tab-'+name);if(!panel){name='home';panel=document.getElementById('tab-home')}document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));if(panel)panel.classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(btn&&panel)btn.classList.add('active'); else {const b=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(b)b.classList.add('active')} localStorage.setItem('ghost_client_tab',name); history.replaceState(null,'','#'+name); const activeTabBtn=[...document.querySelectorAll('.tab')].find(x=>x.getAttribute('onclick')?.includes("'"+name+"'")); if(activeTabBtn) selectTabGroup(activeTabBtn.dataset.group||'accueil'); if(name==='openings'&&typeof loadOpeningRepertoire==='function')loadOpeningRepertoire()}
 document.querySelectorAll('.tab-group').forEach(btn=>{
   btn.addEventListener('click',()=>{
     selectTabGroup(btn.dataset.group);
@@ -1167,6 +1136,12 @@ function showOpeningsSubTab(which){
   document.getElementById('op-tab-repertoire-btn').className = which === 'repertoire' ? 'btn tiny' : 'btn secondary tiny';
   document.getElementById('op-tab-discover-btn').className = which === 'discover' ? 'btn tiny' : 'btn secondary tiny';
   if(which === 'discover' && !opFamiliesLoaded) loadClientOpeningFamilies();
+  // Le répertoire n'était chargé qu'une fois au chargement de la page (+ à
+  // la sortie du solveur) — revenir sur cet onglet depuis un autre onglet
+  // du dashboard pouvait donc afficher un pourcentage périmé. On recharge
+  // à chaque fois que l'onglet redevient visible ; un simple fetch, pas
+  // assez coûteux pour justifier de le cacher.
+  if(which === 'repertoire') loadOpeningRepertoire();
 }
 
 async function loadOpeningRepertoire(){
@@ -1300,25 +1275,40 @@ function hideOpBubble(){
 let opSoundMuted = false;
 try { opSoundMuted = localStorage.getItem('opSoundMuted') === '1'; } catch(e){}
 let opAudioCtx = null;
-function opTone(freq, duration, type, gain){
+// Un "tock" percussif (bruit filtré + enveloppe très courte), pas une
+// note de synthé — c'est le bruit d'une pièce qui se pose, pas un bip de
+// jeu vidéo. filterFreq plus bas = son plus sourd/mat (coup refusé),
+// plus haut = plus clair/sec (coup posé, réussite).
+function opClick(filterFreq, duration, gain){
   if(opSoundMuted) return;
   try{
     if(!opAudioCtx) opAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if(opAudioCtx.state === 'suspended') opAudioCtx.resume();
-    const osc = opAudioCtx.createOscillator(), g = opAudioCtx.createGain();
-    osc.type = type || 'sine'; osc.frequency.value = freq;
-    const now = opAudioCtx.currentTime;
-    g.gain.setValueAtTime(gain || 0.06, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + duration);
-    osc.connect(g); g.connect(opAudioCtx.destination);
-    osc.start(now); osc.stop(now + duration);
+    const ctx = opAudioCtx;
+    const n = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, n, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i = 0; i < n; i++){
+      const decay = Math.pow(1 - i / n, 4); // attaque instantanée, chute rapide
+      data[i] = (Math.random() * 2 - 1) * decay;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = filterFreq;
+    filter.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    noise.connect(filter); filter.connect(g); g.connect(ctx.destination);
+    noise.start();
   }catch(e){}
 }
 function playOpSound(kind){
-  if(kind === 'move') opTone(420, 0.07, 'triangle', 0.05);
-  else if(kind === 'good') opTone(660, 0.12, 'sine', 0.07);
-  else if(kind === 'wrong') opTone(170, 0.18, 'sawtooth', 0.06);
-  else if(kind === 'success'){ opTone(660, 0.1, 'sine', 0.07); setTimeout(() => opTone(880, 0.16, 'sine', 0.08), 110); }
+  if(kind === 'move') opClick(1100, 0.045, 0.5);
+  else if(kind === 'good') opClick(1400, 0.05, 0.5);
+  else if(kind === 'wrong') opClick(450, 0.09, 0.4);
+  else if(kind === 'success'){ opClick(1200, 0.045, 0.5); setTimeout(() => opClick(1600, 0.05, 0.5), 90); }
 }
 function toggleOpSound(){
   opSoundMuted = !opSoundMuted;
