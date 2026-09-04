@@ -9,6 +9,12 @@ html,body.shell-body{height:100%;overflow:hidden;background:#03030a;color:#f5f3f
 .shell-brand{text-align:center;padding:10px 10px 24px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:14px}.brand-knight{width:54px;height:54px;margin:0 auto;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 14px #8b5cf6)}.brand-knight img{max-width:100%;max-height:100%;width:auto;height:auto}.brand-title{font-family:var(--font-display);font-size:34px;letter-spacing:7px;color:#ff3131;text-shadow:0 0 22px #cc1a1a88}.brand-sub{font-size:11px;color:#6366f1;letter-spacing:4px;font-family:var(--font-mono)}
 .shell-nav{display:flex;flex-direction:column;gap:7px;flex:1}.shell-link{border:1px solid transparent;background:transparent;color:#6d6a91;border-radius:13px;padding:12px 14px;text-align:left;font-weight:700;font-size:14px;cursor:pointer;transition:.22s;font-family:inherit}.shell-link:hover{background:rgba(255,255,255,.055);color:#ddd6fe;transform:translateX(3px)}.shell-link.active{background:linear-gradient(90deg,rgba(204,26,26,.24),rgba(124,58,237,.12));border-color:rgba(239,68,68,.45);color:#fff;box-shadow:0 0 25px rgba(204,26,26,.12)}
 .shell-hint{font-size:11px;color:#4b486b;border-top:1px solid rgba(255,255,255,.06);padding-top:14px;font-family:var(--font-mono)}
+.shell-nav-group{display:flex;flex-direction:column;gap:5px;}
+.shell-nav-group summary{list-style:none;cursor:pointer;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8b85ad;padding:9px 13px 3px;user-select:none;display:flex;align-items:center;gap:6px}
+.shell-nav-group summary::-webkit-details-marker{display:none}
+.shell-nav-group summary::before{content:'▸';font-size:10px;display:inline-block;transition:transform .18s}
+.shell-nav-group[open] summary::before{transform:rotate(90deg)}
+@media(max-width:850px){.shell-nav-group summary{display:none}}
 .shell-main{flex:1;z-index:1;height:100vh;display:flex;flex-direction:column;min-width:0;padding:20px 22px 96px}.shell-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.shell-kicker{font-size:11px;color:#8b5cf6;text-transform:uppercase;letter-spacing:.18em;font-family:var(--font-mono)}.shell-topbar h1{font-family:var(--font-display);font-size:32px;letter-spacing:2px;margin:0;color:#fff}
 .notif-btn{background:rgba(10,10,22,.82);border:1px solid rgba(167,139,250,.2);color:#fff;border-radius:999px;padding:10px 16px;cursor:pointer}.notif-btn span{background:#ef4444;border-radius:999px;padding:1px 7px;margin-left:4px}.notif-panel{position:absolute;right:26px;top:72px;width:360px;max-width:calc(100vw - 40px);background:rgba(5,5,18,.95);border:1px solid rgba(167,139,250,.22);border-radius:18px;padding:16px;z-index:5;box-shadow:0 24px 70px #0008;display:none}.notif-panel.open{display:block;animation:pop .18s ease}.notif-title{font-weight:900;color:#fff;margin-bottom:8px}.notif-row{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);color:#c4b5fd;display:flex;align-items:flex-start;gap:10px;justify-content:space-between}.notif-row a{color:#c4b5fd;text-decoration:none;flex:1}.notif-delete{border:1px solid rgba(239,68,68,.35);background:#7f1d1d55;color:#fecaca;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:800;cursor:pointer}.notif-empty{color:#555}
 @keyframes pop{from{opacity:0;transform:translateY(-5px) scale(.98)}to{opacity:1;transform:none}}
@@ -282,4 +288,15 @@ html, body.shell-body { height:100%; overflow:hidden!important; }
 @media (max-width: 860px){
   .page-frame-wrap{height:auto!important;min-height:calc(100vh - 148px)!important;overflow:visible!important;border-radius:16px!important;}
   #appFrame{height:calc(100vh - 148px)!important;min-height:720px!important;width:100%!important;display:block!important;}
+}
+
+/* Catégories repliables (<details>) : confort desktop uniquement. Sur la
+   barre mobile (icônes/pills en ligne, largeurs <=860px gérées par les
+   blocs ci-dessus), le groupe reste un petit sous-rang horizontal au lieu
+   d'empiler ses .shell-link verticalement (display:contents sur <details>
+   ne se comporte pas de façon fiable selon les navigateurs — ses enfants
+   restaient empilés dans une seule "pilule" au lieu de rejoindre la
+   rangée défilante). */
+@media(max-width:860px){
+  .shell-nav-group{display:flex!important;flex-direction:row!important;flex:0 0 auto!important;gap:6px!important;}
 }

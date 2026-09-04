@@ -168,8 +168,19 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         </div>
       </div>
     </div>
-    <div class="s-name">{{ s.name or 'Ghost' }}</div>
+    <div class="s-name">{{ s.name or 'Ghost' }}
+      {% if s.cheat_flag == 'occasional' %}<span class="cheat-pin cheat-pin-occasional" title="Tricheur occasionnel signalé">⚠️</span>
+      {% elif s.cheat_flag == 'permanent' %}<span class="cheat-pin cheat-pin-permanent" title="Tricheur permanent signalé">🚫</span>{% endif %}
+    </div>
     <div class="s-meta" style="font-size:12px;color:#444">{{ [s.age~' ans' if s.age, s.city, s.job]|select|join(' · ') }}</div>
+    <div style="margin-top:8px">
+      <label style="font-size:10px;color:#555;display:block;margin-bottom:3px">🎯 Statut anti-triche</label>
+      <select class="fi" id="cheat-flag-select" style="margin-bottom:0;font-size:12px;padding:6px 8px" onchange="saveCheatFlag()">
+        <option value="" {% if not s.cheat_flag %}selected{% endif %}>Aucun signalement</option>
+        <option value="occasional" {% if s.cheat_flag=='occasional' %}selected{% endif %}>⚠️ Tricheur occasionnel</option>
+        <option value="permanent" {% if s.cheat_flag=='permanent' %}selected{% endif %}>🚫 Tricheur permanent</option>
+      </select>
+    </div>
     {% if rank.best_elo %}
     <div class="s-elo" id="sidebar-elo-display">
       ⚡ {{ rank.best_elo }}
@@ -1305,6 +1316,13 @@ function toggleHaki(key, color) {
     btn.style.borderColor = color;
     btn.textContent = '✋ Manuel';
   }
+}
+
+function saveCheatFlag() {
+  var v = document.getElementById('cheat-flag-select').value;
+  post('/api/students/save', {_index: STUDENT_IDX, cheat_flag: v}, function(r) {
+    toast(r.ok ? 'Statut anti-triche mis à jour' : 'Erreur lors de la sauvegarde');
+  });
 }
 
 function saveRankOverride() {

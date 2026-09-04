@@ -221,7 +221,7 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
         <span class="vel-badge" style="background:{{ s._badge_color }}22;color:{{ s._badge_color }};border-color:{{ s._badge_color }}44">{{ s._badge_label }}</span>
       </div>
       {% for h in s._hakis[:2] %}<div class="haki-badge" style="color:{{ h.color }}">{{ h.label }}{% if h.manual %} ✋{% endif %}</div>{% endfor %}
-      <div class="student-name">{% if s.avatar %}<img class="student-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<span>♟</span>{% endif %} {{ s.name or 'Sans nom' }}</div>
+      <div class="student-name">{% if s.avatar %}<img class="student-avatar" src="{{ s.avatar }}" alt="{{ s.name or 'Ghost' }}" loading="lazy">{% else %}<span>♟</span>{% endif %} {{ s.name or 'Sans nom' }}{% if s.cheat_flag == 'occasional' %}<span class="cheat-pin cheat-pin-occasional" title="Tricheur occasionnel signalé">⚠️</span>{% elif s.cheat_flag == 'permanent' %}<span class="cheat-pin cheat-pin-permanent" title="Tricheur permanent signalé">🚫</span>{% endif %}</div>
       <div class="student-meta">{{ [s.age~' ans' if s.age, s.city]|select|join(' · ') }}</div>
       {% if s.lichess %}<div class="student-lichess">@ {{ s.lichess }}</div>{% endif %}
       {% if s.style %}<div class="student-style">🎯 {{ s.style }}</div>{% endif %}
@@ -320,11 +320,8 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">📈 Comparateur ELO</div>
-    <div style="position:relative;height:300px"><canvas id="compare-chart"></canvas></div>
-    <div id="compare-legend" class="chart-legend"></div>
-  </div>
+  <!-- Comparateur ELO retiré à la demande du coach : même limité à 8
+       courbes, ça restait peu lisible. -->
 
   <!-- "Styles & ouvertures" (une ligne de texte libre par Ghost) retiré :
        signalé par le coach comme inutile ici — le style et les ouvertures
@@ -1581,7 +1578,7 @@ updatePeriodLabel();
 </style>
 
 <!-- Modal new student removed in V12: inline form is used to avoid iframe/modal blocking. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Chart.js retiré avec le comparateur ELO (V-suivante) : plus rien ne l'utilise ici. -->
 <script>
 const STUDENTS_DATA = {{ students|tojson }};
 const SESSIONS_DATA = {{ sessions|tojson }};
@@ -1683,7 +1680,6 @@ function showPage(page,btn) {
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   if(btn) btn.classList.add('active');
-  if(page==='stats') initCompareChart();
   if(page==='students'){
     window.requestIdleCallback ? requestIdleCallback(drawAllMiniGhostRadars,{timeout:300}) : setTimeout(drawAllMiniGhostRadars,0);
   }
@@ -1768,53 +1764,6 @@ async function createStudent() {
   }catch(e){ if(msg) msg.textContent='Erreur réseau. Vérifie le serveur puis réessaie.'; }
 }
 
-
-let compareChart=null;
-function initCompareChart() {
-  const canvas = document.getElementById('compare-chart');
-  if(!canvas) return;
-  if(compareChart){compareChart.destroy();compareChart=null;}
-  const COLORS=['#cc1a1a','#fbbf24','#f472b6','#a78bfa','#60a5fa','#4ade80','#fb923c','#38bdf8'];
-  const datasets=[];
-  const legend=document.getElementById('compare-legend');
-  legend.innerHTML='';
-  // Un tracé par Ghost avec seulement 8 couleurs qui tournent devenait
-  // illisible dès qu'il y a plus de 8 élèves (couleurs qui se répètent,
-  // courbes qui se chevauchent) — on limite au top 8 par ELO moyen, le
-  // sous-groupe le plus pertinent à comparer, plutôt que d'entasser tout
-  // le groupe sur un seul graphique.
-  const MAX_COMPARED = 8;
-  const eligible = STUDENTS_DATA.filter(s => (s.elo_history||[]).length >= 2);
-  const shown = [...eligible].sort((a,b) => (b._avg_elo||0) - (a._avg_elo||0)).slice(0, MAX_COMPARED);
-  if(eligible.length > MAX_COMPARED){
-    const note=document.createElement('div');
-    note.className='muted';
-    note.style.cssText='font-size:11px;margin-bottom:6px';
-    note.textContent = `Top ${MAX_COMPARED} par ELO moyen (${eligible.length} Ghosts ont un historique) — ouvre la fiche d'un Ghost pour sa courbe individuelle.`;
-    legend.appendChild(note);
-  }
-  shown.forEach((s,si)=>{
-    const hist=(s.elo_history||[]).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    const points=hist.map(e=>{
-      const v=e.elo_li_blitz||e.elo_cc_blitz||e.elo_li||e.elo_cc;
-      return v&&String(v).replace(/^-/,'').match(/^\d+$/) ? {x:e.date?.slice(0,5),y:parseInt(v)} : null;
-    }).filter(Boolean);
-    if(points.length<2) return;
-    const col=COLORS[si%COLORS.length];
-    datasets.push({label:s.name||'?',data:points,borderColor:col,backgroundColor:col+'22',fill:false,tension:0.3,pointRadius:3,borderWidth:2});
-    const dot=document.createElement('span');
-    dot.className='legend-dot';
-    dot.innerHTML=`<span style="background:${col};width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px"></span>${s.name||'?'}`;
-    legend.appendChild(dot);
-  });
-  if(!datasets.length){canvas.parentElement.innerHTML='<p style="color:#444;text-align:center;padding:60px">Pas encore de données.</p>';return;}
-  compareChart=new Chart(canvas,{type:'line',data:{datasets},options:{
-    responsive:true,maintainAspectRatio:false,
-    parsing:{xAxisKey:'x',yAxisKey:'y'},
-    plugins:{legend:{display:false}},
-    scales:{x:{ticks:{color:'#444',maxTicksLimit:8},grid:{color:'#111'}},y:{ticks:{color:'#444'},grid:{color:'#111'}}}
-  }});
-}
 
 function toast(msg) {
   const t=document.createElement('div');t.className='toast';t.textContent=msg;

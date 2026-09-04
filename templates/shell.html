@@ -27,16 +27,33 @@
     <nav class="shell-nav">
       <button class="shell-link active" data-url="/?embed=1" data-title="Dashboard">🏠 Dashboard</button>
       <button class="shell-link" data-url="/admin/clients" data-title="Espace Ghosts">🎓 Espace Ghosts</button>
-      <button class="shell-link" data-page="students" data-title="Ghosts">👥 Ghosts</button>
-      <button class="shell-link" data-page="sessions" data-title="Sessions">📅 Sessions</button>
-      <button class="shell-link" data-page="binomes" data-title="Binômes">🤝 Binômes</button>
-      <button class="shell-link" data-page="pricegrid" data-title="Tarifs">💰 Tarifs</button>
-      <button class="shell-link" data-page="stats" data-title="Stats groupe">📊 Stats groupe</button>
-      <button class="shell-link" data-page="ranks" data-title="Rangs & Hakis">🏴‍☠️ Rangs & Hakis</button>
-      <button class="shell-link" data-page="hierarchy" data-title="Hiérarchie">⚓ Hiérarchie</button>
-      <button class="shell-link" data-page="seance" data-title="Séance">⚡ Séance</button>
-      <button class="shell-link" data-page="certifications" data-title="Certifications">🎖️ Certifications</button>
-      <button class="shell-link" data-page="reports" data-title="Rapports">📄 Rapports</button>
+
+      <details class="shell-nav-group" open>
+        <summary>👥 Élèves</summary>
+        <button class="shell-link" data-page="students" data-title="Ghosts">👥 Ghosts</button>
+        <button class="shell-link" data-page="binomes" data-title="Binômes">🤝 Binômes</button>
+        <button class="shell-link" data-page="ranks" data-title="Rangs & Hakis">🏴‍☠️ Rangs & Hakis</button>
+        <button class="shell-link" data-page="hierarchy" data-title="Hiérarchie">⚓ Hiérarchie</button>
+      </details>
+
+      <details class="shell-nav-group">
+        <summary>📖 Pédagogie</summary>
+        <button class="shell-link" data-page="seance" data-title="Séance">⚡ Séance</button>
+        <button class="shell-link" data-page="certifications" data-title="Certifications">🎖️ Certifications</button>
+        <button class="shell-link" data-page="stats" data-title="Stats groupe">📊 Stats groupe</button>
+      </details>
+
+      <details class="shell-nav-group">
+        <summary>💰 Argent</summary>
+        <button class="shell-link" data-page="pricegrid" data-title="Tarifs">💰 Tarifs</button>
+      </details>
+
+      <details class="shell-nav-group">
+        <summary>📅 Programme</summary>
+        <button class="shell-link" data-page="sessions" data-title="Sessions">📅 Sessions</button>
+        <button class="shell-link" data-page="reports" data-title="Rapports">📄 Rapports</button>
+      </details>
+
       <button class="shell-link" data-url="/client" data-title="Portail client">🔐 Portail client</button>
     </nav>
     <div class="shell-hint">{{ students|length }} Ghosts · notifications connectées</div>
@@ -295,7 +312,21 @@ function stopFrameLoading(){
   wrap.classList.remove('loading');
   settleFrameSize();
 }
+// Les catégories repliables (<details>) sont un confort desktop — sur la
+// barre mobile en bas d'écran (icônes/pills en ligne), il n'y a pas la
+// place pour un résumé de catégorie et tout doit rester visible d'un
+// coup, donc on les force ouvertes en dessous du même seuil que le CSS.
+function syncNavGroupsForViewport(){
+  if(window.innerWidth <= 850){
+    document.querySelectorAll('details.shell-nav-group').forEach(d => d.open = true);
+  }
+}
+syncNavGroupsForViewport();
+window.addEventListener('resize', syncNavGroupsForViewport, {passive:true});
+
 links.forEach(btn=>btn.addEventListener('click',()=>{
+  const grp = btn.closest('details.shell-nav-group');
+  if(grp) grp.open = true;
   links.forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   title.textContent = btn.dataset.title || btn.textContent.replace(/^[^A-Za-zÀ-ÿ]+/,'').trim();
