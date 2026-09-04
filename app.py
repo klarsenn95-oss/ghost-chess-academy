@@ -2446,6 +2446,7 @@ def public_student_payload(student):
         "delta": delta,
         "devoirs": student.get("devoirs", [])[-20:],
         "work_plan": student.get("work_plan", {}),
+        "elo_target": student.get("elo_target", ""),
         "puzzle_xp": int(student.get("puzzle_xp", 0)),
         "puzzle_solved_count": len(student.get("puzzle_solved_ids", [])),
         "puzzle_streak": 0,
