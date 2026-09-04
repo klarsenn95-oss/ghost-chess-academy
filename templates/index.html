@@ -590,6 +590,75 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
   </div>
 </section>
 
+<!-- FINANCES -->
+<section id="page-finance" class="page">
+  <div class="page-header"><h1>📒 Finances <span class="header-sub">Registre des mouvements d'argent</span></h1></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div id="fin-summary-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div class="empty">Chargement…</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">📊 Répartition par catégorie</div>
+    <div id="fin-breakdown"><div class="empty">Chargement…</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">➕ Nouveau mouvement</div>
+    <div style="font-size:11px;color:#666;margin-bottom:10px">Cotisations membres, apports associés, gains ou versements de tournoi, rémunération coach — les inscriptions/options élèves restent suivies dans Tarifs / la fiche de chaque Ghost, pas ici.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Sens</label>
+        <select class="fi" id="fin-kind" style="margin-bottom:0">
+          <option value="income">💰 Entrée</option>
+          <option value="expense">💸 Sortie</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Catégorie</label>
+        <select class="fi" id="fin-category" style="margin-bottom:0">
+          <option value="member_contribution">Cotisation membre</option>
+          <option value="associate_contribution">Apport associé</option>
+          <option value="tournament_entry_income">Droits d'entrée (tournoi)</option>
+          <option value="tournament_prize_payout">Gains versés (tournoi)</option>
+          <option value="coach_payment">Rémunération coach</option>
+          <option value="other">Autre</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Montant (FCFA)</label>
+        <input class="fi" type="number" id="fin-amount" placeholder="10000" min="1" step="100" style="margin-bottom:0">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date</label>
+        <input class="fi" type="date" id="fin-date" style="margin-bottom:0">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Note</label>
+        <input class="fi" id="fin-note" placeholder="De qui, pourquoi…" style="margin-bottom:0">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Ghost lié (optionnel)</label>
+        <select class="fi" id="fin-student" style="margin-bottom:0">
+          <option value="">— Aucun —</option>
+          {% for s in students %}<option value="{{ s._index }}">{{ s.name or 'Sans nom' }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="addFinanceTransaction()">➕ Ajouter</button>
+    </div>
+    <div class="msg" id="fin-add-msg"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📜 Derniers mouvements enregistrés ici</div>
+    <div id="fin-tx-list"><div class="empty">Chargement…</div></div>
+  </div>
+</section>
+
 <!-- HIÉRARCHIE -->
 <section id="page-hierarchy" class="page">
   <div class="page-header">
@@ -1683,6 +1752,87 @@ function showPage(page,btn) {
   if(page==='students'){
     window.requestIdleCallback ? requestIdleCallback(drawAllMiniGhostRadars,{timeout:300}) : setTimeout(drawAllMiniGhostRadars,0);
   }
+  if(page==='finance') loadFinanceData();
+}
+
+// ── Finances ─────────────────────────────────────────────────
+const FIN_CATEGORY_LABELS = {
+  member_contribution: "Cotisation membre", associate_contribution: "Apport associé",
+  tournament_prize_payout: "Gains versés (tournoi)", tournament_entry_income: "Droits d'entrée (tournoi)",
+  coach_payment: "Rémunération coach", other: "Autre",
+  registration_online: "Inscriptions & options (paiement en ligne)",
+  registration_manual: "Paiements enregistrés sur les fiches élèves",
+};
+function finFmt(n){ return (n||0).toLocaleString('fr-FR') + ' FCFA'; }
+
+async function loadFinanceData(){
+  const [summaryRes, txRes] = await Promise.all([
+    fetch('/api/admin/finance/summary').then(r=>r.json()),
+    fetch('/api/admin/finance/transactions').then(r=>r.json()),
+  ]);
+  const cards = document.getElementById('fin-summary-cards');
+  const breakdown = document.getElementById('fin-breakdown');
+  const txList = document.getElementById('fin-tx-list');
+  if(!summaryRes.ok){
+    cards.innerHTML = `<div class="empty">${summaryRes.error||'Erreur'}</div>`;
+    breakdown.innerHTML = ''; txList.innerHTML = '';
+    return;
+  }
+  const s = summaryRes.summary;
+  cards.innerHTML = `
+    <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80">${finFmt(s.total_income)}</div><div style="font-size:11px;color:#444;margin-top:2px">💰 Total entrées</div></div>
+    <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;color:#f87171">${finFmt(s.total_expense)}</div><div style="font-size:11px;color:#444;margin-top:2px">💸 Total sorties</div></div>
+    <div style="background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--red)">${finFmt(s.balance)}</div><div style="font-size:11px;color:#444;margin-top:2px">📊 Solde net</div></div>
+  `;
+  breakdown.innerHTML = s.breakdown.length ? s.breakdown.map(b => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #161616">
+      <span style="font-size:13px">${b.kind==='income'?'💰':'💸'} ${FIN_CATEGORY_LABELS[b.category]||b.category} <span class="muted" style="font-size:11px">· ${b.count}</span></span>
+      <b style="color:${b.kind==='income'?'#4ade80':'#f87171'}">${finFmt(b.total)}</b>
+    </div>`).join('') : '<div class="empty">Aucun mouvement enregistré pour l\'instant.</div>';
+
+  if(!txRes.ok){ txList.innerHTML = `<div class="empty">${txRes.error||'Erreur'}</div>`; return; }
+  txList.innerHTML = txRes.transactions.length ? txRes.transactions.map(t => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #161616">
+      <div>
+        <span style="font-size:13px">${t.kind==='income'?'💰':'💸'} ${FIN_CATEGORY_LABELS[t.category]||t.category}</span>
+        <div class="muted" style="font-size:11px">${t.occurred_on||''}${t.student_name?' · '+t.student_name:''}${t.note?' · '+t.note:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="color:${t.kind==='income'?'#4ade80':'#f87171'}">${finFmt(t.amount)}</b>
+        <button class="btn btn-danger btn-sm" onclick="deleteFinanceTransaction('${t.id}')">🗑</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Aucun mouvement enregistré pour l\'instant.</div>';
+}
+
+async function addFinanceTransaction(){
+  const msg = document.getElementById('fin-add-msg');
+  const studentVal = document.getElementById('fin-student').value;
+  const payload = {
+    kind: document.getElementById('fin-kind').value,
+    category: document.getElementById('fin-category').value,
+    amount: parseInt(document.getElementById('fin-amount').value, 10),
+    occurred_on: document.getElementById('fin-date').value,
+    note: document.getElementById('fin-note').value,
+    student_index: studentVal ? parseInt(studentVal, 10) : null,
+  };
+  if(!payload.amount || payload.amount <= 0){ msg.textContent = 'Montant invalide.'; return; }
+  msg.textContent = 'Enregistrement…';
+  const r = await fetch('/api/admin/finance/transactions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const d = await r.json();
+  if(d.ok){
+    msg.textContent = 'Mouvement enregistré.';
+    document.getElementById('fin-amount').value = '';
+    document.getElementById('fin-note').value = '';
+    loadFinanceData();
+  } else {
+    msg.textContent = d.error || 'Erreur.';
+  }
+}
+
+async function deleteFinanceTransaction(id){
+  if(!confirm('Supprimer ce mouvement ?')) return;
+  await fetch('/api/admin/finance/transactions/' + id + '/delete', {method:'POST'});
+  loadFinanceData();
 }
 
 async function syncAll() {

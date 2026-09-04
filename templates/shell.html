@@ -26,7 +26,7 @@
     </div>
     <nav class="shell-nav">
       <button class="shell-link active" data-url="/?embed=1" data-title="Dashboard">🏠 Dashboard</button>
-      <button class="shell-link" data-url="/admin/clients" data-title="Espace Ghosts">🎓 Espace Ghosts</button>
+      <button class="shell-link" data-url="/admin/clients" data-title="Comptes & Paiements">💳 Comptes & Paiements</button>
 
       <details class="shell-nav-group" open>
         <summary>👥 Élèves</summary>
@@ -46,6 +46,7 @@
       <details class="shell-nav-group">
         <summary>💰 Argent</summary>
         <button class="shell-link" data-page="pricegrid" data-title="Tarifs">💰 Tarifs</button>
+        <button class="shell-link" data-page="finance" data-title="Finances">📒 Finances</button>
       </details>
 
       <details class="shell-nav-group">
@@ -66,7 +67,7 @@
         <h1 id="shell-title">Dashboard</h1>
       </div>
       <div class="shell-actions">
-        <a class="shell-toplink" href="/client" target="_blank" title="Voir la connexion et l'espace Ghost">🎓 Espace Ghost</a>
+        <a class="shell-toplink" href="/client" target="_blank" title="Ouvrir l'appli telle qu'un Ghost la voit">👁️ Aperçu élève</a>
         <a class="shell-toplink danger" href="/coach/logout" title="Se déconnecter du compte coach">↩ Déconnexion</a>
         <button class="notif-btn" id="notifBtn">🔔 <span id="notifCount">{{ notifications|length }}</span></button>
       </div>

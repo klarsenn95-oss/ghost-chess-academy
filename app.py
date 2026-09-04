@@ -31,6 +31,7 @@ from supabase_backend import (
 )
 import puzzle_service
 import opening_service
+import finance_service
 
 
 # ReportLab
@@ -5864,6 +5865,70 @@ def api_client_openings_attempt():
         return jsonify({"ok": False, "error": "Position manquante."}), 400
     row = opening_service.record_progress(user["id"], opening_id, correct)
     return jsonify({"ok": True, "progress": row})
+
+
+FINANCE_NOT_READY_MSG = "Registre financier pas encore prêt (table Supabase à créer — voir supabase_finance_schema.sql)."
+
+@app.route("/api/admin/finance/summary")
+def api_admin_finance_summary():
+    if not finance_service.backend_ready():
+        return jsonify({"ok": False, "error": "Registre financier non connecté (Supabase requis)."}), 400
+    data = load_data()
+    try:
+        summary = finance_service.build_summary(data.get("payments_log") or [], data.get("students") or [])
+    except finance_service.TableNotReady:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    return jsonify({"ok": True, "summary": summary})
+
+@app.route("/api/admin/finance/transactions")
+def api_admin_finance_transactions():
+    if not finance_service.backend_ready():
+        return jsonify({"ok": False, "error": "Registre financier non connecté (Supabase requis)."}), 400
+    category = request.args.get("category") or None
+    kind = request.args.get("kind") or None
+    try:
+        rows = finance_service.list_transactions(category=category, kind=kind)
+    except finance_service.TableNotReady:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    data = load_data()
+    for r in rows:
+        idx = r.get("student_index")
+        r["student_name"] = student_name_from_index(data, idx, "") if isinstance(idx, int) else ""
+    return jsonify({"ok": True, "transactions": rows})
+
+@app.route("/api/admin/finance/transactions", methods=["POST"])
+def api_admin_finance_add_transaction():
+    if not finance_service.backend_ready():
+        return jsonify({"ok": False, "error": "Registre financier non connecté (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    student_index = body.get("student_index")
+    try:
+        student_index = int(student_index) if student_index not in (None, "") else None
+    except (TypeError, ValueError):
+        student_index = None
+    try:
+        entry = finance_service.add_transaction(
+            kind=body.get("kind"), category=body.get("category"),
+            amount=body.get("amount"), occurred_on=body.get("occurred_on") or "",
+            note=body.get("note") or "", student_index=student_index,
+            tournament_id=body.get("tournament_id") or None,
+            coach_user_id=body.get("coach_user_id") or None,
+        )
+    except (ValueError, TypeError) as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except finance_service.TableNotReady:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    return jsonify({"ok": True, "transaction": entry})
+
+@app.route("/api/admin/finance/transactions/<transaction_id>/delete", methods=["POST"])
+def api_admin_finance_delete_transaction(transaction_id):
+    if not finance_service.backend_ready():
+        return jsonify({"ok": False, "error": "Registre financier non connecté (Supabase requis)."}), 400
+    try:
+        finance_service.remove_transaction(transaction_id)
+    except finance_service.TableNotReady:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    return jsonify({"ok": True})
 
 
 @app.route("/api/admin/backup/export")
