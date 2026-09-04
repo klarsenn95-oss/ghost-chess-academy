@@ -834,6 +834,64 @@ let pzGame = null, pzBoard = null, pzSolution = [], pzSolutionIdx = 0, pzPool = 
 // la continuation forcée/la mieux jouée pour les deux côtés, donc c'est
 // la même donnée (pzSolution) qui sert, juste sans le coup adverse auto-joué.
 let pzReconMode = false;
+
+// ── Moteur (Stockfish, asm.js self-hosté) — Recon uniquement ──────────
+// Le mode Recon demande de trouver LE coup du jeu de données, mais dans
+// beaucoup de positions plusieurs coups sont objectivement bons (même
+// évaluation à quelques centipawns près). On ne peut pas le savoir sans
+// un vrai moteur : on lance Stockfish en Worker, uniquement à la demande
+// (jamais chargé hors Recon), et on ne l'utilise que pour valider un coup
+// qui ne correspond pas au coup attendu — le coup attendu reste toujours
+// accepté instantanément, sans appel moteur.
+let sfWorker = null, sfReadyPromise = null, sfPending = null;
+const SF_MOVETIME_MS = 400, SF_MARGIN_CP = 60;
+
+function ensureEngine(){
+  if (sfReadyPromise) return sfReadyPromise;
+  sfReadyPromise = new Promise((resolve) => {
+    sfWorker = new Worker('/static/stockfish.min.js');
+    sfWorker.onmessage = (e) => {
+      const line = typeof e.data === 'string' ? e.data : (e.data && e.data.data) || '';
+      if (line === 'uciok') {
+        sfWorker.postMessage('setoption name MultiPV value 3');
+        sfWorker.postMessage('isready');
+      } else if (line === 'readyok') {
+        resolve();
+      } else if (sfPending) {
+        sfPending(line);
+      }
+    };
+    sfWorker.postMessage('uci');
+  });
+  return sfReadyPromise;
+}
+
+function preloadEngineIfRecon(){
+  if (pzReconMode) ensureEngine().catch(()=>{});
+}
+
+// Renvoie {1: {score, move}, 2: {...}, 3: {...}} — score en centipawns du
+// point de vue du camp au trait dans `fen` (convention UCI), move en UCI
+// (ex. "e2e4", "a7a8q").
+function evalTopMoves(fen, movetimeMs){
+  return ensureEngine().then(() => new Promise((resolve) => {
+    const lines = {};
+    sfPending = (line) => {
+      const m = /multipv (\d+).*?score (cp|mate) (-?\d+).*?\spv (\S+)/.exec(line);
+      if (m) {
+        const kind = m[2], raw = parseInt(m[3], 10);
+        const score = kind === 'mate' ? (raw > 0 ? 100000 - raw : -100000 - raw) : raw;
+        lines[m[1]] = { score, move: m[4] };
+      }
+      if (line.indexOf('bestmove') === 0) {
+        sfPending = null;
+        resolve(lines);
+      }
+    };
+    sfWorker.postMessage('position fen ' + fen);
+    sfWorker.postMessage('go movetime ' + movetimeMs);
+  }));
+}
 let pzTimerInterval = null, pzHadMistake = false, pzReplayFen = '', pzPlayedMoves = [], pzReplayStep = 0;
 
 async function openAssignedPuzzle(puzzleId){
@@ -982,6 +1040,7 @@ async function openPuzzle(puzzleId){
     ? '🔎 Recon — trouve le meilleur coup, y compris pour l\'adversaire.'
     : (orientation === 'white' ? 'Les Blancs jouent' : 'Les Noirs jouent') + ' — trouve le meilleur coup.';
   document.getElementById('pz-recon-pill').style.display = pzReconMode ? '' : 'none';
+  preloadEngineIfRecon(); // charge le moteur pendant que le Ghost regarde la position, pas au premier coup douteux
   document.getElementById('pz-solver-status').textContent = '';
   document.getElementById('pz-solver-status').className = 'pz-status';
   document.getElementById('pz-giveup-btn').style.display = '';
@@ -1001,6 +1060,7 @@ function addMoveToList(san){
 
 function handlePuzzleMove(from, to, promotion){
   if(!pzGame || pzSolutionIdx >= pzSolution.length) return;
+  const fenBeforeMove = pzGame.fen();
   const mv = pzGame.move({from, to, promotion: promotion || 'q'});
   if(!mv) return;
   const expected = pzSolution[pzSolutionIdx];
@@ -1018,6 +1078,14 @@ function handlePuzzleMove(from, to, promotion){
       document.getElementById('pz-solver-status').textContent = '';
       pzSolutionIdx = pzSolution.length;
       finishPuzzle(true);
+      return;
+    }
+    if(pzReconMode){
+      // En Recon, un coup qui n'est pas celui du jeu de données peut quand
+      // même être objectivement bon (à quelques centipawns du meilleur) —
+      // on demande au moteur avant de trancher, plutôt que de comparer
+      // juste la chaîne de coup comme en mode normal.
+      handleReconAlternative(fenBeforeMove, mv);
       return;
     }
     pzGame.undo();
@@ -1062,6 +1130,48 @@ function handlePuzzleMove(from, to, promotion){
 function updatePzReconInstruction(){
   const toMove = pzGame.turn() === 'w' ? 'Les Blancs jouent' : 'Les Noirs jouent';
   document.getElementById('pz-instruction').textContent = `🔎 Recon — ${toMove}, trouve le meilleur coup.`;
+}
+
+// Coup Recon qui ne correspond pas au coup attendu : demande au moteur si
+// c'est quand même un bon coup avant de le refuser. Le coup reste affiché
+// sur le plateau pendant l'analyse (pas de flash/annulation immédiate) —
+// s'il est validé le puzzle se termine ici (on ne rejoue pas la suite du
+// jeu de données, qui ne correspond plus à la ligne réellement jouée).
+function handleReconAlternative(fenBeforeMove, mv){
+  pzBoard.setFen(pzGame.fen(), {from: mv.from, to: mv.to});
+  const status = document.getElementById('pz-solver-status');
+  status.textContent = '🔎 Analyse du coup…';
+  status.className = 'pz-status';
+  const uci = mv.from + mv.to + (mv.promotion || '');
+  evalTopMoves(fenBeforeMove, SF_MOVETIME_MS).then(lines => {
+    const candidates = Object.values(lines);
+    if(!candidates.length){ rejectReconAlternative(mv, status); return; }
+    const bestScore = Math.max(...candidates.map(c => c.score));
+    const played = candidates.find(c => c.move === uci);
+    if(played && (bestScore - played.score) <= SF_MARGIN_CP){
+      addMoveToList(mv.san);
+      playOpSound('move');
+      status.textContent = '✅ Bon coup — validé par le moteur.';
+      status.className = 'pz-status good';
+      pzSolutionIdx = pzSolution.length;
+      finishPuzzle(true);
+    } else {
+      rejectReconAlternative(mv, status);
+    }
+  }).catch(() => rejectReconAlternative(mv, status));
+}
+
+function rejectReconAlternative(mv, status){
+  pzGame.undo();
+  pzBoard.setFen(pzGame.fen());
+  pzBoard.flashSquare(mv.to, 'bad');
+  playOpSound('wrong');
+  status.textContent = 'Ce n\'est pas le bon coup, réessaie.';
+  status.className = 'pz-status bad';
+  if(!pzHadMistake){
+    pzHadMistake = true;
+    postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success: false, result_type: 'failed'}).catch(()=>{});
+  }
 }
 
 async function finishPuzzle(success){
