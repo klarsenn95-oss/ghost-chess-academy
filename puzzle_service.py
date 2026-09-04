@@ -400,6 +400,20 @@ def attempt_summary_for_puzzle(user_id: str, puzzle_id: str) -> Optional[dict]:
     }
 
 
+def _format_attempt_datetime(iso_ts: Optional[str]) -> str:
+    """Supabase returns created_at as a UTC ISO timestamp — the coach asked
+    to actually see the date AND time a Ghost solved each puzzle (for
+    tracking whether they're following their program), so this formats it
+    in Paris local time rather than leaving a raw ISO string in the UI."""
+    if not iso_ts:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00")).astimezone(PARIS_TZ)
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except (ValueError, TypeError):
+        return ""
+
+
 def recent_attempts(user_id: str, limit: int = 15) -> list[dict]:
     """Recent puzzle activity enriched with puzzle identity, for the
     coach's 'Puzzles récents' feed — cards, not raw attempt rows."""
@@ -427,6 +441,7 @@ def recent_attempts(user_id: str, limit: int = 15) -> list[dict]:
             "duration_seconds": r.get("duration_seconds"),
             "result_type": rtype, "result_label": RESULT_LABELS.get(rtype, rtype),
             "created_at": r.get("created_at"),
+            "created_at_label": _format_attempt_datetime(r.get("created_at")),
         })
     return out
 

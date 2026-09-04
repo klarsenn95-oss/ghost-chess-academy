@@ -69,6 +69,12 @@ LOCAL_DEV_URL = os.environ.get("LOCAL_DEV_URL", "http://127.0.0.1:5031")
 app.config["PREFERRED_URL_SCHEME"] = "https" if PUBLIC_BASE_URL.startswith("https://") else "http"
 DATA_FILE = os.path.join(os.path.expanduser("~"), ".ghost_chess_data.json")
 
+# Kinds shown as genuine coach<->Ghost conversation (feedback threads that
+# can be replied to). Everything else that flows through add_student_feedback
+# (opening/tournament/rank/payment/appointment notices, etc.) is a one-way
+# notice — already surfaced via the bell/notifications panel, not this thread.
+CONVERSATION_KINDS = {"feedback", "game", "homework", "analysis", "lesson"}
+
 ADMIN_USERNAME = os.environ.get("GHOST_ADMIN_USERNAME", "coach")
 ADMIN_PASSWORD = os.environ.get("GHOST_ADMIN_PASSWORD", "")
 
@@ -2374,7 +2380,7 @@ def public_student_payload(student):
     island = get_island(student)
     vel, badge_color, badge_label, delta = get_progression_velocity(student)
     all_feedback = student.get("client_feedback", [])[:40]
-    pedagogic_kinds = {"feedback", "game", "homework", "analysis", "lesson"}
+    pedagogic_kinds = CONVERSATION_KINDS
     coach_feedback = [f for f in all_feedback if (f.get("kind") or "feedback") in pedagogic_kinds]
     # Les tournois ont leur propre onglet et restent des notifications : ils ne
     # doivent pas polluer les échanges liés au coaching.
@@ -2751,8 +2757,15 @@ def student_page(idx):
         elif active_program:
             active_program["progress"] = {"total_assigned": 0, "total_solved": 0, "percent": 0}
         if user_for_puzzle:
-            recent_puzzle_attempts = puzzle_service.recent_attempts(user_for_puzzle["id"], limit=10)
+            recent_puzzle_attempts = puzzle_service.recent_attempts(user_for_puzzle["id"], limit=30)
             enrich_puzzle_feedback(s.get("client_feedback", []), user_for_puzzle["id"])
+    # L'onglet ÉCHANGES de la fiche montrait TOUT ce qui passe par
+    # add_student_feedback (ouvertures assignées, tournois, changements de
+    # rang, paiements...), pas seulement les vraies conversations — d'où la
+    # liste interminable signalée par le coach. On ne garde ici que les
+    # échanges pédagogiques auxquels on répond réellement ; le reste reste
+    # visible via la cloche de notifications, pas dupliqué ici.
+    s["client_feedback"] = [f for f in s.get("client_feedback", []) if (f.get("kind") or "feedback") in CONVERSATION_KINDS]
     if s.get("devoirs"):
         solved_ids = set(puzzle_overview.get("solved_ids") or [])
         s["devoirs"] = [

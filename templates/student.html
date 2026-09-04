@@ -528,27 +528,6 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
     <div id="elo-legend" style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#444"></div>
   </div>
 
-  <div class="s-section">
-    <div class="s-section-title">➕ Entrée manuelle</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">
-      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Date</label><input type="date" class="fi" id="prog-date"></div>
-      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">ELO Lichess blitz</label><input class="fi" id="prog-li" placeholder="1250"></div>
-      <div><label style="font-size:11px;color:#444;display:block;margin-bottom:3px">ELO Chess.com blitz</label><input class="fi" id="prog-cc" placeholder="1100"></div>
-      <button class="btn btn-red btn-sm" onclick="addProgression()">➕</button>
-    </div>
-    <input class="fi" id="prog-note" placeholder="Note de session…" style="width:100%">
-  </div>
-
-  <div id="prog-list">
-    {% for e in s.get('elo_history',[])|reverse %}
-    <div class="prog-item">
-      <span class="prog-date">{{ e.date }}</span>
-      <span class="prog-elos">{% if e.elo_li_blitz or e.elo_li %}Li {{ e.elo_li_blitz or e.elo_li }}{% endif %}{% if e.elo_cc_blitz or e.elo_cc %}  CC {{ e.elo_cc_blitz or e.elo_cc }}{% endif %}</span>
-      {% if e.note %}<span class="prog-note">{{ e.note }}</span>{% endif %}
-      <button class="btn btn-danger btn-xs" onclick="deleteProgression({{ s.get('elo_history',[])|length-loop.index }})">🗑</button>
-    </div>
-    {% else %}<div style="color:#333;text-align:center;padding:20px">Aucune entrée.</div>{% endfor %}
-  </div>
 </div>
 
 <!-- DEVOIRS -->
@@ -1211,6 +1190,7 @@ html,body{overflow:auto!important;height:auto!important;display:block!important;
         <span class="pill">🧩 {{ a.theme }}{% if a.themes|length > 1 %} +{{ a.themes|length - 1 }}{% endif %}</span>
         <span class="pill">{{ a.difficulty }}</span>
         {% if a.rating %}<span class="muted small">{{ a.rating }} elo</span>{% endif %}
+        {% if a.created_at_label %}<div class="muted small" style="margin-top:3px">🕒 {{ a.created_at_label }}</div>{% endif %}
       </div>
       <div style="text-align:right;font-size:12px">
         <b>{{ a.result_label }}</b>
@@ -1241,8 +1221,16 @@ var CAD_COLORS = {blitz_li:'#cc1a1a',blitz_cc:'#fbbf24',bullet_li:'#ff3a1a',bull
 var CAD_LABELS = {blitz_li:'🟢 Blitz',blitz_cc:'🟡 Blitz',bullet_li:'🟢 Bullet',bullet_cc:'🟡 Bullet',rapid_li:'🟢 Rapid',classical_li:'🟢 Classical',rapid_cc:'🟡 Rapid'};
 var selectedMood='';
 var currentPlat='li';
-var activeCadences=['blitz_li'];
-var activeFilter=7;
+// Le filtre par défaut était 7 jours et une seule série (blitz Lichess) —
+// un Ghost qui n'a pas synchronisé dans la semaine, ou qui ne joue que sur
+// Chess.com, voyait un graphique vide même avec un vrai historique
+// derrière : "la courbe ne s'affiche pas" alors que la donnée existait.
+// Par défaut : tout l'historique, et toutes les séries qui ont des points.
+var activeFilter=0;
+var activeCadences=Object.keys((CHART_DATA && CHART_DATA.series) || {}).filter(function(k){
+  return (CHART_DATA.series[k]||[]).some(function(v){return v!==null;});
+});
+if(!activeCadences.length) activeCadences=['blitz_li'];
 var eloChart=null;
 var activeThemes={{ s.get('work_plan',{}).get('themes',[])|tojson }};
 var activeErrors={{ s.get('recurring_errors',[])|tojson }};
@@ -1636,21 +1624,6 @@ function syncChesscom(){
   });
 }
 
-function addProgression(){
-  var d=document.getElementById('prog-date').value;
-  var li=v('prog-li'),cc=v('prog-cc'),note=v('prog-note');
-  if(!li&&!cc&&!note) return;
-  var parts=d?d.split('-'):[];
-  var dateStr=parts.length===3?parts[2]+'/'+parts[1]+'/'+parts[0]:new Date().toLocaleDateString('fr');
-  post('/api/students/progression',{student_index:STUDENT_IDX,action:'add',
-    date:dateStr,elo_li_blitz:li,elo_cc_blitz:cc,elo_li:li,elo_cc:cc,note:note},
-    function(){toast('Entree ajoutee');location.reload();});
-}
-function deleteProgression(i){
-  if(!confirm('Supprimer ?')) return;
-  post('/api/students/progression',{student_index:STUDENT_IDX,action:'delete',prog_index:i},function(){location.reload();});
-}
-
 async function addDevoir(){
   var title=v('dev-title'); if(!title) return;
   var due=document.getElementById('dev-due').value;
@@ -1829,7 +1802,6 @@ function deleteJournalEntry(eid){
 }
 
 // Init
-document.getElementById('prog-date').value='{{ now_date }}';
 var rdi=document.getElementById('rem-date');
 if(rdi){var nd=new Date();rdi.value=nd.getFullYear()+'-'+(nd.getMonth()+1<10?'0':'')+(nd.getMonth()+1)+'-'+(nd.getDate()<10?'0':'')+nd.getDate()+'T'+(nd.getHours()<10?'0':'')+nd.getHours()+':'+(nd.getMinutes()<10?'0':'')+nd.getMinutes();}
 
