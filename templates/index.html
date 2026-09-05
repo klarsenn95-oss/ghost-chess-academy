@@ -658,6 +658,24 @@ body.embedded-page .modal-box{filter:none!important;opacity:1!important;transfor
     <div class="card-title">📜 Derniers mouvements enregistrés ici</div>
     <div id="fin-tx-list"><div class="empty">Chargement…</div></div>
   </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">🪙 Gs → FCFA</div>
+    <div style="font-size:11px;color:#666;margin-bottom:10px">1 Gs par puzzle résolu proprement (0 erreur). Conversion toujours validée à la main, jamais automatique.</div>
+    <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Taux (FCFA par Gs)</label>
+        <input class="fi" type="number" id="gs-rate" step="0.01" min="0.01" style="margin-bottom:0;width:120px">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#444;display:block;margin-bottom:3px">Plafond mensuel / Ghost (Gs)</label>
+        <input class="fi" type="number" id="gs-cap" step="1" min="1" style="margin-bottom:0;width:160px">
+      </div>
+      <button class="btn btn-sm" onclick="saveGsSettings()">💾 Enregistrer</button>
+      <div class="msg" id="gs-settings-msg"></div>
+    </div>
+    <div id="gs-students-list"><div class="empty">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- HIÉRARCHIE -->
@@ -1753,14 +1771,14 @@ function showPage(page,btn) {
   if(page==='students'){
     window.requestIdleCallback ? requestIdleCallback(drawAllMiniGhostRadars,{timeout:300}) : setTimeout(drawAllMiniGhostRadars,0);
   }
-  if(page==='finance') loadFinanceData();
+  if(page==='finance'){ loadFinanceData(); loadGsData(); }
 }
 
 // ── Finances ─────────────────────────────────────────────────
 const FIN_CATEGORY_LABELS = {
   member_contribution: "Cotisation membre", associate_contribution: "Apport associé",
   tournament_prize_payout: "Gains versés (tournoi)", tournament_entry_income: "Droits d'entrée (tournoi)",
-  coach_payment: "Rémunération coach", other: "Autre",
+  coach_payment: "Rémunération coach", gs_payout: "Conversion Gs → FCFA", other: "Autre",
   registration_online: "Inscriptions & options (paiement en ligne)",
   registration_manual: "Paiements enregistrés sur les fiches élèves",
 };
@@ -1834,6 +1852,54 @@ async function deleteFinanceTransaction(id){
   if(!confirm('Supprimer ce mouvement ?')) return;
   await fetch('/api/admin/finance/transactions/' + id + '/delete', {method:'POST'});
   loadFinanceData();
+}
+
+// ── Gs → FCFA ────────────────────────────────────────────────
+async function loadGsData(){
+  const r = await fetch('/api/admin/gs/students');
+  const d = await r.json();
+  const list = document.getElementById('gs-students-list');
+  if(!d.ok){ list.innerHTML = `<div class="empty">${d.error||'Erreur'}</div>`; return; }
+  document.getElementById('gs-rate').value = d.settings.rate_fcfa_per_gs;
+  document.getElementById('gs-cap').value = d.settings.monthly_cap_gs;
+  if(!d.students.length){ list.innerHTML = '<div class="empty">Aucun Ghost n\'a encore de Gs.</div>'; return; }
+  list.innerHTML = d.students.map(s => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #161616;gap:10px;flex-wrap:wrap">
+      <div>
+        <b>${s.name || 'Sans nom'}</b>
+        <div class="muted" style="font-size:11px">${s.gs_earned} Gs gagnées à vie · ${s.gs_converted} déjà converties${s.ledger_ready ? ' · ' + s.gs_available + ' disponibles' : ''}</div>
+        ${!s.ledger_ready ? '<div class="muted" style="font-size:11px;color:#fbbf24">Registre financier pas encore prêt — conversion indisponible pour l\'instant.</div>' : ''}
+      </div>
+      ${s.ledger_ready ? `
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="fi" type="number" min="1" max="${Math.min(s.gs_available, s.gs_available_this_month)}" id="gs-amount-${s.student_index}" placeholder="Gs" style="margin-bottom:0;width:90px">
+        <button class="btn btn-sm" onclick="convertGs(${s.student_index})">Convertir</button>
+      </div>` : ''}
+    </div>`).join('');
+}
+
+async function saveGsSettings(){
+  const msg = document.getElementById('gs-settings-msg');
+  const payload = {
+    rate_fcfa_per_gs: parseFloat(document.getElementById('gs-rate').value),
+    monthly_cap_gs: parseInt(document.getElementById('gs-cap').value, 10),
+  };
+  msg.textContent = 'Enregistrement…';
+  const r = await fetch('/api/admin/gs/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const d = await r.json();
+  msg.textContent = d.ok ? 'Réglages enregistrés.' : (d.error || 'Erreur.');
+  if(d.ok) loadGsData();
+}
+
+async function convertGs(studentIndex){
+  const input = document.getElementById('gs-amount-' + studentIndex);
+  const gs_amount = parseInt(input.value, 10);
+  if(!gs_amount || gs_amount <= 0){ alert('Montant Gs invalide.'); return; }
+  if(!confirm(`Convertir ${gs_amount} Gs pour ce Ghost ?`)) return;
+  const r = await fetch('/api/admin/gs/convert', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({student_index: studentIndex, gs_amount})});
+  const d = await r.json();
+  if(d.ok){ alert(`Converti : ${gs_amount} Gs → ${finFmt(d.fcfa_amount)}.`); loadGsData(); loadFinanceData(); }
+  else alert(d.error || 'Erreur.');
 }
 
 async function syncAll() {

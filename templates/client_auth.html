@@ -26,10 +26,14 @@ html,body{min-height:100%;overflow:auto!important;background:#03030a;color:#f5f3
   </section>
   <section class="card">
     <div class="tabs"><button class="tab active" onclick="showTab('login',this)">Connexion</button><button class="tab" onclick="showTab('access',this)">Obtenir un code</button><button class="tab" onclick="showTab('register',this)">Créer compte</button></div>
+    <div class="msg" id="google-msg" style="display:none"></div>
     <form class="form active" id="login" onsubmit="login(event)">
       <label class="lbl">Email</label><input class="fi" id="li-email" type="email" required>
       <label class="lbl">Mot de passe</label><input class="fi" id="li-pass" type="password" required>
-      <button class="btnx">Entrer</button><div class="msg" id="li-msg"></div>
+      <button class="btnx">Entrer</button>
+      <div style="text-align:right;margin-top:8px"><a href="#" class="back" style="margin:0;font-size:12px" onclick="resetRequest();return false">Mot de passe oublié ?</a></div>
+      <div class="msg" id="li-msg"></div>
+      <button type="button" class="btnx" style="background:#1a1a2e;border:1px solid #2a2a44;margin-top:10px" onclick="location.href='/auth/google/start?intent=login'">🔵 Se connecter avec Google</button>
     </form>
     <form class="form" id="access" onsubmit="requestAccess(event)">
       <div style="border:1px solid rgba(251,191,36,.35);background:#fbbf2410;border-radius:16px;padding:14px;margin-bottom:14px">
@@ -52,6 +56,7 @@ html,body{min-height:100%;overflow:auto!important;background:#03030a;color:#f5f3
       <label style="display:flex;gap:8px;align-items:center;color:#aaa3c7;font-size:13px"><input type="checkbox" onchange="toggleRegisterPasswords(this.checked)"> Afficher les mots de passe</label>
       <label class="lbl">Code d’inscription</label><input class="fi" id="re-code" placeholder="GHOST-XXXX-XXXX" required>
       <button class="btnx">Créer mon compte</button><div class="msg" id="re-msg"></div>
+      <button type="button" class="btnx" style="background:#1a1a2e;border:1px solid #2a2a44;margin-top:10px" onclick="registerWithGoogle()">🔵 S’inscrire avec Google</button>
     </form>
   </section>
 </main>
@@ -64,6 +69,25 @@ async function requestAccess(e){e.preventDefault();const msg=document.getElement
 const li_email=document.getElementById('li-email'),li_pass=document.getElementById('li-pass'),re_name=document.getElementById('re-name'),re_email=document.getElementById('re-email'),re_pass=document.getElementById('re-pass'),re_pass_confirm=document.getElementById('re-pass-confirm'),re_code=document.getElementById('re-code');
 function toggleRegisterPasswords(show){re_pass.type=show?'text':'password';re_pass_confirm.type=show?'text':'password'}
 
-async function resetRequest(){const email=document.getElementById('li-email')?.value||prompt('Ton email de compte Ghost'); if(!email)return; const d=await post('/api/client/password/reset_request',{email}); alert(d.message||'Demande envoyée au coach.');}
+async function resetRequest(){
+  const email=document.getElementById('li-email')?.value||prompt('Ton email de compte Ghost');
+  if(!email)return;
+  const d=await post('/api/client/password/forgot',{email});
+  if(d.ok){ alert('Si ce compte existe, un email de réinitialisation vient d\'être envoyé (pense à vérifier tes spams).'); return; }
+  // L'envoi automatique n'est pas encore configuré côté coach : on retombe
+  // sur l'ancien circuit (une notification part au coach qui réinitialise à la main).
+  const d2=await post('/api/client/password/reset_request',{email});
+  alert(d2.message||'Demande envoyée au coach.');
+}
+function registerWithGoogle(){
+  const code=document.getElementById('re-code').value.trim();
+  if(!code){ alert('Renseigne d\'abord ton code d\'inscription.'); return; }
+  location.href='/auth/google/start?intent=register&code='+encodeURIComponent(code);
+}
+(function(){
+  const params=new URLSearchParams(location.search);
+  const err=params.get('google_error');
+  if(err){ const el=document.getElementById('google-msg'); el.style.display='block'; el.textContent=err; }
+})();
 </script>
 </body></html>

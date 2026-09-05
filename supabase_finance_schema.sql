@@ -19,7 +19,7 @@ create table if not exists public.ghost_transactions (
   category text not null check (category in (
     'member_contribution', 'associate_contribution',
     'tournament_prize_payout', 'tournament_entry_income',
-    'coach_payment', 'other'
+    'coach_payment', 'gs_payout', 'other'
   )),
   amount integer not null check (amount > 0),
   currency text not null default 'FCFA',

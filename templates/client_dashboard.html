@@ -363,7 +363,7 @@
       <div id="pg-today-body"></div>
     </div>
     <div class="card full" id="pz-picker">
-      <div class="ttl">🧩 Puzzles <span id="pz-xp-summary" class="muted small">— {{ student.puzzle_xp if student else 0 }} XP · {{ student.puzzle_solved_count if student else 0 }} résolu(s)</span></div>
+      <div class="ttl">🧩 Puzzles <span id="pz-xp-summary" class="muted small">— {{ student.puzzle_xp if student else 0 }} XP · {{ student.puzzle_solved_count if student else 0 }} résolu(s)</span> <span id="pz-gs-summary" class="muted small"></span></div>
       <div class="pz-theme-grid" id="pz-theme-grid">
         {% for t in puzzle_themes %}
         <button class="pz-theme-btn" type="button" data-theme="{{ t }}" onclick="startPuzzleTheme('{{ t }}')">
@@ -403,6 +403,8 @@
               <button class="btn secondary tiny" type="button" onclick="pzReplayStepFn(1)">Coup suivant ▶</button>
             </div>
             <div class="muted small" id="pz-replay-status" style="margin-top:6px">Revois les coups du puzzle.</div>
+            <button class="btn secondary tiny" type="button" onclick="analyzeCurrentPosition()" id="pz-analyze-btn" style="margin-top:10px;display:none">🔍 Analyser la position</button>
+            <div id="pz-analysis" style="margin-top:8px;display:none"></div>
           </div>
         </div>
       </div>
@@ -991,6 +993,16 @@ async function loadPuzzleThemeCounts(){
     document.getElementById('pz-empty-msg').style.display = total ? 'none' : 'block';
     updatePuzzleSummary(d.xp || 0, d.solved_count || 0, d.streak || 0, d.day_streak || 0);
   }catch(e){}
+  loadGsSummary();
+}
+
+async function loadGsSummary(){
+  try{
+    const r = await fetch('/api/client/gs/balance');
+    const d = await r.json();
+    const el = document.getElementById('pz-gs-summary');
+    if(el && d.ok && d.gs_earned > 0) el.textContent = `· 🪙 ${d.gs_earned} Gs`;
+  }catch(e){}
 }
 
 function updatePuzzleSummary(xp, solvedCount, streak, dayStreak){
@@ -1046,6 +1058,9 @@ async function openPuzzle(puzzleId){
   document.getElementById('pz-giveup-btn').style.display = '';
   document.getElementById('pz-next-btn').style.display = 'none';
   document.getElementById('pz-replay').style.display = 'none';
+  document.getElementById('pz-analyze-btn').style.display = 'none';
+  document.getElementById('pz-analysis').style.display = 'none';
+  document.getElementById('pz-analysis').innerHTML = '';
   pzStartTs = Date.now();
   startPzTimer();
 }
@@ -1161,6 +1176,53 @@ function handleReconAlternative(fenBeforeMove, mv){
   }).catch(() => rejectReconAlternative(mv, status));
 }
 
+// Analyse post-résolution (n'importe quel puzzle, pas seulement Recon) —
+// le moteur n'est chargé qu'au clic, jamais préchargé ici : contrairement
+// au Recon, la plupart des élèves ne cliqueront jamais sur ce bouton.
+function scoreToText(score){
+  if (Math.abs(score) >= 90000) {
+    const mateIn = 100000 - Math.abs(score);
+    return (score > 0 ? '#+' : '#-') + mateIn;
+  }
+  const pawns = (score / 100).toFixed(1);
+  return (score > 0 ? '+' : '') + pawns;
+}
+
+async function analyzeCurrentPosition(){
+  const panel = document.getElementById('pz-analysis');
+  const btn = document.getElementById('pz-analyze-btn');
+  panel.style.display = 'block';
+  panel.innerHTML = '<span class="muted small">🔎 Analyse en cours…</span>';
+  btn.disabled = true;
+  try{
+    const fen = pzGame.fen();
+    // Une position de mat/pat n'a aucun coup à chercher — Stockfish ne
+    // renvoie jamais de ligne "bestmove" exploitable dessus, ce qui
+    // bloquerait l'attente indéfiniment.
+    if(pzGame.game_over && pzGame.game_over()){
+      panel.innerHTML = '<span class="muted small">Partie terminée — plus rien à analyser sur cette position.</span>';
+      return;
+    }
+    const lines = await evalTopMoves(fen, 900);
+    const analyzer = new Chess(fen);
+    const rows = Object.keys(lines).sort().map(k => {
+      const c = lines[k];
+      const scratch = new Chess(fen);
+      const from = c.move.slice(0, 2), to = c.move.slice(2, 4), promo = c.move.slice(4) || undefined;
+      const mv = scratch.move({from, to, promotion: promo});
+      return { score: c.score, san: mv ? mv.san : c.move };
+    });
+    if(!rows.length){ panel.innerHTML = '<span class="muted small">Analyse indisponible.</span>'; return; }
+    const turn = analyzer.turn() === 'w' ? 'Les Blancs' : 'Les Noirs';
+    panel.innerHTML = `<div class="muted small" style="margin-bottom:4px">${turn} au trait — évaluation du moteur :</div>` +
+      rows.map(r => `<div class="muted small">${scoreToText(r.score)} — ${r.san}</div>`).join('');
+  }catch(e){
+    panel.innerHTML = '<span class="muted small">Analyse indisponible pour le moment.</span>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 function rejectReconAlternative(mv, status){
   pzGame.undo();
   pzBoard.setFen(pzGame.fen());
@@ -1179,6 +1241,7 @@ async function finishPuzzle(success){
   stopPzTimer();
   document.getElementById('pz-giveup-btn').style.display = 'none';
   document.getElementById('pz-next-btn').style.display = '';
+  document.getElementById('pz-analyze-btn').style.display = '';
   const duration_seconds = pzStartTs ? Math.max(1, Math.round((Date.now() - pzStartTs) / 1000)) : null;
   const result_type = success ? (pzHadMistake ? 'solved_after_mistake' : 'solved') : 'gave_up';
   const d = await postJSON('/api/client/puzzle/solve', {puzzle_id: pzCurrentId, success, duration_seconds, result_type});

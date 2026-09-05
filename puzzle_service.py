@@ -208,6 +208,18 @@ def _user_attempts(user_id: str) -> list[dict]:
     return _paginate_select(TABLE_ATTEMPTS, "puzzle_id,success,xp_awarded,created_at,duration_seconds", _filter)
 
 
+GS_PER_CLEAN_PUZZLE = 1  # 1 Gs par puzzle résolu proprement, même base que l'XP
+
+
+def gs_earned_total(user_id: str) -> int:
+    """Gs gagnées à vie = nombre de puzzles distincts qui ont rapporté de
+    l'XP (donc résolus proprement, cf. record_attempt) — pas de compteur
+    séparé à maintenir, ni de risque de désynchronisation avec l'XP."""
+    attempts = _user_attempts(user_id)
+    rewarded_ids = {a["puzzle_id"] for a in attempts if (a.get("xp_awarded") or 0) > 0}
+    return len(rewarded_ids) * GS_PER_CLEAN_PUZZLE
+
+
 def _solved_puzzle_ids(user_id: str) -> set:
     return {a["puzzle_id"] for a in _user_attempts(user_id) if a.get("success")}
 
@@ -379,7 +391,11 @@ def record_attempt(user_id: str, puzzle_id: str, success: bool, difficulty: str,
         .gt("xp_awarded", 0).limit(1).execute().data
     )
     xp_gained = 0
-    if success and not already_rewarded:
+    # Un coup raté pendant la résolution ne doit pas donner d'XP même si le
+    # puzzle est réussi ensuite — seule une résolution propre (0 erreur) est
+    # récompensée, sinon "rater puis retenter jusqu'à trouver" vaudrait
+    # autant qu'une vraie réussite du premier coup.
+    if success and result_type != "solved_after_mistake" and not already_rewarded:
         xp_gained = xp_by_difficulty.get(difficulty, 10)
     try:
         row = {"user_id": user_id, "puzzle_id": puzzle_id, "success": success, "xp_awarded": xp_gained}

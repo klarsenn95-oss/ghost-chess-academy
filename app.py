@@ -7,9 +7,9 @@
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, send_from_directory, session
-import json, os, uuid, threading
+import json, os, uuid, threading, secrets
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from functools import wraps
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
@@ -32,6 +32,8 @@ from supabase_backend import (
 import puzzle_service
 import opening_service
 import finance_service
+import email_service
+import google_oauth
 
 
 # ReportLab
@@ -100,7 +102,7 @@ def protect_coach_space():
     if not admin_auth_enabled():
         return None
     path = request.path or "/"
-    public_prefixes = ("/static/", "/client", "/api/client", "/coach/login", "/login", "/health", "/favicon.ico")
+    public_prefixes = ("/static/", "/client", "/api/client", "/coach/login", "/login", "/health", "/favicon.ico", "/reset-password", "/auth/google/")
     if path.startswith(public_prefixes):
         return None
     if admin_logged_in():
@@ -1708,6 +1710,17 @@ def default_price_grid():
         "ghost_premium": 20000,
         "forfait_note": "Tarifs en FCFA. Paiement à Arthur Simo (+237) 694054282, confirmé par le coach avant activation.",
     }
+
+def default_gs_settings():
+    return {
+        "rate_fcfa_per_gs": 0.5,   # exemple du coach : 1000 Gs (puzzles propres) = 500 FCFA
+        "monthly_cap_gs": 2000,    # plafond de Gs convertibles par Ghost et par mois, anti-abus
+    }
+
+def get_gs_settings(data):
+    settings = data.get("gs_settings") or {}
+    defaults = default_gs_settings()
+    return {**defaults, **settings}
 
 def default_client_price_plans():
     return [
@@ -4040,6 +4053,148 @@ def api_client_login():
     session["client_user_id"] = user["id"]
     return jsonify({"ok": True})
 
+RESET_TOKEN_TTL_SECONDS = 3600
+
+@app.route("/api/client/password/forgot", methods=["POST"])
+def api_client_password_forgot():
+    body = request.get_json(force=True, silent=True) or {}
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"ok": False, "error": "Email requis."}), 400
+    if not email_service.smtp_configured():
+        return jsonify({"ok": False, "error": "L'envoi d'email n'est pas encore configuré, contacte ton coach."}), 503
+    data = load_data()
+    user = next((u for u in data.get("users", []) if (u.get("email") or "").lower() == email), None)
+    if user:
+        token = secrets.token_urlsafe(32)
+        user["reset_token"] = token
+        user["reset_token_expires_at"] = (datetime.now(timezone.utc) + timedelta(seconds=RESET_TOKEN_TTL_SECONDS)).isoformat()
+        save_data(data)
+        reset_url = f"{PUBLIC_BASE_URL}/reset-password?token={token}"
+        email_service.send_email(
+            email, "Réinitialisation de ton mot de passe — GHOST Chess Academy",
+            f"Bonjour {user.get('name') or ''},\n\n"
+            f"Clique sur ce lien pour choisir un nouveau mot de passe (valable 1 heure) :\n{reset_url}\n\n"
+            "Si tu n'es pas à l'origine de cette demande, ignore simplement cet email.",
+        )
+    # Même réponse qu'un compte existe ou non — jamais confirmer/infirmer
+    # qu'un email est enregistré (anti-énumération de comptes).
+    return jsonify({"ok": True})
+
+@app.route("/reset-password")
+def reset_password_page():
+    return render_template("reset_password.html", token=request.args.get("token", ""))
+
+@app.route("/api/client/password/reset", methods=["POST"])
+def api_client_password_reset():
+    body = request.get_json(force=True, silent=True) or {}
+    token = (body.get("token") or "").strip()
+    password = body.get("password") or ""
+    password_confirm = body.get("password_confirm") or ""
+    if not token or len(password) < 6:
+        return jsonify({"ok": False, "error": "Lien invalide ou mot de passe trop court (6 caractères minimum)."}), 400
+    if password != password_confirm:
+        return jsonify({"ok": False, "error": "Les deux mots de passe ne correspondent pas."}), 400
+    data = load_data()
+    user = next((u for u in data.get("users", []) if u.get("reset_token") == token), None)
+    if not user:
+        return jsonify({"ok": False, "error": "Lien invalide ou déjà utilisé."}), 400
+    expires_at = user.get("reset_token_expires_at")
+    try:
+        valid = bool(expires_at) and datetime.fromisoformat(expires_at) > datetime.now(timezone.utc)
+    except ValueError:
+        valid = False
+    if not valid:
+        return jsonify({"ok": False, "error": "Ce lien a expiré, refais une demande."}), 400
+    user["password_hash"] = generate_password_hash(password)
+    user.pop("reset_token", None)
+    user.pop("reset_token_expires_at", None)
+    save_data(data)
+    return jsonify({"ok": True})
+
+@app.route("/auth/google/start")
+def auth_google_start():
+    if not google_oauth.configured():
+        return "Connexion Google pas encore configurée.", 503
+    intent = request.args.get("intent") if request.args.get("intent") in ("login", "register") else "login"
+    session["google_oauth_intent"] = intent
+    session["google_oauth_code"] = (request.args.get("code") or "").strip().upper()
+    state = secrets.token_urlsafe(16)
+    session["google_oauth_state"] = state
+    return redirect(google_oauth.build_authorize_url(PUBLIC_BASE_URL, state))
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    if not google_oauth.configured():
+        return "Connexion Google pas encore configurée.", 503
+    state = request.args.get("state")
+    if not state or state != session.get("google_oauth_state"):
+        return redirect("/client?google_error=" + urllib.parse.quote("Session expirée, réessaie."))
+    intent = session.pop("google_oauth_intent", "login")
+    reg_code = session.pop("google_oauth_code", "")
+    session.pop("google_oauth_state", None)
+    code = request.args.get("code")
+    if not code:
+        return redirect("/client?google_error=" + urllib.parse.quote("Connexion Google annulée."))
+    info = google_oauth.exchange_code_for_userinfo(PUBLIC_BASE_URL, code)
+    if not info or not info.get("email_verified"):
+        return redirect("/client?google_error=" + urllib.parse.quote("Impossible de vérifier ton compte Google."))
+    email = info["email"]
+    data = load_data()
+    user = next((u for u in data.get("users", []) if (u.get("email") or "").lower() == email), None)
+    if intent == "login":
+        if not user:
+            return redirect("/client?google_error=" + urllib.parse.quote("Aucun compte avec cet email — inscris-toi d'abord."))
+        if not user.get("active", True):
+            return redirect("/client?google_error=" + urllib.parse.quote("Compte désactivé."))
+        session["client_user_id"] = user["id"]
+        return redirect("/client")
+    # intent == "register"
+    if user:
+        return redirect("/client?google_error=" + urllib.parse.quote("Un compte existe déjà avec cet email — connecte-toi plutôt."))
+    reg = next((c for c in data.get("registration_codes", []) if c.get("code") == reg_code), None)
+    if not reg or reg.get("used"):
+        return redirect("/client?google_error=" + urllib.parse.quote("Code d'inscription invalide ou déjà utilisé."))
+    student_index = reg.get("student_index")
+    name = info.get("name") or email.split("@")[0]
+    if not isinstance(student_index, int) or student_index < 0 or student_index >= len(data.get("students", [])):
+        data.setdefault("students", []).append({
+            "name": name, "email": email, "created_from_client": True,
+            "client_games": [], "client_notes": [], "client_appointments": [],
+        })
+        student_index = len(data["students"]) - 1
+    else:
+        data["students"][student_index]["email"] = data["students"][student_index].get("email") or email
+        data["students"][student_index]["name"] = data["students"][student_index].get("name") or name
+    new_user = {
+        "id": str(uuid.uuid4()), "name": name, "email": email,
+        "password_hash": "",  # compte Google uniquement — connexion par mot de passe désactivée tant qu'aucun n'est défini via "mot de passe oublié"
+        "oauth_provider": "google",
+        "student_index": student_index, "created_at": now_iso(), "active": True, "role": "student",
+        "plan": reg.get("plan", "session_60"),
+        "payment_status": "free" if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else "pending",
+        "amount_due": "0 FCFA" if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else (reg.get("amount_due") or default_amount_for_plan(reg.get("plan", "session_60"))),
+        "app_access_status": "offered" if reg.get("free_access") else ("paid" if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else "pending"),
+        "registration_kind": "offered" if reg.get("free_access") else "paid",
+        "registration_validated_at": reg.get("created_at") if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else "",
+        "payment_reminders": 0, "access_restricted": False,
+        "active_plan": {
+            "plan_key": reg.get("plan", "session_60"), "used_sessions": 0,
+            "total_sessions": 0 if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else plan_session_total(find_client_plan(data, reg.get("plan", "session_60"))),
+            "status": "inactive" if reg.get("kind") == "app_access" or reg.get("plan") == "no_plan" else "pending",
+            "started_at": "",
+        },
+        "plan_history": [],
+    }
+    data.setdefault("users", []).append(new_user)
+    reg["used"] = True
+    reg["used_by"] = new_user["id"]
+    reg["used_at"] = now_iso()
+    add_client_notification(data, "Nouveau compte élève", f"{name} a créé son compte avec Google (code {reg_code}).", "account", new_user["id"], student_index)
+    save_data(data)
+    session["client_user_id"] = new_user["id"]
+    return redirect("/client")
+
 @app.route("/api/client/game", methods=["POST"])
 def api_client_game():
     data, user, resp, code = require_client_json()
@@ -6106,6 +6261,115 @@ def api_admin_finance_delete_transaction(transaction_id):
     except finance_service.TableNotReady:
         return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
     return jsonify({"ok": True})
+
+
+def _gs_status_for(data, student_index, user_id):
+    """Earned/converted/available Gs for one student — earned is always
+    computable (derived from puzzle attempts), converted/available need
+    the finance ledger, so this degrades to earned-only + a flag when that
+    table isn't ready yet rather than failing the whole payload."""
+    earned = puzzle_service.gs_earned_total(user_id) if puzzle_service.backend_ready() else 0
+    settings = get_gs_settings(data)
+    out = {"gs_earned": earned, "ledger_ready": False, "gs_converted": 0, "gs_converted_this_month": 0, "gs_available": earned}
+    if finance_service.backend_ready():
+        try:
+            converted = finance_service.gs_converted_total(student_index)
+            converted_month = finance_service.gs_converted_this_month(student_index)
+            out.update({
+                "ledger_ready": True, "gs_converted": converted, "gs_converted_this_month": converted_month,
+                "gs_available": max(0, earned - converted),
+                "gs_available_this_month": max(0, settings["monthly_cap_gs"] - converted_month),
+            })
+        except finance_service.TableNotReady:
+            pass
+    return out
+
+@app.route("/api/admin/gs/settings", methods=["GET", "POST"])
+def api_admin_gs_settings():
+    data = load_data()
+    if request.method == "POST":
+        body = request.get_json(force=True, silent=True) or {}
+        try:
+            rate = float(body.get("rate_fcfa_per_gs"))
+            cap = int(body.get("monthly_cap_gs"))
+            if rate <= 0 or cap <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Taux ou plafond invalide."}), 400
+        data["gs_settings"] = {"rate_fcfa_per_gs": rate, "monthly_cap_gs": cap}
+        save_data(data)
+    return jsonify({"ok": True, "settings": get_gs_settings(data)})
+
+@app.route("/api/admin/gs/students")
+def api_admin_gs_students():
+    data = load_data()
+    out = []
+    for user in data.get("users", []):
+        idx = user.get("student_index")
+        if not isinstance(idx, int) or idx >= len(data.get("students", [])):
+            continue
+        status = _gs_status_for(data, idx, user["id"])
+        if status["gs_earned"] <= 0:
+            continue
+        out.append({
+            "student_index": idx, "user_id": user["id"],
+            "name": data["students"][idx].get("name") or user.get("name"),
+            **status,
+        })
+    out.sort(key=lambda r: -r["gs_earned"])
+    return jsonify({"ok": True, "settings": get_gs_settings(data), "students": out})
+
+@app.route("/api/admin/gs/convert", methods=["POST"])
+def api_admin_gs_convert():
+    if not finance_service.backend_ready():
+        return jsonify({"ok": False, "error": "Registre financier non connecté (Supabase requis)."}), 400
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        student_index = int(body.get("student_index"))
+        gs_amount = int(body.get("gs_amount"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Élève ou montant invalide."}), 400
+    if gs_amount <= 0:
+        return jsonify({"ok": False, "error": "Le montant doit être positif."}), 400
+    data = load_data()
+    if student_index < 0 or student_index >= len(data.get("students", [])):
+        return jsonify({"ok": False, "error": "Élève introuvable."}), 404
+    user = next((u for u in data.get("users", []) if u.get("student_index") == student_index), None)
+    if not user:
+        return jsonify({"ok": False, "error": "Compte élève introuvable."}), 404
+    try:
+        status = _gs_status_for(data, student_index, user["id"])
+    except Exception:
+        return jsonify({"ok": False, "error": "Impossible de vérifier le solde Gs."}), 500
+    if not status["ledger_ready"]:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    if gs_amount > status["gs_available"]:
+        return jsonify({"ok": False, "error": f"Solde insuffisant ({status['gs_available']} Gs disponibles)."}), 400
+    if gs_amount > status["gs_available_this_month"]:
+        return jsonify({"ok": False, "error": f"Plafond mensuel dépassé ({status['gs_available_this_month']} Gs restants ce mois-ci)."}), 400
+    settings = get_gs_settings(data)
+    fcfa_amount = round(gs_amount * settings["rate_fcfa_per_gs"])
+    if fcfa_amount <= 0:
+        return jsonify({"ok": False, "error": "Montant FCFA calculé nul — vérifie le taux de conversion."}), 400
+    student_name = data["students"][student_index].get("name") or ""
+    try:
+        entry = finance_service.add_gs_payout(student_index, gs_amount, fcfa_amount, student_name)
+    except finance_service.TableNotReady:
+        return jsonify({"ok": False, "error": FINANCE_NOT_READY_MSG}), 503
+    add_client_notification(data, "Gs convertis", f"{gs_amount} Gs convertis en {fcfa_amount} FCFA par ton coach.", "gs_payout", user["id"], student_index)
+    save_data(data)
+    return jsonify({"ok": True, "transaction": entry, "fcfa_amount": fcfa_amount})
+
+@app.route("/api/client/gs/balance")
+def api_client_gs_balance():
+    data, user, resp, code = require_client_json()
+    if resp: return resp, code
+    idx = user.get("student_index")
+    if not isinstance(idx, int):
+        return jsonify({"ok": False, "error": "Profil introuvable."}), 400
+    status = _gs_status_for(data, idx, user["id"])
+    settings = get_gs_settings(data)
+    return jsonify({"ok": True, **status, "rate_fcfa_per_gs": settings["rate_fcfa_per_gs"]})
 
 
 @app.route("/api/admin/backup/export")

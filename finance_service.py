@@ -17,6 +17,7 @@ should check backend_ready() first.
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from postgrest.exceptions import APIError
@@ -38,6 +39,7 @@ CATEGORIES = (
     "tournament_prize_payout",
     "tournament_entry_income",
     "coach_payment",
+    "gs_payout",
     "other",
 )
 CATEGORY_LABELS = {
@@ -46,6 +48,7 @@ CATEGORY_LABELS = {
     "tournament_prize_payout": "Gains versés (tournoi)",
     "tournament_entry_income": "Droits d'entrée (tournoi)",
     "coach_payment": "Rémunération coach",
+    "gs_payout": "Conversion Gs → FCFA",
     "other": "Autre",
     # Catégories virtuelles, lecture seule (déjà suivies ailleurs dans
     # ghost_app_state) : jamais fusionnées silencieusement dans une seule
@@ -133,6 +136,49 @@ def remove_transaction(transaction_id: str) -> bool:
             raise TableNotReady() from e
         raise
     return True
+
+
+_GS_NOTE_RE = re.compile(r"^GS_CONVERT:(\d+)\b")
+
+
+def add_gs_payout(student_index: int, gs_amount: int, fcfa_amount: int, student_name: str = "") -> dict:
+    """Records a Gs→FCFA conversion as a normal expense transaction — no
+    schema change needed: the Gs count is encoded as a parseable prefix in
+    `note` (GS_CONVERT:<n>) so gs_converted_total() can add it back up,
+    while the human-readable text after it still shows in the ledger."""
+    note = f"GS_CONVERT:{gs_amount} — {gs_amount} Gs convertis" + (f" pour {student_name}" if student_name else "")
+    return add_transaction("expense", "gs_payout", fcfa_amount, occurred_on="", note=note, student_index=student_index)
+
+
+def gs_converted_total(student_index: int) -> int:
+    """Sum of Gs already converted to FCFA for this student, all-time —
+    the coach's conversion cap logic subtracts this from gs earned so a
+    Ghost can't re-convert the same Gs twice."""
+    rows = list_transactions(category="gs_payout", limit=100000)
+    total = 0
+    for r in rows:
+        if r.get("student_index") != student_index:
+            continue
+        m = _GS_NOTE_RE.match(r.get("note") or "")
+        if m:
+            total += int(m.group(1))
+    return total
+
+
+def gs_converted_this_month(student_index: int) -> int:
+    from datetime import date
+    ym = date.today().strftime("%Y-%m")
+    rows = list_transactions(category="gs_payout", limit=100000)
+    total = 0
+    for r in rows:
+        if r.get("student_index") != student_index:
+            continue
+        if not (r.get("occurred_on") or "").startswith(ym):
+            continue
+        m = _GS_NOTE_RE.match(r.get("note") or "")
+        if m:
+            total += int(m.group(1))
+    return total
 
 
 def build_summary(payments_log: list[dict], students: list[dict]) -> dict:
